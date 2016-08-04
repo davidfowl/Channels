@@ -30,7 +30,7 @@ namespace Channels
 
             channel.OnStartReading(() =>
             {
-                channel.CopyFrom(stream).ContinueWith((task, state) =>
+                stream.CopyToAsync(channel).ContinueWith((task, state) =>
                 {
                     ((Stream)state).Dispose();
                 },
@@ -49,7 +49,7 @@ namespace Channels
 
             var channel = new MemoryPoolChannel(_pool);
 
-            channel.CopyTo(stream).ContinueWith((task, state) =>
+            channel.CopyToAsync(stream).ContinueWith((task, state) =>
             {
                 ((Stream)state).Dispose();
             },

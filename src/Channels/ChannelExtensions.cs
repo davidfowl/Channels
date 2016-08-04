@@ -20,36 +20,6 @@ namespace Channels
         {
             return channel.WriteAsync(buffer.Array, buffer.Offset, buffer.Count);
         }
-
-        public static async Task CopyFrom(this IWritableChannel channel, Stream stream)
-        {
-            while (true)
-            {
-                var end = channel.BeginWrite();
-                var block = end.Block;
-
-                try
-                {
-                    int bytesRead = await stream.ReadAsync(block.Array, block.End, block.Data.Offset + block.Data.Count - block.End);
-
-                    if (bytesRead == 0)
-                    {
-                        channel.CompleteWriting();
-                        break;
-                    }
-                    else
-                    {
-                        end.UpdateEnd(bytesRead);
-                        await channel.EndWriteAsync(end);
-                    }
-                }
-                catch (Exception error)
-                {
-                    channel.CompleteWriting(error);
-                    break;
-                }
-            }
-        }
     }
 
     public static class ReadableChannelExtensions
@@ -83,7 +53,7 @@ namespace Channels
             return new ValueTask<int>(input.ReadAsyncAwaited(buffer, offset, count));
         }
 
-        public static async Task CopyTo(this IReadableChannel input, Stream stream)
+        public static async Task CopyToAsync(this IReadableChannel input, Stream stream)
         {
             while (true)
             {

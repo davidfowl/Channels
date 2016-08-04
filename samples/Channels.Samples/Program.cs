@@ -54,6 +54,8 @@ namespace Channels.Samples
                     channel.EndRead(iter);
                 }
             }
+
+            channel.CompleteReading();
         }
     }
 }
