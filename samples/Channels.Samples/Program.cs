@@ -8,55 +8,6 @@ using System.Threading.Tasks;
 
 namespace Channels.Samples
 {
-    public class UpperCaseChannel : ReadableChannel
-    {
-        public UpperCaseChannel(IReadableChannel inner, MemoryPool pool) : base(pool)
-        {
-            Process(inner);
-        }
-
-        private async void Process(IReadableChannel inner)
-        {
-            while (true)
-            {
-                await inner;
-
-                var fin = inner.Completion.IsCompleted;
-
-                var span = inner.BeginRead();
-
-                if (span.Begin.IsEnd && fin)
-                {
-                    break;
-                }
-
-                // PERF: This might copy
-                var data = span.Begin.GetArraySegment(span.End);
-                var wi = _channel.BeginWrite();
-                for (int i = 0; i < data.Count; i++)
-                {
-                    byte b = data.Array[data.Offset + i];
-                    if (b >= 'a' && b <= 'z')
-                    {
-                        wi.Write((byte)(b & 0xdf));
-                    }
-                    else
-                    {
-                        wi.Write(b);
-                    }
-                }
-
-                await _channel.EndWriteAsync(wi);
-
-                inner.EndRead(span.End);
-            }
-
-            inner.CompleteReading();
-
-            _channel.CompleteWriting();
-        }
-    }
-
     public class Program
     {
         public static void Main(string[] args)
@@ -112,6 +63,55 @@ namespace Channels.Samples
             }
 
             channel.CompleteReading();
+        }
+    }
+
+    public class UpperCaseChannel : ReadableChannel
+    {
+        public UpperCaseChannel(IReadableChannel inner, MemoryPool pool) : base(pool)
+        {
+            Process(inner);
+        }
+
+        private async void Process(IReadableChannel inner)
+        {
+            while (true)
+            {
+                await inner;
+
+                var fin = inner.Completion.IsCompleted;
+
+                var span = inner.BeginRead();
+
+                if (span.Begin.IsEnd && fin)
+                {
+                    break;
+                }
+
+                // PERF: This might copy
+                var data = span.Begin.GetArraySegment(span.End);
+                var wi = _channel.BeginWrite();
+                for (int i = 0; i < data.Count; i++)
+                {
+                    byte b = data.Array[data.Offset + i];
+                    if (b >= 'a' && b <= 'z')
+                    {
+                        wi.Write((byte)(b & 0xdf));
+                    }
+                    else
+                    {
+                        wi.Write(b);
+                    }
+                }
+
+                await _channel.EndWriteAsync(wi);
+
+                inner.EndRead(span.End);
+            }
+
+            inner.CompleteReading();
+
+            _channel.CompleteWriting();
         }
     }
 }
