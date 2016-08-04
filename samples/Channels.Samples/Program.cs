@@ -12,19 +12,18 @@ namespace Channels.Samples
     {
         public static void Main(string[] args)
         {
-            var fs = File.OpenRead("Program.cs");
-
             var pool = new MemoryPool();
             var channelFactory = new ChannelFactory(pool);
             var channel = channelFactory.CreateChannel();
 
-            var iter = channel.BeginWrite();
-            iter.CopyFromAscii("Hello World\r\n");
-            channel.EndWriteAsync(iter);
-            channel.CompleteWriting();
+            // Write data to the channel
+            var data = Encoding.UTF8.GetBytes("Hello World\r\n");
+            channel.WriteAsync(data, 0, data.Length);
 
+            // Wrap it in another channel
             var other = new UpperCaseChannel(channel, pool);
 
+            // Consume the data
             ReadLines(other).GetAwaiter().GetResult();
         }
 
@@ -40,6 +39,7 @@ namespace Channels.Samples
                 var iter = channel.BeginRead().Begin;
                 var start = iter;
 
+                // If we're at the end of the channel then stop
                 if (iter.IsEnd && channel.Completion.IsCompleted)
                 {
                     break;
@@ -49,7 +49,9 @@ namespace Channels.Samples
                 {
                     while (iter.Seek(ref newLine) != -1)
                     {
+                        // Get the daata from the start to where we found the \n
                         var line = start.GetArraySegment(iter);
+
                         Console.WriteLine(Encoding.UTF8.GetString(line.Array, line.Offset, line.Count));
                         // Skip /n
                         iter.Skip(1);
@@ -62,6 +64,7 @@ namespace Channels.Samples
                 }
             }
 
+            // Tell te channel we're done consuming
             channel.CompleteReading();
         }
     }
@@ -79,32 +82,32 @@ namespace Channels.Samples
             {
                 await inner;
 
-                var fin = inner.Completion.IsCompleted;
-
                 var span = inner.BeginRead();
 
-                if (span.Begin.IsEnd && fin)
+                if (span.Begin.IsEnd && inner.Completion.IsCompleted)
                 {
                     break;
                 }
 
                 // PERF: This might copy
                 var data = span.Begin.GetArraySegment(span.End);
-                var wi = _channel.BeginWrite();
+                var iter = _channel.BeginWrite();
                 for (int i = 0; i < data.Count; i++)
                 {
                     byte b = data.Array[data.Offset + i];
                     if (b >= 'a' && b <= 'z')
                     {
-                        wi.Write((byte)(b & 0xdf));
+                        // To upper
+                        iter.Write((byte)(b & 0xdf));
                     }
                     else
                     {
-                        wi.Write(b);
+                        // Leave it alone
+                        iter.Write(b);
                     }
                 }
 
-                await _channel.EndWriteAsync(wi);
+                await _channel.EndWriteAsync(iter);
 
                 inner.EndRead(span.End);
             }
