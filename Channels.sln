@@ -1,0 +1,41 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 14
+VisualStudioVersion = 14.0.25420.1
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{7FA56B23-A28C-49A2-AB04-23BD0F485DA6}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{51164FA9-5214-4542-9C74-02D57E956F97}"
+	ProjectSection(SolutionItems) = preProject
+		global.json = global.json
+	EndProjectSection
+EndProject
+Project("{8BB2217D-0F2D-49D1-97BC-3654ED321F3B}") = "Channels", "src\Channels\Channels.xproj", "{D6B28FC7-8D6D-4E9E-962F-9505D7C0E958}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "samples", "samples", "{5C457C3C-ED7C-4B4E-9E02-0655F8CE6EFE}"
+EndProject
+Project("{8BB2217D-0F2D-49D1-97BC-3654ED321F3B}") = "Channels.Samples", "samples\Channels.Samples\Channels.Samples.xproj", "{3DCB0F92-51AE-493E-A1B6-5B42449EA2BD}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{D6B28FC7-8D6D-4E9E-962F-9505D7C0E958}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D6B28FC7-8D6D-4E9E-962F-9505D7C0E958}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D6B28FC7-8D6D-4E9E-962F-9505D7C0E958}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D6B28FC7-8D6D-4E9E-962F-9505D7C0E958}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3DCB0F92-51AE-493E-A1B6-5B42449EA2BD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3DCB0F92-51AE-493E-A1B6-5B42449EA2BD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3DCB0F92-51AE-493E-A1B6-5B42449EA2BD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3DCB0F92-51AE-493E-A1B6-5B42449EA2BD}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{D6B28FC7-8D6D-4E9E-962F-9505D7C0E958} = {7FA56B23-A28C-49A2-AB04-23BD0F485DA6}
+		{3DCB0F92-51AE-493E-A1B6-5B42449EA2BD} = {5C457C3C-ED7C-4B4E-9E02-0655F8CE6EFE}
+	EndGlobalSection
+EndGlobal
