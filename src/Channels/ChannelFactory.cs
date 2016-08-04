@@ -19,6 +19,8 @@ namespace Channels
             _pool = pool;
         }
 
+        public MemoryPoolChannel CreateChannel() => new MemoryPoolChannel(_pool);
+
         public IReadableChannel CreateReadableChannel(Stream stream)
         {
             if (!stream.CanRead)

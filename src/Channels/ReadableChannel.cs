@@ -7,7 +7,7 @@ namespace Channels
 {
     public abstract class ReadableChannel : IReadableChannel
     {
-        private MemoryPoolChannel _channel;
+        protected MemoryPoolChannel _channel;
 
         public ReadableChannel(MemoryPool pool)
         {

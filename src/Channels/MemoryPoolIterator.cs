@@ -597,6 +597,43 @@ namespace Channels
             throw new InvalidOperationException();
         }
 
+        public void Write(byte data)
+        {
+            if (IsDefault)
+            {
+                return;
+            }
+
+            Debug.Assert(_block != null);
+            Debug.Assert(_block.Next == null);
+            Debug.Assert(_block.End == _index);
+
+            var pool = _block.Pool;
+            var block = _block;
+            var blockIndex = _index;
+
+            var bytesLeftInBlock = block.Data.Offset + block.Data.Count - blockIndex;
+
+            if (bytesLeftInBlock == 0)
+            {
+                var nextBlock = pool.Lease();
+                block.End = blockIndex;
+                Volatile.Write(ref block.Next, nextBlock);
+                block = nextBlock;
+
+                blockIndex = block.Data.Offset;
+                bytesLeftInBlock = block.Data.Count;
+            }
+
+            block.Array[blockIndex] = data;
+
+            blockIndex++;
+
+            block.End = blockIndex;
+            _block = block;
+            _index = blockIndex;
+        }
+
         /// <summary>
         /// Save the data at the current location then move to the next available space.
         /// </summary>
