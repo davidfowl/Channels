@@ -9,4 +9,8 @@ This is a new API that aims to replace `Stream`. `Stream` is a solid abstraction
 - It's hard to guarantee that `Stream` implementations don't buffer internally resulting in multiple copies.
 
 
-Channels invert the polarity of streams by flowing buffers up to user code. The user never allocates a buffer. All memory allocations are handled by the channel implementation and the default impl uses a efficient memory pool. The idea is that the channel implementation can do the least amount of work to get data from a source and flow it to the caller.
+Channels invert the polarity of streams by flowing buffers up to user code. The user never allocates a buffer. All memory allocations are handled by the channel implementation itself. The idea is that the channel implementation can do the least amount of work to get data from a source and flow it to the caller so there's never a copy. 
+
+See the sample for an example of the APIs:
+
+https://github.com/davidfowl/Channels/blob/master/samples/Channels.Samples/Program.cs
