@@ -3,7 +3,6 @@ using System.Threading.Tasks;
 
 namespace Channels
 {
-    // TODO: Make this usable without the awaitable, split that into a struct
     public interface IReadableChannel : ICriticalNotifyCompletion
     {
         // Make it awaitable
