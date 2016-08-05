@@ -29,7 +29,8 @@ namespace Channels
         private object _sync = new object();
         private readonly TaskCompletionSource<object> _tcs = new TaskCompletionSource<object>();
 
-        private Action _callback;
+        private Action _startReadingCallback;
+        private Action _disposeCallback;
 
         public MemoryPoolChannel(MemoryPool memory)
         {
@@ -39,7 +40,12 @@ namespace Channels
         
         public void OnStartReading(Action callback)
         {
-            _callback = callback;
+            _startReadingCallback = callback;
+        }
+
+        public void OnDispose(Action disposeCallback)
+        {
+            _disposeCallback = disposeCallback;
         }
 
         public Task Completion => _tcs.Task;
@@ -225,7 +231,7 @@ namespace Channels
 
         public void OnCompleted(Action continuation)
         {
-            Interlocked.Exchange(ref _callback, null)?.Invoke();
+            Interlocked.Exchange(ref _startReadingCallback, null)?.Invoke();
 
             var awaitableState = Interlocked.CompareExchange(
                 ref _awaitableState,
@@ -294,6 +300,8 @@ namespace Channels
 
                 _head = null;
                 _tail = null;
+
+                Interlocked.Exchange(ref _disposeCallback, null)?.Invoke();
             }
         }
     }
