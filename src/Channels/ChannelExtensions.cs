@@ -79,6 +79,34 @@ namespace Channels
             }
         }
 
+        public static async Task CopyToAsync(this IReadableChannel input, IWritableChannel channel)
+        {
+            // REVIEW: If the blocks returned are from the same pool can do do something crazy like
+            // transfer blocks directly to the writable channel
+            while (true)
+            {
+                await input;
+
+                var fin = input.Completion.IsCompleted;
+
+                var span = input.BeginRead();
+
+                if (span.Begin.IsEnd && fin)
+                {
+                    return;
+                }
+
+                try
+                {
+                    await span.Begin.CopyToAsync(channel, span.End.Block);
+                }
+                finally
+                {
+                    input.EndRead(span.End);
+                }
+            }
+        }
+
         private static async Task<int> ReadAsyncAwaited(this IReadableChannel input, byte[] buffer, int offset, int count)
         {
             while (true)

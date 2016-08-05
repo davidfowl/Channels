@@ -735,6 +735,38 @@ namespace Channels
             }
         }
 
+        public async Task CopyToAsync(IWritableChannel channel, MemoryPoolBlock end)
+        {
+            if (IsDefault)
+            {
+                return;
+            }
+
+            var block = _block;
+            var index = _index;
+
+            while (true)
+            {
+                // Determine if we might attempt to copy data from block.Next before
+                // calculating "following" so we don't risk skipping data that could
+                // be added after block.End when we decide to copy from block.Next.
+                // block.End will always be advanced before block.Next is set.
+                var wasLastBlock = block.Next == null || block == end;
+                var following = block.End - index;
+                if (wasLastBlock)
+                {
+                    await channel.WriteAsync(block.Array, index, following);
+                    break;
+                }
+                else
+                {
+                    await channel.WriteAsync(block.Array, index, following);
+                    block = block.Next;
+                    index = block.Start;
+                }
+            }
+        }
+
         public MemoryPoolIterator CopyTo(byte[] array, int offset, int count, out int actual)
         {
             if (IsDefault)
