@@ -13,7 +13,7 @@ namespace Channels
     {
         private static readonly Encoding _utf8 = Encoding.UTF8;
 
-        public static async Task CopyToAsync(this MemoryPoolIterator start, Stream stream, MemoryPoolBlock end)
+        public static async Task CopyToAsync(this MemoryPoolIterator start, Stream stream, MemoryPoolIterator end)
         {
             if (start.IsDefault)
             {
@@ -29,7 +29,7 @@ namespace Channels
                 // calculating "following" so we don't risk skipping data that could
                 // be added after block.End when we decide to copy from block.Next.
                 // block.End will always be advanced before block.Next is set.
-                var wasLastBlock = block.Next == null || block == end;
+                var wasLastBlock = block.Next == null || block == end.Block;
                 var following = block.End - index;
                 if (wasLastBlock)
                 {

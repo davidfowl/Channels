@@ -70,7 +70,7 @@ namespace Channels
 
                 try
                 {
-                    await span.Begin.CopyToAsync(stream, span.End.Block);
+                    await span.Begin.CopyToAsync(stream, span.End);
                 }
                 finally
                 {
@@ -98,7 +98,7 @@ namespace Channels
 
                 try
                 {
-                    await span.Begin.CopyToAsync(channel, span.End.Block);
+                    await span.Begin.CopyToAsync(channel, span.End);
                 }
                 finally
                 {

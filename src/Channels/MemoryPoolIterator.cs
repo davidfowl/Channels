@@ -748,7 +748,7 @@ namespace Channels
             }
         }
 
-        public async Task CopyToAsync(Stream stream, MemoryPoolBlock end)
+        public async Task CopyToAsync(Stream stream, MemoryPoolIterator end)
         {
             if (IsDefault)
             {
@@ -764,7 +764,7 @@ namespace Channels
                 // calculating "following" so we don't risk skipping data that could
                 // be added after block.End when we decide to copy from block.Next.
                 // block.End will always be advanced before block.Next is set.
-                var wasLastBlock = block.Next == null || block == end;
+                var wasLastBlock = block.Next == null || block == end.Block;
                 var following = block.End - index;
                 if (wasLastBlock)
                 {
@@ -780,7 +780,7 @@ namespace Channels
             }
         }
 
-        public async Task CopyToAsync(IWritableChannel channel, MemoryPoolBlock end)
+        public async Task CopyToAsync(IWritableChannel channel, MemoryPoolIterator end)
         {
             if (IsDefault)
             {
@@ -796,7 +796,7 @@ namespace Channels
                 // calculating "following" so we don't risk skipping data that could
                 // be added after block.End when we decide to copy from block.Next.
                 // block.End will always be advanced before block.Next is set.
-                var wasLastBlock = block.Next == null || block == end;
+                var wasLastBlock = block.Next == null || block == end.Block;
                 var following = block.End - index;
                 if (wasLastBlock)
                 {
