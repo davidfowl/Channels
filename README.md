@@ -2,7 +2,7 @@
 
 ## Disclaimer
 
-This is still very much a work in progress. The APIs are not baked and are going through serious chrun.
+This is still very much a work in progress. The APIs are not baked and are going through serious churn.
 
 This is a new API that aims to replace `Stream`. `Stream` is a solid abstraction but it has some downsides:
 - It always produces/consumes data into provided buffers. This has some interesting side effects:
