@@ -36,35 +36,35 @@ namespace Channels.Samples
             {
                 await channel;
 
-                var iter = channel.BeginRead().Begin;
-                var start = iter;
+                var end = channel.BeginRead().Begin;
+                var start = end;
 
                 // If we're at the end of the channel then stop
-                if (iter.IsEnd && channel.Completion.IsCompleted)
+                if (end.IsEnd && channel.Completion.IsCompleted)
                 {
                     break;
                 }
 
                 try
                 {
-                    while (iter.Seek(ref newLine) != -1)
+                    while (end.Seek(ref newLine) != -1)
                     {
-                        // Get the daata from the start to where we found the \n
-                        var line = start.GetArraySegment(iter);
+                        // Get the data from the start to where we found the \n
+                        var line = start.GetArraySegment(end);
 
                         Console.WriteLine(Encoding.UTF8.GetString(line.Array, line.Offset, line.Count));
                         // Skip /n
-                        iter.Skip(1);
-                        start = iter;
+                        end.Skip(1);
+                        start = end;
                     }
                 }
                 finally
                 {
-                    channel.EndRead(iter);
+                    channel.EndRead(end);
                 }
             }
 
-            // Tell te channel we're done consuming
+            // Tell the channel we're done reading
             channel.CompleteReading();
         }
     }

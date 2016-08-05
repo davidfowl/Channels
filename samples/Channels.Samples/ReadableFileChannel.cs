@@ -99,7 +99,7 @@ namespace Channels.Samples
             }
         }
 
-        [DllImport(@"kernel32.dll", SetLastError = true)]
+        [DllImport("kernel32.dll", SetLastError = true)]
         static extern unsafe int ReadFile(
             SafeFileHandle hFile,      // handle to file
             IntPtr pBuffer,        // data buffer, should be fixed
