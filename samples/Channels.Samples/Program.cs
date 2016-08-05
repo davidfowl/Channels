@@ -10,25 +10,27 @@ namespace Channels.Samples
     {
         public static void Main(string[] args)
         {
-            var pool = new MemoryPool();
-            var file = Path.GetFullPath("Program.cs");
+            using (var pool = new MemoryPool())
+            {
+                var filePath = Path.GetFullPath("Program.cs");
 
-            var input = new ReadableFileChannel(pool);
-            input.OpenReadFile(file);
+                // Open the file 
+                var input = new ReadableFileChannel(pool);
+                input.OpenReadFile(filePath);
 
-            // Write data to the channel
-            //var data = Encoding.UTF8.GetBytes("Hello World\r\n");
-            //channel.WriteAsync(data, 0, data.Length);
+                var channelFactory = new ChannelFactory(pool);
+                // Wrap the console in a writable channel
+                var output = channelFactory.CreateWritableChannel(Console.OpenStandardOutput());
 
-            // Wrap it in another channel
-            // var other = new UpperCaseChannel(channel, pool);
+                // Copy from the file channel to the console channel
+                input.CopyToAsync(output).GetAwaiter().GetResult();
 
-            var channelFactory = new ChannelFactory(pool);
-            // Wrap the console in a writable channel
-            var output = channelFactory.CreateWritableChannel(Console.OpenStandardOutput());
+                input.CompleteReading();
 
-            // Copy from the file channel to the console channel
-            input.CopyToAsync(output).GetAwaiter().GetResult();
+                output.CompleteWriting();
+
+                Console.ReadLine();
+            }
         }
     }
 }
