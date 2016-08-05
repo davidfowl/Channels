@@ -32,12 +32,14 @@ namespace Channels
 
             channel.OnStartReading(() =>
             {
-                stream.CopyToAsync(channel).ContinueWith((task, state) =>
+                stream.CopyToAsync(channel).ContinueWith(task =>
                 {
-                    ((Stream)state).Dispose();
-                },
-                stream);
+                });
             });
+
+            // REVIEW: It's not usually ok to dispose the stream if it's passed in but the consumer
+            // doesn't know when it's going to be done
+            channel.OnDispose(stream.Dispose);
 
             return channel;
         }
@@ -51,11 +53,13 @@ namespace Channels
 
             var channel = new MemoryPoolChannel(_pool);
 
-            channel.CopyToAsync(stream).ContinueWith((task, state) =>
+            channel.CopyToAsync(stream).ContinueWith((task) =>
             {
-                ((Stream)state).Dispose();
-            },
-            stream);
+            });
+
+            // REVIEW: It's not usually ok to dispose the stream if it's passed in but the consumer
+            // doesn't know when it's going to be done
+            channel.OnDispose(stream.Dispose);
 
             return channel;
         }
