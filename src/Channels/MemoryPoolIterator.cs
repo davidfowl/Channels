@@ -146,6 +146,51 @@ namespace Channels
             }
         }
 
+        public int Seek(int bytes)
+        {
+            if (_block == null || IsEnd)
+            {
+                return 0;
+            }
+
+            var wasLastBlock = _block.Next == null;
+            var following = _block.End - _index;
+
+            if (following >= bytes)
+            {
+                _index += bytes;
+                return bytes;
+            }
+
+            var block = _block;
+            var index = _index;
+            while (true)
+            {
+                if (wasLastBlock)
+                {
+                    _block = block;
+                    _index = index + following;
+                    return following;
+                }
+                else
+                {
+                    bytes -= following;
+                    block = block.Next;
+                    index = block.Start;
+                }
+
+                wasLastBlock = block.Next == null;
+                following = block.End - index;
+
+                if (following >= bytes)
+                {
+                    _block = block;
+                    _index = index + bytes;
+                    return bytes;
+                }
+            }
+        }
+
         public int Peek()
         {
             var block = _block;
