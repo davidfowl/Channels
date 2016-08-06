@@ -24,18 +24,23 @@ namespace Channels.Samples
             {
                 Channel = _channel,
                 FileHandle = fileHandle,
-                Handle = handle,
+                ThreadPoolBoundHandle = handle,
                 IOCallback = IOCallback
             };
 
+            var overlapped = new PreAllocatedOverlapped(IOCallback, readOperation, null);
+            readOperation.PreAllocatedOverlapped = overlapped;
+
             _channel.OnStartReading(readOperation.Read);
-            _channel.OnDispose(fileHandle.Dispose);
+            _channel.OnDispose(readOperation.Dispose);
         }
 
         public unsafe static void IOCallback(uint errorCode, uint numBytes, NativeOverlapped* pOverlapped)
         {
             var state = ThreadPoolBoundHandle.GetNativeOverlappedState(pOverlapped);
             var operation = (ReadOperation)state;
+
+            operation.ThreadPoolBoundHandle.FreeNativeOverlapped(operation.Overlapped);
 
             operation.Offset += (int)numBytes;
 
@@ -68,7 +73,11 @@ namespace Channels.Samples
             public IOCompletionCallback IOCallback { get; set; }
             public SafeFileHandle FileHandle { get; set; }
 
-            public ThreadPoolBoundHandle Handle { get; set; }
+            public PreAllocatedOverlapped PreAllocatedOverlapped { get; set; }
+
+            public ThreadPoolBoundHandle ThreadPoolBoundHandle { get; set; }
+
+            public unsafe NativeOverlapped* Overlapped { get; set; }
 
             public MemoryPoolChannel Channel { get; set; }
 
@@ -83,8 +92,10 @@ namespace Channels.Samples
                 var data = iterator.Block.DataArrayPtr + iterator.Block.End;
                 var count = iterator.Block.Data.Offset + iterator.Block.Data.Count - iterator.Block.End;
 
-                var overlapped = Handle.AllocateNativeOverlapped(IOCallback, this, iterator.Block.DataArrayPtr);
+                var overlapped = ThreadPoolBoundHandle.AllocateNativeOverlapped(PreAllocatedOverlapped);
                 overlapped->OffsetLow = Offset;
+
+                Overlapped = overlapped;
 
                 Iterator = new Box<MemoryPoolIterator>(iterator);
 
@@ -96,6 +107,15 @@ namespace Channels.Samples
                 {
                     Channel.CompleteWriting(Marshal.GetExceptionForHR(hr));
                 }
+            }
+
+            public void Dispose()
+            {
+                FileHandle.Dispose();
+
+                ThreadPoolBoundHandle.Dispose();
+
+                PreAllocatedOverlapped.Dispose();
             }
         }
 
