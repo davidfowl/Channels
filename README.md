@@ -11,6 +11,10 @@ This is a new API that aims to replace `Stream`. `Stream` is a solid abstraction
   - There's a `Task` allocation per call to `ReadAsync`/`WriteAsync` (this is cached in some cases but very hard to do it right).
 - Using streams efficiently in networking scenarios requires buffer pooling. Nothing is provided out of the box to help here (there's a new BCL type called `ArrayPool<T>` to help fill that gap).
 - It's hard to guarantee that `Stream` implementations don't buffer internally resulting in **multiple** copies.
+- `Stream` implementations end up doing lots of book keeping to make sure it is never in an invalid state:
+  - Overlapping calls to Read/WriteAsync
+  - Calling sync APIs and async APIs in parallel
+  - APIs that generally might be doing dangerous things that user code can corrupt (e.g. https://github.com/dotnet/corefx/blob/8064b55ca6b078120c5f6f287224d0562326c243/src/System.IO.Compression/src/System/IO/Compression/Deflater.cs#L26-L31)
 
 Channels invert the polarity of streams by flowing buffers up to user code. The user never allocates a buffer. All memory allocations are handled by the channel implementation itself. The idea is that the channel implementation can do the least amount of work to get data from a source and flow it to the caller so there's *NEVER* a copy. 
 
