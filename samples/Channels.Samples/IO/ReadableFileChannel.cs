@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using Microsoft.Win32.SafeHandles;
 
-namespace Channels.Samples
+namespace Channels.Samples.IO
 {
     public class ReadableFileChannel : ReadableChannel
     {
@@ -100,6 +100,8 @@ namespace Channels.Samples
                 Iterator = new Box<MemoryPoolIterator>(iterator);
 
                 int r = ReadFile(FileHandle, data, count, IntPtr.Zero, overlapped);
+
+                // TODO: Error handling
 
                 // 997
                 int hr = Marshal.GetLastWin32Error();

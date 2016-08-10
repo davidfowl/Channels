@@ -32,13 +32,9 @@ namespace System.IO.Compression
             InflateInit(windowBits);
         }
 
-        public int AvailableOutput
-        {
-            get
-            {
-                return (int)_zlibStream.AvailOut;
-            }
-        }
+        public int AvailableOutput => (int)_zlibStream.AvailOut;
+
+        public int AvailableInput => (int)_zlibStream.AvailIn;
 
         /// <summary>
         /// Returns true if the end of the stream has been reached.

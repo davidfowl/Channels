@@ -14,7 +14,7 @@ namespace Channels.Samples
 
         private async void Process(IReadableChannel inner)
         {
-            var hex = "0123456789ABCDEF";
+            const string hex = "0123456789ABCDEF";
             while (true)
             {
                 await inner;
@@ -28,18 +28,18 @@ namespace Channels.Samples
 
                 // PERF: This might copy
                 var data = span.Begin.GetArraySegment(span.End);
-                var iter = _channel.BeginWrite();
+                var writeIter = _channel.BeginWrite();
                 for (int i = 0; i < data.Count; i++)
                 {
                     byte b = data.Array[data.Offset + i];
-                    iter.Write((byte)hex[(b >> 4)]);
-                    iter.Write((byte)hex[(b & 0xf)]);
-                    iter.Write((byte)' ');
+                    writeIter.Write((byte)hex[(b >> 4)]);
+                    writeIter.Write((byte)hex[(b & 0xf)]);
+                    writeIter.Write((byte)' ');
                 }
 
-                await _channel.EndWriteAsync(iter);
-
                 inner.EndRead(span.End);
+
+                await _channel.EndWriteAsync(writeIter);
             }
 
             inner.CompleteReading();
