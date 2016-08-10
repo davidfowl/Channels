@@ -29,6 +29,14 @@ namespace Channels
             _index = index;
         }
 
+        public IntPtr ReadableDataArrayPtr => Block.DataArrayPtr + Index;
+
+        public IntPtr WritableDataArrayPtr => Block.DataArrayPtr + Block.End;
+
+        public int ReadableCount => Block.End - Index;
+
+        public int WritableCount => Block.Data.Offset + Block.Data.Count - Block.End;
+
         public bool IsDefault => _block == null;
 
         public bool IsEnd
@@ -1004,7 +1012,13 @@ namespace Channels
 
         public override string ToString()
         {
-            return Encoding.ASCII.GetString(Block.Array, Block.Start + Index, Block.End - Block.Start + Index);
+            var builder = new StringBuilder();
+            for (int i = 0; i < (Block.End - Index); i++)
+            {
+                builder.Append(Block.Array[i + Index].ToString("X2"));
+                builder.Append(" ");
+            }
+            return builder.ToString();
         }
     }
 }

@@ -89,8 +89,8 @@ namespace Channels.Samples
             {
                 var iterator = Channel.BeginWrite(2048);
 
-                var data = iterator.Block.DataArrayPtr + iterator.Block.End;
-                var count = iterator.Block.Data.Offset + iterator.Block.Data.Count - iterator.Block.End;
+                var data = iterator.WritableDataArrayPtr;
+                var count = iterator.WritableCount;
 
                 var overlapped = ThreadPoolBoundHandle.AllocateNativeOverlapped(PreAllocatedOverlapped);
                 overlapped->OffsetLow = Offset;

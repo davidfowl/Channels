@@ -121,7 +121,13 @@ namespace Channels
         /// <returns></returns>
         public override string ToString()
         {
-            return Encoding.ASCII.GetString(Array, Start, End - Start);
+            var builder = new StringBuilder();
+            for (int i = 0; i < (End - Start); i++)
+            {
+                builder.Append(Array[i + Start].ToString("X2"));
+                builder.Append(" ");
+            }
+            return builder.ToString();
         }
 
         /// <summary>

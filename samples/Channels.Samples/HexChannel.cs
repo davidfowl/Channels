@@ -5,15 +5,16 @@ using System.Threading.Tasks;
 
 namespace Channels.Samples
 {
-    public class UpperCaseChannel : ReadableChannel
+    public class HexChannel : ReadableChannel
     {
-        public UpperCaseChannel(IReadableChannel inner, MemoryPool pool) : base(pool)
+        public HexChannel(IReadableChannel inner, MemoryPool pool) : base(pool)
         {
             Process(inner);
         }
 
         private async void Process(IReadableChannel inner)
         {
+            var hex = "0123456789ABCDEF";
             while (true)
             {
                 await inner;
@@ -31,16 +32,9 @@ namespace Channels.Samples
                 for (int i = 0; i < data.Count; i++)
                 {
                     byte b = data.Array[data.Offset + i];
-                    if (b >= 'a' && b <= 'z')
-                    {
-                        // To upper
-                        iter.Write((byte)(b & 0xdf));
-                    }
-                    else
-                    {
-                        // Leave it alone
-                        iter.Write(b);
-                    }
+                    iter.Write((byte)hex[(b >> 4)]);
+                    iter.Write((byte)hex[(b & 0xf)]);
+                    iter.Write((byte)' ');
                 }
 
                 await _channel.EndWriteAsync(iter);
