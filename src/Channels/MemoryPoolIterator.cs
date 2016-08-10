@@ -67,9 +67,9 @@ namespace Channels
             }
         }
 
-        public MemoryPoolBlock Block => _block;
+        internal MemoryPoolBlock Block => _block;
 
-        public int Index => _index;
+        internal int Index => _index;
 
         public int Take()
         {
