@@ -84,6 +84,7 @@ namespace Channels.Samples.Http
         {
             ResponseHeaders["Server"] = "Channels HTTP Sample Server";
             ResponseHeaders["Content-Length"] = Body.Sum(b => b.Length).ToString();
+            ResponseHeaders["Date"] = DateTime.UtcNow.ToString("r");
 
             var buffer = Outgoing.BeginWrite();
 
