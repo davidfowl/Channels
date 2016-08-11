@@ -13,11 +13,10 @@ namespace Channels
             while (true)
             {
                 var end = channel.BeginWrite();
-                var block = end.Block;
 
                 try
                 {
-                    int bytesRead = await stream.ReadAsync(block.Array, block.End, block.Data.Offset + block.Data.Count - block.End);
+                    int bytesRead = await stream.ReadAsync(end.Memory.Buffer.Array, end.Memory.Buffer.Offset, end.Memory.Buffer.Count);
 
                     if (bytesRead == 0)
                     {
