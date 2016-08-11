@@ -30,13 +30,9 @@ namespace Channels
 
         internal int Index => _index;
 
-        public bool IsDefault => _block == null;
+        internal bool IsDefault => _block == null;
 
-        public IntPtr DataArrayPtr => _block.DataArrayPtr + _index;
-
-        public ArraySegment<byte> Data => new ArraySegment<byte>(Block.Array, Index, ReadableBytes);
-
-        public int ReadableBytes => _block.End - _index;
+        public BufferSpan Memory => new BufferSpan(Block.DataArrayPtr, Block.Array, Index, Block.End - Index);
 
         public bool IsEnd
         {
@@ -719,9 +715,9 @@ namespace Channels
             }
         }
 
-        public bool TryGetBuffer(out ArraySegment<byte> array)
+        public bool TryGetBuffer(out BufferSpan span)
         {
-            array = default(ArraySegment<byte>);
+            span = default(BufferSpan);
 
             if (IsDefault)
             {
@@ -744,7 +740,7 @@ namespace Channels
                 return false;
             }
 
-            array = new ArraySegment<byte>(block.Array, index, following);
+            span = new BufferSpan(block.DataArrayPtr, block.Array, index, following);
             _index = block.End;
             return true;
         }

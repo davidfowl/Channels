@@ -71,10 +71,10 @@ namespace Channels
 
                 try
                 {
-                    ArraySegment<byte> data;
-                    while (end.TryGetBuffer(out data))
+                    BufferSpan span;
+                    while (end.TryGetBuffer(out span))
                     {
-                        await stream.WriteAsync(data.Array, data.Offset, data.Count);
+                        await stream.WriteAsync(span.Buffer.Array, span.Buffer.Offset, span.Buffer.Count);
                     }
                 }
                 finally
@@ -94,20 +94,20 @@ namespace Channels
 
                 var fin = input.Completion.IsCompleted;
 
-                var span = input.BeginRead();
-                var end = span;
+                var begin = input.BeginRead();
+                var end = begin;
 
-                if (span.IsEnd && fin)
+                if (begin.IsEnd && fin)
                 {
                     return;
                 }
 
                 try
                 {
-                    ArraySegment<byte> data;
-                    while (end.TryGetBuffer(out data))
+                    BufferSpan span;
+                    while (end.TryGetBuffer(out span))
                     {
-                        await channel.WriteAsync(data.Array, data.Offset, data.Count);
+                        await channel.WriteAsync(span.Buffer.Array, span.Buffer.Offset, span.Buffer.Count);
                     }
                 }
                 finally

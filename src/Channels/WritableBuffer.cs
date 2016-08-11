@@ -33,11 +33,9 @@ namespace Channels
 
         internal int Index => _index;
 
-        public bool IsDefault => _block == null;
+        internal bool IsDefault => _block == null;
 
-        public IntPtr DataArrayPtr => _block.DataArrayPtr + _block.End;
-
-        public int WritableBytes => _block.Data.Offset + _block.Data.Count - _block.End;
+        public BufferSpan Memory => new BufferSpan(Block.DataArrayPtr, Block.Array, Block.End, Block.Data.Offset + Block.Data.Count - Block.End);
 
         public bool IsEnd
         {

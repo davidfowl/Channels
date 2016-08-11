@@ -28,12 +28,12 @@ namespace Channels.Samples
 
                 var writeBuffer = _channel.BeginWrite();
 
-                ArraySegment<byte> data;
-                while (readBuffer.TryGetBuffer(out data))
+                BufferSpan span;
+                while (readBuffer.TryGetBuffer(out span))
                 {
-                    for (int i = 0; i < data.Count; i++)
+                    for (int i = 0; i < span.Buffer.Count; i++)
                     {
-                        byte b = data.Array[data.Offset + i];
+                        byte b = span.Buffer.Array[span.Buffer.Offset + i];
                         writeBuffer.Write((byte)hex[(b >> 4)]);
                         writeBuffer.Write((byte)hex[(b & 0xf)]);
                         writeBuffer.Write((byte)' ');

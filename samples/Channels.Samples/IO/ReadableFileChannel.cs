@@ -89,8 +89,8 @@ namespace Channels.Samples.IO
             {
                 var buffer = Channel.BeginWrite(2048);
 
-                var data = buffer.DataArrayPtr;
-                var count = buffer.WritableBytes;
+                var data = buffer.Memory.BufferPtr;
+                var count = buffer.Memory.Length;
 
                 var overlapped = ThreadPoolBoundHandle.AllocateNativeOverlapped(PreAllocatedOverlapped);
                 overlapped->OffsetLow = Offset;

@@ -35,11 +35,11 @@ namespace Channels.Samples.IO.Compression
 
                 var writerBuffer = _channel.BeginWrite(2048);
 
-                int readCount = readBuffer.ReadableBytes;
+                int readCount = readBuffer.Memory.Length;
 
-                _inflater.SetInput(readBuffer.DataArrayPtr, readCount);
+                _inflater.SetInput(readBuffer.Memory.BufferPtr, readCount);
 
-                int written = _inflater.Inflate(writerBuffer.DataArrayPtr, writerBuffer.WritableBytes);
+                int written = _inflater.Inflate(writerBuffer.Memory.BufferPtr, writerBuffer.Memory.Length);
 
                 writerBuffer.UpdateWritten(written);
 
