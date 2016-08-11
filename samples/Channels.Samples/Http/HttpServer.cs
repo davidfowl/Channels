@@ -275,8 +275,8 @@ namespace Channels.Samples
             using (var ns = new NetworkStream(socket))
             {
                 var channelFactory = new ChannelFactory(pool);
-                var input = channelFactory.CreateReadableChannel(ns);
-                var output = channelFactory.CreateWritableChannel(ns);
+                var input = channelFactory.MakeReadableChannel(ns);
+                var output = channelFactory.MakeWriteableChannel(ns);
                 var context = new HttpContext();
                 output = channelFactory.MakeWriteableChannel(output, DumpData);
                 output = channelFactory.MakeWriteableChannel(output, context.ProcessResponse);

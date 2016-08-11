@@ -21,7 +21,7 @@ namespace Channels
 
         public MemoryPoolChannel CreateChannel() => new MemoryPoolChannel(_pool);
 
-        public IReadableChannel CreateReadableChannel(Stream stream)
+        public IReadableChannel MakeReadableChannel(Stream stream)
         {
             if (!stream.CanRead)
             {
@@ -44,7 +44,7 @@ namespace Channels
             return channel;
         }
 
-        public IWritableChannel CreateWritableChannel(Stream stream)
+        public IWritableChannel MakeWriteableChannel(Stream stream)
         {
             if (!stream.CanWrite)
             {
