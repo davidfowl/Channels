@@ -48,12 +48,6 @@ namespace Channels.Samples.IO.Compression
                 // Move the read iterator
                 readBuffer.Seek(consumed);
 
-                if (consumed == 0)
-                {
-                    // Move next
-                    readBuffer.Seek();
-                }
-
                 inner.EndRead(readBuffer);
 
                 await _channel.EndWriteAsync(writerBuffer);
