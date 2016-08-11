@@ -27,26 +27,28 @@ namespace Channels.Samples.IO.Compression
                 await inner;
 
                 var readBuffer = inner.BeginRead();
+                var end = readBuffer;
 
-                if (readBuffer.IsEnd && inner.Completion.IsCompleted)
+                BufferSpan span;
+                if (!end.TryGetBuffer(out span) && inner.Completion.IsCompleted)
                 {
                     break;
                 }
 
                 var writerBuffer = _channel.BeginWrite(2048);
-
-                int readCount = readBuffer.Memory.Length;
-
-                _inflater.SetInput(readBuffer.Memory.BufferPtr, readCount);
+ 
+                _inflater.SetInput(span.BufferPtr, span.Length);
 
                 int written = _inflater.Inflate(writerBuffer.Memory.BufferPtr, writerBuffer.Memory.Length);
 
                 writerBuffer.UpdateWritten(written);
 
-                // Move the read iterator
-                readBuffer.Seek(readCount - _inflater.AvailableInput);
+                var consumed = span.Length - _inflater.AvailableInput;
 
-                if (readCount == 0)
+                // Move the read iterator
+                readBuffer.Seek(consumed);
+
+                if (consumed == 0)
                 {
                     // Move next
                     readBuffer.Seek();

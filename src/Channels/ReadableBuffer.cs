@@ -32,8 +32,6 @@ namespace Channels
 
         internal bool IsDefault => _block == null;
 
-        public BufferSpan Memory => new BufferSpan(Block.DataArrayPtr, Block.Array, Index, Block.End - Index);
-
         public bool IsEnd
         {
             get
