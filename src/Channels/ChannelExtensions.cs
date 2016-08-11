@@ -84,7 +84,7 @@ namespace Channels
             }
         }
 
-        public static async Task CopyToAsync(this IReadableChannel input, IWritableChannel channel)
+        public static async Task CopyToAsync(this IReadableChannel input, IWritableChannel channel, Action<BufferSpan> onData = null)
         {
             // REVIEW: If the blocks returned are from the same pool can do do something crazy like
             // transfer blocks directly to the writable channel
@@ -107,6 +107,7 @@ namespace Channels
                     BufferSpan span;
                     while (end.TryGetBuffer(out span))
                     {
+                        onData?.Invoke(span);
                         await channel.WriteAsync(span.Buffer.Array, span.Buffer.Offset, span.Buffer.Count);
                     }
                 }

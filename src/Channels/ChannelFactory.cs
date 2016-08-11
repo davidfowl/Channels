@@ -64,6 +64,27 @@ namespace Channels
             return channel;
         }
 
+        public IWritableChannel MakeWriteableChannel(IWritableChannel channel, Func<IReadableChannel, IWritableChannel, Task> consume)
+        {
+            var newChannel = new MemoryPoolChannel(_pool);
+
+            consume(newChannel, channel);
+
+            return newChannel;
+        }
+
+        public IReadableChannel MakeReadableChannel(IReadableChannel channel, Func<IReadableChannel, IWritableChannel, Task> produce)
+        {
+            var newChannel = new MemoryPoolChannel(_pool);
+
+            newChannel.OnStartReading(() =>
+            {
+                var t = produce(channel, newChannel);
+            });
+
+            return newChannel;
+        }
+
         public void Dispose() => _pool.Dispose();
     }
 }
