@@ -44,10 +44,10 @@ namespace Channels.Samples.IO
 
             operation.Offset += (int)numBytes;
 
-            var iterator = operation.Iterator.Value;
+            var buffer = operation.BoxedBuffer.Value;
 
-            iterator.UpdateEnd((int)numBytes);
-            operation.Channel.EndWriteAsync(iterator);
+            buffer.UpdateWritten((int)numBytes);
+            operation.Channel.EndWriteAsync(buffer);
 
             if (numBytes == 0)
             {
@@ -81,23 +81,23 @@ namespace Channels.Samples.IO
 
             public MemoryPoolChannel Channel { get; set; }
 
-            public Box<MemoryPoolIterator> Iterator { get; set; }
+            public Box<WritableBuffer> BoxedBuffer { get; set; }
 
             public int Offset { get; set; }
 
             public unsafe void Read()
             {
-                var iterator = Channel.BeginWrite(2048);
+                var buffer = Channel.BeginWrite(2048);
 
-                var data = iterator.WritableDataArrayPtr;
-                var count = iterator.WritableCount;
+                var data = buffer.DataArrayPtr;
+                var count = buffer.WritableBytes;
 
                 var overlapped = ThreadPoolBoundHandle.AllocateNativeOverlapped(PreAllocatedOverlapped);
                 overlapped->OffsetLow = Offset;
 
                 Overlapped = overlapped;
 
-                Iterator = new Box<MemoryPoolIterator>(iterator);
+                BoxedBuffer = new Box<WritableBuffer>(buffer);
 
                 int r = ReadFile(FileHandle, data, count, IntPtr.Zero, overlapped);
 

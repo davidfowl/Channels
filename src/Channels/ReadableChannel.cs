@@ -18,11 +18,11 @@ namespace Channels
 
         public bool IsCompleted => _channel.IsCompleted;
 
-        public MemoryPoolSpan BeginRead() => _channel.BeginRead();
+        public ReadableBuffer BeginRead() => _channel.BeginRead();
 
         public void CompleteReading() => _channel.CompleteReading();
 
-        public void EndRead(MemoryPoolIterator consumed, MemoryPoolIterator examined) => _channel.EndRead(consumed, examined);
+        public void EndRead(ReadableBuffer consumed, ReadableBuffer examined) => _channel.EndRead(consumed, examined);
 
         public IReadableChannel GetAwaiter() => _channel.GetAwaiter();
 

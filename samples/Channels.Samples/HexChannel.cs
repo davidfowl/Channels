@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
+using System.IO;
 using System.Threading.Tasks;
 
 namespace Channels.Samples
@@ -19,27 +19,30 @@ namespace Channels.Samples
             {
                 await inner;
 
-                var span = inner.BeginRead();
+                var readBuffer = inner.BeginRead();
 
-                if (span.Begin.IsEnd && inner.Completion.IsCompleted)
+                if (readBuffer.IsEnd && inner.Completion.IsCompleted)
                 {
                     break;
                 }
 
-                // PERF: This might copy
-                var data = span.Begin.GetArraySegment(span.End);
-                var writeIter = _channel.BeginWrite();
-                for (int i = 0; i < data.Count; i++)
+                var writeBuffer = _channel.BeginWrite();
+
+                ArraySegment<byte> data;
+                while (readBuffer.TryGetBuffer(out data))
                 {
-                    byte b = data.Array[data.Offset + i];
-                    writeIter.Write((byte)hex[(b >> 4)]);
-                    writeIter.Write((byte)hex[(b & 0xf)]);
-                    writeIter.Write((byte)' ');
+                    for (int i = 0; i < data.Count; i++)
+                    {
+                        byte b = data.Array[data.Offset + i];
+                        writeBuffer.Write((byte)hex[(b >> 4)]);
+                        writeBuffer.Write((byte)hex[(b & 0xf)]);
+                        writeBuffer.Write((byte)' ');
+                    }
                 }
 
-                inner.EndRead(span.End);
+                inner.EndRead(readBuffer);
 
-                await _channel.EndWriteAsync(writeIter);
+                await _channel.EndWriteAsync(writeBuffer);
             }
 
             inner.CompleteReading();

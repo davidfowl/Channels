@@ -12,8 +12,8 @@ namespace Channels
 
         Task Completion { get; }
 
-        MemoryPoolSpan BeginRead();
-        void EndRead(MemoryPoolIterator consumed, MemoryPoolIterator examined);
+        ReadableBuffer BeginRead();
+        void EndRead(ReadableBuffer consumed, ReadableBuffer examined);
 
         void CompleteReading();
     }

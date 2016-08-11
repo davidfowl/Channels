@@ -26,35 +26,35 @@ namespace Channels.Samples.IO.Compression
             {
                 await inner;
 
-                var readIter = inner.BeginRead().Begin;
+                var readBuffer = inner.BeginRead();
 
-                if (readIter.IsEnd && inner.Completion.IsCompleted)
+                if (readBuffer.IsEnd && inner.Completion.IsCompleted)
                 {
                     break;
                 }
 
-                var writeIter = _channel.BeginWrite(2048);
+                var writerBuffer = _channel.BeginWrite(2048);
 
-                int readCount = readIter.ReadableCount;
+                int readCount = readBuffer.ReadableBytes;
 
-                _inflater.SetInput(readIter.ReadableDataArrayPtr, readCount);
+                _inflater.SetInput(readBuffer.DataArrayPtr, readCount);
 
-                int written = _inflater.Inflate(writeIter.WritableDataArrayPtr, writeIter.WritableCount);
+                int written = _inflater.Inflate(writerBuffer.DataArrayPtr, writerBuffer.WritableBytes);
 
-                writeIter.UpdateEnd(written);
+                writerBuffer.UpdateWritten(written);
 
                 // Move the read iterator
-                readIter.Seek(readCount - _inflater.AvailableInput);
+                readBuffer.Seek(readCount - _inflater.AvailableInput);
 
                 if (readCount == 0)
                 {
-                    // Hacky
-                    readIter.Seek(1);
+                    // Move next
+                    readBuffer.Seek();
                 }
 
-                inner.EndRead(readIter);
+                inner.EndRead(readBuffer);
 
-                await _channel.EndWriteAsync(writeIter);
+                await _channel.EndWriteAsync(writerBuffer);
             }
 
             inner.CompleteReading();

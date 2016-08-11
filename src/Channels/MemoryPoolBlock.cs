@@ -129,14 +129,5 @@ namespace Channels
             }
             return builder.ToString();
         }
-
-        /// <summary>
-        /// acquires a cursor pointing into this block at the Start of "active" byte information
-        /// </summary>
-        /// <returns></returns>
-        public MemoryPoolIterator GetIterator()
-        {
-            return new MemoryPoolIterator(this);
-        }
     }
 }

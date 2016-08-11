@@ -7,8 +7,8 @@ namespace Channels
 {
     public interface IWritableChannel
     {
-        MemoryPoolIterator BeginWrite(int minimumSize = 0);
-        Task EndWriteAsync(MemoryPoolIterator end);
+        WritableBuffer BeginWrite(int minimumSize = 0);
+        Task EndWriteAsync(WritableBuffer end);
 
         void CompleteWriting(Exception error = null);
     }

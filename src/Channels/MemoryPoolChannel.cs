@@ -37,7 +37,7 @@ namespace Channels
             _memory = memory;
             _awaitableState = _awaitableIsNotCompleted;
         }
-        
+
         public void OnStartReading(Action callback)
         {
             _startReadingCallback = callback;
@@ -52,7 +52,7 @@ namespace Channels
 
         public bool IsCompleted => ReferenceEquals(_awaitableState, _awaitableIsCompleted);
 
-        public MemoryPoolIterator BeginWrite(int minimumSize = 0)
+        public WritableBuffer BeginWrite(int minimumSize = 0)
         {
             MemoryPoolBlock block = null;
 
@@ -83,11 +83,11 @@ namespace Channels
                     _tail = block;
                 }
 
-                return new MemoryPoolIterator(block, block.End);
+                return new WritableBuffer(block, block.End);
             }
         }
 
-        public Task EndWriteAsync(MemoryPoolIterator end)
+        public Task EndWriteAsync(WritableBuffer end)
         {
             lock (_sync)
             {
@@ -125,26 +125,24 @@ namespace Channels
             }
         }
 
-        public MemoryPoolSpan BeginRead()
+        public ReadableBuffer BeginRead()
         {
             if (Interlocked.CompareExchange(ref _consumingState, 1, 0) != 0)
             {
                 throw new InvalidOperationException("Already consuming input.");
             }
 
-            var start = new MemoryPoolIterator(_head);
-            var end = new MemoryPoolIterator(_tail, _tail?.End ?? 0);
-            return new MemoryPoolSpan(start, end);
+            return new ReadableBuffer(_head);
         }
 
-        public void EndRead(MemoryPoolIterator end)
+        public void EndRead(ReadableBuffer end)
         {
             EndRead(end, end);
         }
 
         public void EndRead(
-            MemoryPoolIterator consumed,
-            MemoryPoolIterator examined)
+            ReadableBuffer consumed,
+            ReadableBuffer examined)
         {
             MemoryPoolBlock returnStart = null;
             MemoryPoolBlock returnEnd = null;

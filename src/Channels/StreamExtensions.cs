@@ -26,7 +26,7 @@ namespace Channels
                     }
                     else
                     {
-                        end.UpdateEnd(bytesRead);
+                        end.UpdateWritten(bytesRead);
                         await channel.EndWriteAsync(end);
                     }
                 }

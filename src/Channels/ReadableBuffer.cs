@@ -1,43 +1,42 @@
-// Copyright (c) .NET Foundation. All rights reserved.
-// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
-
-using System;
-using System.Diagnostics;
+﻿using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Numerics;
-using System.Text;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace Channels
 {
-    public struct MemoryPoolIterator
+    public struct ReadableBuffer
     {
         private static readonly int _vectorSpan = Vector<byte>.Count;
 
         private MemoryPoolBlock _block;
         private int _index;
 
-        public MemoryPoolIterator(MemoryPoolBlock block)
+        public ReadableBuffer(MemoryPoolBlock block)
         {
             _block = block;
             _index = _block?.Start ?? 0;
         }
-        public MemoryPoolIterator(MemoryPoolBlock block, int index)
+        public ReadableBuffer(MemoryPoolBlock block, int index)
         {
             _block = block;
             _index = index;
         }
 
-        public IntPtr ReadableDataArrayPtr => Block.DataArrayPtr + Index;
+        internal MemoryPoolBlock Block => _block;
 
-        public IntPtr WritableDataArrayPtr => Block.DataArrayPtr + Block.End;
-
-        public int ReadableCount => Block.End - Index;
-
-        public int WritableCount => Block.Data.Offset + Block.Data.Count - Block.End;
+        internal int Index => _index;
 
         public bool IsDefault => _block == null;
+
+        public IntPtr DataArrayPtr => _block.DataArrayPtr + _index;
+
+        public ArraySegment<byte> Data => new ArraySegment<byte>(Block.Array, Index, ReadableBytes);
+
+        public int ReadableBytes => _block.End - _index;
 
         public bool IsEnd
         {
@@ -66,10 +65,6 @@ namespace Channels
                 }
             }
         }
-
-        internal MemoryPoolBlock Block => _block;
-
-        internal int Index => _index;
 
         public int Take()
         {
@@ -152,6 +147,11 @@ namespace Channels
                     return;
                 }
             }
+        }
+
+        public int Seek()
+        {
+            return Seek(1);
         }
 
         public int Seek(int bytes)
@@ -650,43 +650,6 @@ namespace Channels
             throw new InvalidOperationException();
         }
 
-        public void Write(byte data)
-        {
-            if (IsDefault)
-            {
-                return;
-            }
-
-            Debug.Assert(_block != null);
-            Debug.Assert(_block.Next == null);
-            Debug.Assert(_block.End == _index);
-
-            var pool = _block.Pool;
-            var block = _block;
-            var blockIndex = _index;
-
-            var bytesLeftInBlock = block.Data.Offset + block.Data.Count - blockIndex;
-
-            if (bytesLeftInBlock == 0)
-            {
-                var nextBlock = pool.Lease();
-                block.End = blockIndex;
-                Volatile.Write(ref block.Next, nextBlock);
-                block = nextBlock;
-
-                blockIndex = block.Data.Offset;
-                bytesLeftInBlock = block.Data.Count;
-            }
-
-            block.Array[blockIndex] = data;
-
-            blockIndex++;
-
-            block.End = blockIndex;
-            _block = block;
-            _index = blockIndex;
-        }
-
         /// <summary>
         /// Save the data at the current location then move to the next available space.
         /// </summary>
@@ -724,7 +687,7 @@ namespace Channels
             }
         }
 
-        public int GetLength(MemoryPoolIterator end)
+        public int GetLength(ReadableBuffer end)
         {
             if (IsDefault || end.IsDefault)
             {
@@ -756,78 +719,44 @@ namespace Channels
             }
         }
 
-        public async Task CopyToAsync(Stream stream, MemoryPoolIterator end)
+        public bool TryGetBuffer(out ArraySegment<byte> array)
         {
+            array = default(ArraySegment<byte>);
+
             if (IsDefault)
             {
-                return;
+                return false;
             }
 
             var block = _block;
             var index = _index;
 
-            while (true)
+
+            // Determine if we might attempt to copy data from block.Next before
+            // calculating "following" so we don't risk skipping data that could
+            // be added after block.End when we decide to copy from block.Next.
+            // block.End will always be advanced before block.Next is set.
+            var wasLastBlock = block.Next == null;
+            var following = block.End - index;
+
+            if (wasLastBlock && following == 0)
             {
-                // Determine if we might attempt to copy data from block.Next before
-                // calculating "following" so we don't risk skipping data that could
-                // be added after block.End when we decide to copy from block.Next.
-                // block.End will always be advanced before block.Next is set.
-                var wasLastBlock = block.Next == null || block == end.Block;
-                var following = block.End - index;
-                if (wasLastBlock)
-                {
-                    await stream.WriteAsync(block.Array, index, following);
-                    break;
-                }
-                else
-                {
-                    await stream.WriteAsync(block.Array, index, following);
-                    block = block.Next;
-                    index = block.Start;
-                }
+                return false;
             }
+
+            array = new ArraySegment<byte>(block.Array, index, following);
+            _index = block.End;
+            return true;
         }
 
-        public async Task CopyToAsync(IWritableChannel channel, MemoryPoolIterator end)
+        public int Read(byte[] array, int offset, int count)
         {
             if (IsDefault)
             {
-                return;
+                return 0;
             }
 
-            var block = _block;
-            var index = _index;
-
-            while (true)
-            {
-                // Determine if we might attempt to copy data from block.Next before
-                // calculating "following" so we don't risk skipping data that could
-                // be added after block.End when we decide to copy from block.Next.
-                // block.End will always be advanced before block.Next is set.
-                var wasLastBlock = block.Next == null || block == end.Block;
-                var following = block.End - index;
-                if (wasLastBlock)
-                {
-                    await channel.WriteAsync(block.Array, index, following);
-                    break;
-                }
-                else
-                {
-                    await channel.WriteAsync(block.Array, index, following);
-                    block = block.Next;
-                    index = block.Start;
-                }
-            }
-        }
-
-        public MemoryPoolIterator CopyTo(byte[] array, int offset, int count, out int actual)
-        {
-            if (IsDefault)
-            {
-                actual = 0;
-                return this;
-            }
-
+            var actual = 0;
             var block = _block;
             var index = _index;
             var remaining = count;
@@ -846,7 +775,10 @@ namespace Channels
                     {
                         Buffer.BlockCopy(block.Array, index, array, offset, remaining);
                     }
-                    return new MemoryPoolIterator(block, index + remaining);
+
+                    _block = block;
+                    _index = index + remaining;
+                    return actual;
                 }
                 else if (wasLastBlock)
                 {
@@ -855,7 +787,9 @@ namespace Channels
                     {
                         Buffer.BlockCopy(block.Array, index, array, offset, following);
                     }
-                    return new MemoryPoolIterator(block, index + following);
+                    _block = block;
+                    _index = following;
+                    return actual;
                 }
                 else
                 {
@@ -869,156 +803,6 @@ namespace Channels
                     index = block.Start;
                 }
             }
-        }
-
-        public void CopyFrom(byte[] data)
-        {
-            CopyFrom(data, 0, data.Length);
-        }
-
-        public void CopyFrom(ArraySegment<byte> buffer)
-        {
-            CopyFrom(buffer.Array, buffer.Offset, buffer.Count);
-        }
-
-        public void CopyFrom(byte[] data, int offset, int count)
-        {
-            if (IsDefault)
-            {
-                return;
-            }
-
-            Debug.Assert(_block != null);
-            Debug.Assert(_block.Next == null);
-            Debug.Assert(_block.End == _index);
-
-            var pool = _block.Pool;
-            var block = _block;
-            var blockIndex = _index;
-
-            var bufferIndex = offset;
-            var remaining = count;
-            var bytesLeftInBlock = block.Data.Offset + block.Data.Count - blockIndex;
-
-            while (remaining > 0)
-            {
-                if (bytesLeftInBlock == 0)
-                {
-                    var nextBlock = pool.Lease();
-                    block.End = blockIndex;
-                    Volatile.Write(ref block.Next, nextBlock);
-                    block = nextBlock;
-
-                    blockIndex = block.Data.Offset;
-                    bytesLeftInBlock = block.Data.Count;
-                }
-
-                var bytesToCopy = remaining < bytesLeftInBlock ? remaining : bytesLeftInBlock;
-
-                Buffer.BlockCopy(data, bufferIndex, block.Array, blockIndex, bytesToCopy);
-
-                blockIndex += bytesToCopy;
-                bufferIndex += bytesToCopy;
-                remaining -= bytesToCopy;
-                bytesLeftInBlock -= bytesToCopy;
-            }
-
-            block.End = blockIndex;
-            _block = block;
-            _index = blockIndex;
-        }
-
-        public unsafe void CopyFromAscii(string data)
-        {
-            if (IsDefault)
-            {
-                return;
-            }
-
-            Debug.Assert(_block != null);
-            Debug.Assert(_block.Next == null);
-            Debug.Assert(_block.End == _index);
-
-            var pool = _block.Pool;
-            var block = _block;
-            var blockIndex = _index;
-            var length = data.Length;
-
-            var bytesLeftInBlock = block.Data.Offset + block.Data.Count - blockIndex;
-            var bytesLeftInBlockMinusSpan = bytesLeftInBlock - 3;
-
-            fixed (char* pData = data)
-            {
-                var input = pData;
-                var inputEnd = pData + length;
-                var inputEndMinusSpan = inputEnd - 3;
-
-                while (input < inputEnd)
-                {
-                    if (bytesLeftInBlock == 0)
-                    {
-                        var nextBlock = pool.Lease();
-                        block.End = blockIndex;
-                        Volatile.Write(ref block.Next, nextBlock);
-                        block = nextBlock;
-
-                        blockIndex = block.Data.Offset;
-                        bytesLeftInBlock = block.Data.Count;
-                        bytesLeftInBlockMinusSpan = bytesLeftInBlock - 3;
-                    }
-
-                    var output = (block.DataFixedPtr + block.End);
-                    var copied = 0;
-                    for (; input < inputEndMinusSpan && copied < bytesLeftInBlockMinusSpan; copied += 4)
-                    {
-                        *(output) = (byte)*(input);
-                        *(output + 1) = (byte)*(input + 1);
-                        *(output + 2) = (byte)*(input + 2);
-                        *(output + 3) = (byte)*(input + 3);
-                        output += 4;
-                        input += 4;
-                    }
-                    for (; input < inputEnd && copied < bytesLeftInBlock; copied++)
-                    {
-                        *(output++) = (byte)*(input++);
-                    }
-
-                    blockIndex += copied;
-                    bytesLeftInBlockMinusSpan -= copied;
-                    bytesLeftInBlock -= copied;
-                }
-            }
-
-            block.End = blockIndex;
-            _block = block;
-            _index = blockIndex;
-        }
-
-        public void UpdateEnd(int bytesWritten)
-        {
-            Debug.Assert(_block != null);
-            Debug.Assert(_block.Next == null);
-            Debug.Assert(_block.End == _index);
-
-            var block = _block;
-            var blockIndex = _index + bytesWritten;
-
-            Debug.Assert(blockIndex <= block.Data.Offset + block.Data.Count);
-
-            block.End = blockIndex;
-            _block = block;
-            _index = blockIndex;
-        }
-
-        public override string ToString()
-        {
-            var builder = new StringBuilder();
-            for (int i = 0; i < (Block.End - Index); i++)
-            {
-                builder.Append(Block.Array[i + Index].ToString("X2"));
-                builder.Append(" ");
-            }
-            return builder.ToString();
         }
     }
 }

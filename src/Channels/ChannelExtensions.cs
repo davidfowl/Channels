@@ -24,7 +24,7 @@ namespace Channels
 
     public static class ReadableChannelExtensions
     {
-        public static void EndRead(this IReadableChannel input, MemoryPoolIterator consumed)
+        public static void EndRead(this IReadableChannel input, ReadableBuffer consumed)
         {
             input.EndRead(consumed, consumed);
         }
@@ -35,9 +35,9 @@ namespace Channels
             {
                 var fin = input.Completion.IsCompleted;
 
-                var begin = input.BeginRead().Begin;
-                int actual;
-                var end = begin.CopyTo(buffer, offset, count, out actual);
+                var begin = input.BeginRead();
+                var end = begin;
+                int actual = end.Read(buffer, offset, count);
                 input.EndRead(end);
 
                 if (actual != 0)
@@ -61,20 +61,25 @@ namespace Channels
 
                 var fin = input.Completion.IsCompleted;
 
-                var span = input.BeginRead();
+                var begin = input.BeginRead();
+                var end = begin;
 
-                if (span.Begin.IsEnd && fin)
+                if (begin.IsEnd && fin)
                 {
                     return;
                 }
 
                 try
                 {
-                    await span.Begin.CopyToAsync(stream, span.End);
+                    ArraySegment<byte> data;
+                    while (end.TryGetBuffer(out data))
+                    {
+                        await stream.WriteAsync(data.Array, data.Offset, data.Count);
+                    }
                 }
                 finally
                 {
-                    input.EndRead(span.End);
+                    input.EndRead(end);
                 }
             }
         }
@@ -90,19 +95,24 @@ namespace Channels
                 var fin = input.Completion.IsCompleted;
 
                 var span = input.BeginRead();
+                var end = span;
 
-                if (span.Begin.IsEnd && fin)
+                if (span.IsEnd && fin)
                 {
                     return;
                 }
 
                 try
                 {
-                    await span.Begin.CopyToAsync(channel, span.End);
+                    ArraySegment<byte> data;
+                    while (end.TryGetBuffer(out data))
+                    {
+                        await channel.WriteAsync(data.Array, data.Offset, data.Count);
+                    }
                 }
                 finally
                 {
-                    input.EndRead(span.End);
+                    input.EndRead(end);
                 }
             }
         }
@@ -115,9 +125,9 @@ namespace Channels
 
                 var fin = input.Completion.IsCompleted;
 
-                var begin = input.BeginRead().Begin;
-                int actual;
-                var end = begin.CopyTo(buffer, offset, count, out actual);
+                var begin = input.BeginRead();
+                var end = begin;
+                int actual = begin.Read(buffer, offset, count);
                 input.EndRead(end);
 
                 if (actual != 0)
