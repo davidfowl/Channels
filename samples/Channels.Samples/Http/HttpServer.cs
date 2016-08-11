@@ -86,17 +86,17 @@ namespace Channels.Samples
 
             var httpVersion = Encoding.UTF8.GetBytes("HTTP/1.1 ");
             buffer.Write(httpVersion, 0, httpVersion.Length);
-            var status = Encoding.UTF8.GetBytes("200 OK\r\n");
+            var status = Encoding.UTF8.GetBytes("200 OK");
             buffer.Write(status, 0, status.Length);
 
             foreach (var header in ResponseHeaders)
             {
-                var headerRaw = header.Key + ':' + header.Value + "\r\n";
+                var headerRaw = "\r\n" + header.Key + ':' + header.Value;
                 var headerBytes = Encoding.UTF8.GetBytes(headerRaw);
                 buffer.Write(headerBytes, 0, headerBytes.Length);
             }
 
-            var crlf = Encoding.UTF8.GetBytes("\r\n");
+            var crlf = Encoding.UTF8.GetBytes("\r\n\r\n");
             buffer.Write(crlf, 0, crlf.Length);
 
             foreach (var data in Body)
