@@ -26,7 +26,7 @@ https://github.com/davidfowl/Channels/blob/master/samples/Channels.Samples/Progr
 
 Unlike `Stream`, it's unexpected that users would implement `IReadableChannel` and `IWritableChannel`. This library provides a default `MemoryPoolChannel`, which is an implementation of an `IReadableChannel` and `IWritableChannel` using a configurable `MemoryPool`. It is expected that channel implementors write into this channel when authoring an `IReadableChannel` and read from this channel when authoring an `IWritableChannel`.
 
-To see an example of a custom `IReadableChannel` over Win32 files look at https://github.com/davidfowl/Channels/blob/master/samples/Channels.Samples/ReadableFileChannel.cs
+To see an example of a custom `IReadableChannel` over Win32 files look at https://github.com/davidfowl/Channels/blob/master/samples/Channels.Samples/IO/ReadableFileChannel.cs
 
 ## Backpressure
 
