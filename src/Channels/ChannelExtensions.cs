@@ -12,7 +12,7 @@ namespace Channels
         public static Task WriteAsync(this IWritableChannel channel, byte[] buffer, int offset, int length)
         {
             var end = channel.BeginWrite();
-            end.CopyFrom(buffer, offset, length);
+            end.Write(buffer, offset, length);
             return channel.EndWriteAsync(end);
         }
 

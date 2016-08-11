@@ -3,11 +3,9 @@
 
 using System;
 using System.Diagnostics;
-using System.IO;
 using System.Numerics;
 using System.Text;
 using System.Threading;
-using System.Threading.Tasks;
 
 namespace Channels
 {
@@ -36,34 +34,6 @@ namespace Channels
         internal bool IsDefault => _block == null;
 
         public BufferSpan Memory => new BufferSpan(Block.DataArrayPtr, Block.Array, Block.End, Block.Data.Offset + Block.Data.Count - Block.End);
-
-        public bool IsEnd
-        {
-            get
-            {
-                if (_block == null)
-                {
-                    return true;
-                }
-                else if (_index < _block.End)
-                {
-                    return false;
-                }
-                else
-                {
-                    var block = _block.Next;
-                    while (block != null)
-                    {
-                        if (block.Start < block.End)
-                        {
-                            return false; // subsequent block has data - IsEnd is false
-                        }
-                        block = block.Next;
-                    }
-                    return true;
-                }
-            }
-        }
 
         public void Write(byte data)
         {
@@ -102,17 +72,7 @@ namespace Channels
             _index = blockIndex;
         }
 
-        public void CopyFrom(byte[] data)
-        {
-            CopyFrom(data, 0, data.Length);
-        }
-
-        public void CopyFrom(ArraySegment<byte> buffer)
-        {
-            CopyFrom(buffer.Array, buffer.Offset, buffer.Count);
-        }
-
-        public void CopyFrom(byte[] data, int offset, int count)
+        public void Write(byte[] data, int offset, int count)
         {
             if (IsDefault)
             {
@@ -152,72 +112,6 @@ namespace Channels
                 bufferIndex += bytesToCopy;
                 remaining -= bytesToCopy;
                 bytesLeftInBlock -= bytesToCopy;
-            }
-
-            block.End = blockIndex;
-            _block = block;
-            _index = blockIndex;
-        }
-
-        public unsafe void CopyFromAscii(string data)
-        {
-            if (IsDefault)
-            {
-                return;
-            }
-
-            Debug.Assert(_block != null);
-            Debug.Assert(_block.Next == null);
-            Debug.Assert(_block.End == _index);
-
-            var pool = _block.Pool;
-            var block = _block;
-            var blockIndex = _index;
-            var length = data.Length;
-
-            var bytesLeftInBlock = block.Data.Offset + block.Data.Count - blockIndex;
-            var bytesLeftInBlockMinusSpan = bytesLeftInBlock - 3;
-
-            fixed (char* pData = data)
-            {
-                var input = pData;
-                var inputEnd = pData + length;
-                var inputEndMinusSpan = inputEnd - 3;
-
-                while (input < inputEnd)
-                {
-                    if (bytesLeftInBlock == 0)
-                    {
-                        var nextBlock = pool.Lease();
-                        block.End = blockIndex;
-                        Volatile.Write(ref block.Next, nextBlock);
-                        block = nextBlock;
-
-                        blockIndex = block.Data.Offset;
-                        bytesLeftInBlock = block.Data.Count;
-                        bytesLeftInBlockMinusSpan = bytesLeftInBlock - 3;
-                    }
-
-                    var output = (block.DataFixedPtr + block.End);
-                    var copied = 0;
-                    for (; input < inputEndMinusSpan && copied < bytesLeftInBlockMinusSpan; copied += 4)
-                    {
-                        *(output) = (byte)*(input);
-                        *(output + 1) = (byte)*(input + 1);
-                        *(output + 2) = (byte)*(input + 2);
-                        *(output + 3) = (byte)*(input + 3);
-                        output += 4;
-                        input += 4;
-                    }
-                    for (; input < inputEnd && copied < bytesLeftInBlock; copied++)
-                    {
-                        *(output++) = (byte)*(input++);
-                    }
-
-                    blockIndex += copied;
-                    bytesLeftInBlockMinusSpan -= copied;
-                    bytesLeftInBlock -= copied;
-                }
             }
 
             block.End = blockIndex;
