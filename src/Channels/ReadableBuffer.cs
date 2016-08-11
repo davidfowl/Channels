@@ -727,20 +727,38 @@ namespace Channels
             var block = _block;
             var index = _index;
 
-
             // Determine if we might attempt to copy data from block.Next before
             // calculating "following" so we don't risk skipping data that could
             // be added after block.End when we decide to copy from block.Next.
             // block.End will always be advanced before block.Next is set.
-            var wasLastBlock = block.Next == null;
-            var following = block.End - index;
 
-            if (wasLastBlock && following == 0)
+            int following = 0;
+
+            while (true)
             {
-                return false;
+                var wasLastBlock = block.Next == null;
+                following = block.End - index;
+
+                if (following > 0)
+                {
+                    break;
+                }
+
+                if (wasLastBlock)
+                {
+                    return false;
+                }
+                else
+                {
+                    block = block.Next;
+                    index = block.Start;
+                }
+
             }
 
             span = new BufferSpan(block.DataArrayPtr, block.Array, index, following);
+
+            _block = block;
             _index = block.End;
             return true;
         }
