@@ -11,8 +11,6 @@ namespace Channels
 {
     public struct WritableBuffer
     {
-        private static readonly int _vectorSpan = Vector<byte>.Count;
-
         private MemoryPoolBlock _block;
         private int _index;
 
