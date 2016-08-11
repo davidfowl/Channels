@@ -6,10 +6,11 @@ using System.Net.Sockets;
 using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
-using Channels.Samples.Http;
 
-namespace Channels.Samples
+namespace Channels.Samples.Http
 {
+    public delegate Task RequestDelegate(HttpContext context);
+
     public class HttpContext
     {
         private static Vector<byte> _vectorCRs = new Vector<byte>((byte)'\r');
@@ -29,6 +30,8 @@ namespace Channels.Samples
         public IDictionary<string, string> RequestHeaders { get; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         public IDictionary<string, string> ResponseHeaders { get; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
+        public int StatusCode { get; set; }
+
         public IReadableChannel Input { get; set; }
 
         public IWritableChannel Output { get; set; }
@@ -37,7 +40,7 @@ namespace Channels.Samples
         internal bool KeepAlive => RequestHeaders.ContainsKey("Connection") && string.Equals(RequestHeaders["Connection"], "keep-alive");
         internal bool HasContentLength => ResponseHeaders.ContainsKey("Content-Length");
 
-        internal Func<HttpContext, Task> ProcessRequestAsync;
+        internal RequestDelegate ProcessRequestAsync;
 
         internal List<byte[]> Body = new List<byte[]>();
 
@@ -254,7 +257,7 @@ namespace Channels.Samples
 
     public class HttpServer
     {
-        public static async void Listen(int port, Func<HttpContext, Task> callback)
+        public static async void Listen(int port, Action<AppBuilder> configure)
         {
             var socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
             socket.Bind(new IPEndPoint(IPAddress.Loopback, port));
@@ -262,6 +265,10 @@ namespace Channels.Samples
 
             using (var pool = new MemoryPool())
             {
+                var app = new AppBuilder();
+                configure(app);
+                var callback = app.Build();
+
                 while (true)
                 {
                     var clientSocket = await socket.AcceptAsync();
@@ -270,7 +277,7 @@ namespace Channels.Samples
             }
         }
 
-        private static async Task ProcessClient(MemoryPool pool, Socket socket, Func<HttpContext, Task> callback)
+        private static async Task ProcessClient(MemoryPool pool, Socket socket, RequestDelegate callback)
         {
             using (var ns = new NetworkStream(socket))
             {

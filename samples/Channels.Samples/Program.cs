@@ -1,9 +1,11 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.IO.Compression;
 using System.Text;
 using System.Threading;
-using Channels.Samples.IO.Compression;
+using System.Threading.Tasks;
+using Channels.Samples.Http;
 
 namespace Channels.Samples
 {
@@ -11,10 +13,13 @@ namespace Channels.Samples
     {
         public static void Main(string[] args)
         {
-            HttpServer.Listen(5000, async context =>
+            HttpServer.Listen(5000, app =>
             {
-                var data = Encoding.UTF8.GetBytes("Hello World");
-                await context.Output.WriteAsync(data, 0, data.Length);
+                app.Run(async context =>
+                { 
+                    var data = Encoding.UTF8.GetBytes("Hello World");
+                    await context.Output.WriteAsync(data, 0, data.Length);
+                });
             });
 
             Console.WriteLine("Listening on port 5000");
