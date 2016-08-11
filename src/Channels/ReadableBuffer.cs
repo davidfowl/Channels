@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Numerics;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace Channels
@@ -715,6 +716,11 @@ namespace Channels
 
         public bool TryGetBuffer(out BufferSpan span)
         {
+            return TryGetBuffer(end: default(ReadableBuffer), span: out span);
+        }
+
+        public bool TryGetBuffer(ReadableBuffer end, out BufferSpan span)
+        {
             span = default(BufferSpan);
 
             if (IsDefault)
@@ -734,8 +740,16 @@ namespace Channels
 
             while (true)
             {
-                var wasLastBlock = block.Next == null;
-                following = block.End - index;
+                var wasLastBlock = block.Next == null || end.Block == block;
+
+                if (end.Block == block)
+                {
+                    following = end.Index - index;
+                }
+                else
+                {
+                    following = block.End - index;
+                }
 
                 if (following > 0)
                 {
@@ -751,13 +765,12 @@ namespace Channels
                     block = block.Next;
                     index = block.Start;
                 }
-
             }
 
             span = new BufferSpan(block.DataArrayPtr, block.Array, index, following);
 
             _block = block;
-            _index = block.End;
+            _index = index + following;
             return true;
         }
 
@@ -815,6 +828,20 @@ namespace Channels
                     index = block.Start;
                 }
             }
+        }
+
+        public override string ToString()
+        {
+            var builder = new StringBuilder();
+            for (int i = 0; i < (Block.End - Index); i++)
+            {
+                if (i > 0)
+                {
+                    builder.Append(" ");
+                }
+                builder.Append(Block.Array[i + Index].ToString("X2"));
+            }
+            return builder.ToString();
         }
     }
 }

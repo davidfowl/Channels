@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace Channels
@@ -19,5 +20,19 @@ namespace Channels
         public int Length => Buffer.Count;
 
         public ArraySegment<byte> Buffer { get; }
+
+        public override string ToString()
+        {
+            var builder = new StringBuilder();
+            for (int i = 0; i < Length; i++)
+            {
+                if (i > 0)
+                {
+                    builder.Append(" ");
+                }
+                builder.Append(Buffer.Array[i + Buffer.Offset].ToString("X2"));
+            }
+            return builder.ToString();
+        }
     }
 }
