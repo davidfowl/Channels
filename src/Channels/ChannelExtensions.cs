@@ -9,10 +9,10 @@ namespace Channels
 {
     public static class WritableChannelExtensions
     {
-        public static Task WriteAsync(this IWritableChannel channel, byte[] buffer, int offset, int length)
+        public static Task WriteAsync(this IWritableChannel channel, byte[] buffer, int offset, int count)
         {
             var end = channel.BeginWrite();
-            end.Write(buffer, offset, length);
+            end.Write(buffer, offset, count);
             return channel.EndWriteAsync(end);
         }
 
