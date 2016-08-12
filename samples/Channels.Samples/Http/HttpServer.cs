@@ -35,8 +35,19 @@ namespace Channels.Samples.Http
 
             using (var pool = new MemoryPool())
             {
-                var clientSocket = await _listenSocket.AcceptAsync();
-                var task = ProcessClient(application, pool, clientSocket);
+                while (true)
+                {
+                    var clientSocket = await _listenSocket.AcceptAsync();
+
+                    try
+                    {
+                        var task = ProcessClient(application, pool, clientSocket);
+                    }
+                    catch (Exception ex)
+                    {
+
+                    }
+                }
             }
         }
 
@@ -53,27 +64,27 @@ namespace Channels.Samples.Http
                 var channelFactory = new ChannelFactory(pool);
                 var input = channelFactory.MakeReadableChannel(ns);
                 var output = channelFactory.MakeWriteableChannel(ns);
-                var context = new HttpConnection<TContext>();
-                output = channelFactory.MakeWriteableChannel(output, Dump);
-                output = channelFactory.MakeWriteableChannel(output, context.ProcessOutput);
+                var connection = new HttpConnection<TContext>();
+                // output = channelFactory.MakeWriteableChannel(output, Dump);
+                output = channelFactory.MakeWriteableChannel(output, connection.ProcessOutput);
                 // input = channelFactory.MakeReadableChannel(input, Dump);
 
-                context.Input = input;
-                context.Output = output;
-                context.Application = application;
+                connection.Input = input;
+                connection.Output = output;
+                connection.Application = application;
 
                 Console.WriteLine($"[{id}]: Connection started");
 
                 while (true)
                 {
-                    await context.ProcessRequest();
+                    await connection.ProcessRequest();
 
                     if (input.Completion.IsCompleted)
                     {
                         break;
                     }
 
-                    if (!context.KeepAlive)
+                    if (!connection.KeepAlive)
                     {
                         break;
                     }
