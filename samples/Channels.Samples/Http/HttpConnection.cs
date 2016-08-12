@@ -38,8 +38,6 @@ namespace Channels.Samples.Http
 
         internal IWritableChannel Outgoing;
 
-        internal bool ResponseHeadersSent;
-
         private Exception ApplicationError;
 
         private bool AutoChunk;
@@ -96,12 +94,12 @@ namespace Channels.Samples.Http
 
         private void WriteBeginResponseHeaders(ref WritableBuffer buffer)
         {
-            if (ResponseHeadersSent)
+            if (HasStarted)
             {
                 return;
             }
 
-            ResponseHeadersSent = true;
+            HasStarted = true;
 
             ResponseHeaders["Server"] = "Channels HTTP Sample Server";
             ResponseHeaders["Date"] = DateTime.UtcNow.ToString("r");
@@ -147,7 +145,7 @@ namespace Channels.Samples.Http
         {
             if (ApplicationError != null)
             {
-                if (ResponseHeadersSent)
+                if (HasStarted)
                 {
                     // Can't do anything
                     return;
@@ -175,7 +173,7 @@ namespace Channels.Samples.Http
             Body = InitialBody;
             RequestHeaders.Clear();
             ResponseHeaders.Clear();
-            ResponseHeadersSent = false;
+            HasStarted = false;
             AutoChunk = false;
             StatusCode = 200;
         }
