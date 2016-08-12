@@ -34,5 +34,10 @@ namespace Channels
             }
             return builder.ToString();
         }
+
+        public void CopyTo(ref WritableBuffer buffer)
+        {
+            buffer.Write(Buffer.Array, Buffer.Offset, Buffer.Count);
+        }
     }
 }

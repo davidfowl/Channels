@@ -117,6 +117,17 @@ namespace Channels
             _index = blockIndex;
         }
 
+        public void Append(ReadableBuffer begin, ReadableBuffer end)
+        {
+            Debug.Assert(_block != null);
+            Debug.Assert(_block.Next == null);
+            Debug.Assert(_block.End == _index);
+
+            _block.Next = begin.Block;
+            _block = end.Block;
+            _index = end.Block.End;
+        }
+
         public void UpdateWritten(int bytesWritten)
         {
             Debug.Assert(_block != null);

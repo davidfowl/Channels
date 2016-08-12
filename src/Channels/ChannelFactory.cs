@@ -37,10 +37,6 @@ namespace Channels
                 });
             });
 
-            // REVIEW: It's not usually ok to dispose the stream if it's passed in but the consumer
-            // doesn't know when it's going to be done
-            channel.OnDispose(stream.Dispose);
-
             return channel;
         }
 
@@ -57,10 +53,6 @@ namespace Channels
             {
             });
 
-            // REVIEW: It's not usually ok to dispose the stream if it's passed in but the consumer
-            // doesn't know when it's going to be done
-            channel.OnDispose(stream.Dispose);
-
             return channel;
         }
 
@@ -68,7 +60,10 @@ namespace Channels
         {
             var newChannel = new MemoryPoolChannel(_pool);
 
-            consume(newChannel, channel);
+            consume(newChannel, channel).ContinueWith(t =>
+            {
+
+            });
 
             return newChannel;
         }
@@ -77,9 +72,13 @@ namespace Channels
         {
             var newChannel = new MemoryPoolChannel(_pool);
 
+            // TODO: Avoid closure
             newChannel.OnStartReading(() =>
             {
-                var t = produce(channel, newChannel);
+                produce(channel, newChannel).ContinueWith(t =>
+                {
+
+                });
             });
 
             return newChannel;

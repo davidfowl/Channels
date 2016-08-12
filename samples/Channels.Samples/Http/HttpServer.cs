@@ -40,13 +40,13 @@ namespace Channels.Samples.Http
         internal bool KeepAlive => RequestHeaders.ContainsKey("Connection") && string.Equals(RequestHeaders["Connection"], "keep-alive");
         internal bool HasContentLength => ResponseHeaders.ContainsKey("Content-Length");
 
-        internal RequestDelegate ProcessRequestAsync;
-
-        internal List<byte[]> Body = new List<byte[]>();
+        internal RequestDelegate ProcessRequestCallback;
 
         internal IWritableChannel Outgoing;
 
-        internal async Task ProcessResponse(IReadableChannel incoming, IWritableChannel outgoing)
+        internal bool ResponseHeadersSent;
+
+        internal async Task ProcessOutput(IReadableChannel incoming, IWritableChannel outgoing)
         {
             Outgoing = outgoing;
 
@@ -61,32 +61,44 @@ namespace Channels.Samples.Http
                     break;
                 }
 
+                var buffer = outgoing.BeginWrite();
+
+                WriteResponseHeaders(ref buffer);
+
                 try
                 {
                     BufferSpan span;
                     while (begin.TryGetBuffer(out span))
                     {
-                        var data = new byte[span.Length];
-                        Buffer.BlockCopy(span.Buffer.Array, span.Buffer.Offset, data, 0, span.Length);
-                        Body.Add(data);
+                        ChunkWriter.WriteBeginChunkBytes(ref buffer, span.Length);
+                        span.CopyTo(ref buffer);
+                        ChunkWriter.WriteEndChunkBytes(ref buffer);
                     }
                 }
                 finally
                 {
                     incoming.EndRead(begin);
                 }
+
+                await outgoing.EndWriteAsync(buffer);
             }
 
             incoming.CompleteReading();
+            outgoing.CompleteWriting();
         }
 
-        internal async Task FinishResponse()
+        internal void WriteResponseHeaders(ref WritableBuffer buffer)
         {
-            ResponseHeaders["Server"] = "Channels HTTP Sample Server";
-            ResponseHeaders["Content-Length"] = Body.Sum(b => b.Length).ToString();
-            ResponseHeaders["Date"] = DateTime.UtcNow.ToString("r");
+            if (ResponseHeadersSent)
+            {
+                return;
+            }
 
-            var buffer = Outgoing.BeginWrite();
+            ResponseHeadersSent = true;
+
+            ResponseHeaders["Server"] = "Channels HTTP Sample Server";
+            ResponseHeaders["Date"] = DateTime.UtcNow.ToString("r");
+            ResponseHeaders["Transfer-Encoding"] = "chunked";
 
             var httpVersion = Encoding.UTF8.GetBytes("HTTP/1.1 ");
             buffer.Write(httpVersion, 0, httpVersion.Length);
@@ -102,20 +114,31 @@ namespace Channels.Samples.Http
 
             var crlf = Encoding.UTF8.GetBytes("\r\n\r\n");
             buffer.Write(crlf, 0, crlf.Length);
+        }
 
-            foreach (var data in Body)
-            {
-                buffer.Write(data, 0, data.Length);
-            }
+        internal void WriteResponseEnd(ref WritableBuffer buffer)
+        {
+            var crlf = Encoding.UTF8.GetBytes("0\r\n\r\n");
+            buffer.Write(crlf, 0, crlf.Length);
+        }
+
+        internal async Task FinishResponse()
+        {
+            var buffer = Outgoing.BeginWrite();
+
+            WriteResponseHeaders(ref buffer);
+
+            WriteResponseEnd(ref buffer);
 
             await Outgoing.EndWriteAsync(buffer);
         }
 
-        public void Reset()
+        internal void Reset()
         {
             RequestHeaders.Clear();
             ResponseHeaders.Clear();
-            Body.Clear();
+            ResponseHeadersSent = false;
+            StatusCode = 200;
         }
 
         internal async Task ProcessRequest()
@@ -128,7 +151,14 @@ namespace Channels.Samples.Http
 
                 var begin = Input.BeginRead();
                 var end = begin;
+
                 bool needMoreData = true;
+
+                if (begin.IsEnd && Input.Completion.IsCompleted)
+                {
+                    // We're done with this connection
+                    return;
+                }
 
                 try
                 {
@@ -247,7 +277,16 @@ namespace Channels.Samples.Http
 
                 if (!needMoreData)
                 {
-                    await ProcessRequestAsync(this);
+                    try
+                    {
+                        await ProcessRequestCallback(this);
+                    }
+                    catch (Exception ex)
+                    {
+                        // Log error
+                        StatusCode = 500;
+                    }
+
                     break;
                 }
             }
@@ -282,17 +321,20 @@ namespace Channels.Samples.Http
         {
             using (var ns = new NetworkStream(socket))
             {
+                var id = Guid.NewGuid();
                 var channelFactory = new ChannelFactory(pool);
                 var input = channelFactory.MakeReadableChannel(ns);
                 var output = channelFactory.MakeWriteableChannel(ns);
                 var context = new HttpContext();
-                output = channelFactory.MakeWriteableChannel(output, DumpData);
-                output = channelFactory.MakeWriteableChannel(output, context.ProcessResponse);
-                input = channelFactory.MakeReadableChannel(input, DumpData);
+                output = channelFactory.MakeWriteableChannel(output, Dump);
+                output = channelFactory.MakeWriteableChannel(output, context.ProcessOutput);
+                input = channelFactory.MakeReadableChannel(input, Dump);
 
                 context.Input = input;
                 context.Output = output;
-                context.ProcessRequestAsync = callback;
+                context.ProcessRequestCallback = callback;
+
+                Console.WriteLine($"[{id}]: Connection started");
 
                 while (true)
                 {
@@ -308,15 +350,24 @@ namespace Channels.Samples.Http
                         break;
                     }
                 }
+
+                Console.WriteLine($"[{id}]: Connection ended");
+
+                output.CompleteWriting();
+
+                input.CompleteReading();
             }
         }
 
-        private static async Task DumpData(IReadableChannel input, IWritableChannel output)
+        private static async Task Dump(IReadableChannel input, IWritableChannel output)
         {
             await input.CopyToAsync(output, span =>
             {
                 Console.Write(Encoding.UTF8.GetString(span.Buffer.Array, span.Buffer.Offset, span.Length));
             });
+
+            input.CompleteReading();
+            output.CompleteWriting();
         }
     }
 }
