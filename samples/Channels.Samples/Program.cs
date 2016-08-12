@@ -16,8 +16,9 @@ namespace Channels.Samples
             HttpServer.Listen(5000, app =>
             {
                 app.Run(async context =>
-                { 
+                {
                     var data = Encoding.UTF8.GetBytes("Hello World");
+                    context.ResponseHeaders["Content-Length"] = data.Length.ToString();
                     await context.Output.WriteAsync(data, 0, data.Length);
                 });
             });

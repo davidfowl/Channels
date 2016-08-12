@@ -40,12 +40,17 @@ namespace Channels.Samples.Http
         internal bool KeepAlive => RequestHeaders.ContainsKey("Connection") && string.Equals(RequestHeaders["Connection"], "keep-alive");
 
         internal bool HasContentLength => ResponseHeaders.ContainsKey("Content-Length");
+        internal bool HasTransferEncoding => ResponseHeaders.ContainsKey("Transfer-Encoding");
 
         internal RequestDelegate ProcessRequestCallback;
 
         internal IWritableChannel Outgoing;
 
         internal bool ResponseHeadersSent;
+
+        private Exception ApplicationError;
+
+        private bool AutoChunk;
 
         internal async Task ProcessOutput(IReadableChannel incoming, IWritableChannel outgoing)
         {
@@ -71,9 +76,16 @@ namespace Channels.Samples.Http
                     BufferSpan span;
                     while (begin.TryGetBuffer(out span))
                     {
-                        ChunkWriter.WriteBeginChunkBytes(ref buffer, span.Length);
-                        span.CopyTo(ref buffer);
-                        ChunkWriter.WriteEndChunkBytes(ref buffer);
+                        if (AutoChunk)
+                        {
+                            ChunkWriter.WriteBeginChunkBytes(ref buffer, span.Length);
+                            span.CopyTo(ref buffer);
+                            ChunkWriter.WriteEndChunkBytes(ref buffer);
+                        }
+                        else
+                        {
+                            span.CopyTo(ref buffer);
+                        }
                     }
                 }
                 finally
@@ -99,11 +111,17 @@ namespace Channels.Samples.Http
 
             ResponseHeaders["Server"] = "Channels HTTP Sample Server";
             ResponseHeaders["Date"] = DateTime.UtcNow.ToString("r");
-            ResponseHeaders["Transfer-Encoding"] = "chunked";
+
+            AutoChunk = !HasContentLength && !HasTransferEncoding && KeepAlive;
+
+            if (AutoChunk)
+            {
+                ResponseHeaders["Transfer-Encoding"] = "chunked";
+            }
 
             var httpVersion = Encoding.UTF8.GetBytes("HTTP/1.1 ");
             buffer.Write(httpVersion, 0, httpVersion.Length);
-            var status = Encoding.UTF8.GetBytes("200 OK");
+            var status = ReasonPhrases.ToStatusBytes(StatusCode);
             buffer.Write(status, 0, status.Length);
 
             foreach (var header in ResponseHeaders)
@@ -119,12 +137,31 @@ namespace Channels.Samples.Http
 
         private void WriteEndResponse(ref WritableBuffer buffer)
         {
-            var crlf = Encoding.UTF8.GetBytes("0\r\n\r\n");
-            buffer.Write(crlf, 0, crlf.Length);
+            if (AutoChunk)
+            {
+                var chunkedEnding = Encoding.UTF8.GetBytes("0\r\n\r\n");
+                buffer.Write(chunkedEnding, 0, chunkedEnding.Length);
+            }
+            else
+            {
+                var crlf = Encoding.UTF8.GetBytes("\r\n\r\n");
+                buffer.Write(crlf, 0, crlf.Length);
+            }
         }
 
         private async Task FinishResponse()
         {
+            if (ApplicationError != null)
+            {
+                if (ResponseHeadersSent)
+                {
+                    // Can't do anything
+                    return;
+                }
+
+                StatusCode = 500;
+            }
+
             var buffer = Outgoing.BeginWrite();
 
             WriteBeginResponseHeaders(ref buffer);
@@ -139,6 +176,7 @@ namespace Channels.Samples.Http
             RequestHeaders.Clear();
             ResponseHeaders.Clear();
             ResponseHeadersSent = false;
+            AutoChunk = false;
             StatusCode = 200;
         }
 
@@ -284,8 +322,7 @@ namespace Channels.Samples.Http
                     }
                     catch (Exception ex)
                     {
-                        // Log error
-                        StatusCode = 500;
+                        ApplicationError = ex;
                     }
 
                     break;
@@ -329,7 +366,7 @@ namespace Channels.Samples.Http
                 var context = new HttpContext();
                 output = channelFactory.MakeWriteableChannel(output, Dump);
                 output = channelFactory.MakeWriteableChannel(output, context.ProcessOutput);
-                input = channelFactory.MakeReadableChannel(input, Dump);
+                // input = channelFactory.MakeReadableChannel(input, Dump);
 
                 context.Input = input;
                 context.Output = output;
