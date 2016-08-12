@@ -19,8 +19,8 @@ namespace Channels
 
         private Action _awaitableState;
 
-        private MemoryPoolBlock _head;
-        private MemoryPoolBlock _tail;
+        private LinkedSegment _head;
+        private LinkedSegment _tail;
 
         private bool _completedWriting;
         private bool _completedReading;
@@ -54,33 +54,33 @@ namespace Channels
 
         public WritableBuffer BeginWrite(int minimumSize = 0)
         {
-            MemoryPoolBlock block = null;
+            LinkedSegment segment = null;
 
-            if (_tail != null)
+            if (_tail != null && !_tail.ReadOnly)
             {
-                int remaining = _tail.Data.Offset + _tail.Data.Count - _tail.End;
+                int remaining = _tail.Block.Data.Offset + _tail.Block.Data.Count - _tail.End;
 
                 if (minimumSize <= remaining && remaining > 0)
                 {
-                    block = _tail;
+                    segment = _tail;
                 }
             }
 
-            if (block == null)
+            if (segment == null)
             {
-                block = _memory.Lease();
+                segment = new LinkedSegment(_memory.Lease());
             }
 
             lock (_sync)
             {
                 if (_head == null)
                 {
-                    _head = block;
+                    _head = segment;
                 }
-                else if (block != _tail)
+                else if (segment != _tail)
                 {
-                    Volatile.Write(ref _tail.Next, block);
-                    _tail = block;
+                    Volatile.Write(ref _tail.Next, segment);
+                    _tail = segment;
                 }
 
                 return new WritableBuffer(block, block.End);

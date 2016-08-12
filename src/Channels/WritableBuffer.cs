@@ -11,27 +11,31 @@ namespace Channels
 {
     public struct WritableBuffer
     {
-        private MemoryPoolBlock _block;
+        private LinkedSegment _segment;
+        // TODO: remove _block, use the one in _segment
         private int _index;
 
-        public WritableBuffer(MemoryPoolBlock block)
+        internal WritableBuffer(LinkedSegment segment)
         {
-            _block = block;
-            _index = _block?.Start ?? 0;
+            _segment = segment;
+            _index = segment?.Start ?? 0;
         }
-        public WritableBuffer(MemoryPoolBlock block, int index)
+
+        internal WritableBuffer(LinkedSegment segment, int index)
         {
-            _block = block;
+            _segment = segment;
             _index = index;
         }
 
-        internal MemoryPoolBlock Block => _block;
+        internal LinkedSegment Segment => _segment;
+
+        internal MemoryPoolBlock Block => ;
 
         internal int Index => _index;
 
         internal bool IsDefault => _block == null;
 
-        public BufferSpan Memory => new BufferSpan(Block.DataArrayPtr, Block.Array, Block.End, Block.Data.Offset + Block.Data.Count - Block.End);
+        public BufferSpan Memory => new BufferSpan(Block.DataArrayPtr, Block.Array, Segment.End, Block.Data.Offset + Block.Data.Count - Segment.End);
 
         public void Write(byte data)
         {
@@ -41,10 +45,11 @@ namespace Channels
             }
 
             Debug.Assert(_block != null);
-            Debug.Assert(_block.Next == null);
-            Debug.Assert(_block.End == _index);
+            Debug.Assert(_segment.Next == null);
+            Debug.Assert(_segment.End == _index);
 
             var pool = _block.Pool;
+            var segment = _segment;
             var block = _block;
             var blockIndex = _index;
 
@@ -53,19 +58,21 @@ namespace Channels
             if (bytesLeftInBlock == 0)
             {
                 var nextBlock = pool.Lease();
-                block.End = blockIndex;
-                Volatile.Write(ref block.Next, nextBlock);
+                var nextSegment = new LinkedSegment(nextBlock);
+                segment.End = blockIndex;
+                Volatile.Write(ref segment.Next, nextSegment);
+                segment = nextSegment;
                 block = nextBlock;
 
                 blockIndex = block.Data.Offset;
-                bytesLeftInBlock = block.Data.Count;
             }
 
             block.Array[blockIndex] = data;
 
             blockIndex++;
 
-            block.End = blockIndex;
+            segment.End = blockIndex;
+            _segment = segment;
             _block = block;
             _index = blockIndex;
         }
@@ -78,10 +85,11 @@ namespace Channels
             }
 
             Debug.Assert(_block != null);
-            Debug.Assert(_block.Next == null);
-            Debug.Assert(_block.End == _index);
+            Debug.Assert(_segment.Next == null);
+            Debug.Assert(_segment.End == _index);
 
             var pool = _block.Pool;
+            var segment = _segment;
             var block = _block;
             var blockIndex = _index;
 
@@ -94,8 +102,10 @@ namespace Channels
                 if (bytesLeftInBlock == 0)
                 {
                     var nextBlock = pool.Lease();
-                    block.End = blockIndex;
-                    Volatile.Write(ref block.Next, nextBlock);
+                    var nextSegment = new LinkedSegment(nextBlock);
+                    segment.End = blockIndex;
+                    Volatile.Write(ref segment.Next, nextSegment);
+                    segment = nextSegment;
                     block = nextBlock;
 
                     blockIndex = block.Data.Offset;
@@ -112,7 +122,8 @@ namespace Channels
                 bytesLeftInBlock -= bytesToCopy;
             }
 
-            block.End = blockIndex;
+            segment.End = blockIndex;
+            _segment = segment;
             _block = block;
             _index = blockIndex;
         }
