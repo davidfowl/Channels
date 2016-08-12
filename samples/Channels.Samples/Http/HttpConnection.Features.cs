@@ -1,0 +1,130 @@
+﻿using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.IO;
+using System.Threading.Tasks;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Features;
+
+namespace Channels.Samples.Http
+{
+    public partial class HttpConnection<TContext> : IHttpRequestFeature, IHttpResponseFeature, IFeatureCollection
+    {
+        private FeatureCollection _features = new FeatureCollection();
+
+        public object this[Type key]
+        {
+            get
+            {
+                return GetFeature(key);
+            }
+
+            set
+            {
+                SetFeature(key, value);
+            }
+        }
+
+        private object GetFeature(Type key)
+        {
+            if (key == typeof(IHttpRequestFeature))
+            {
+                return this;
+            }
+
+            if (key == typeof(IHttpResponseFeature))
+            {
+                return this;
+            }
+
+            return _features[key];
+        }
+
+        private void SetFeature(Type key, object value)
+        {
+            _features[key] = value;
+        }
+
+        public Stream Body { get; set; }
+
+        public bool HasStarted { get; set; }
+
+        IHeaderDictionary IHttpResponseFeature.Headers
+        {
+            get
+            {
+                return ResponseHeaders;
+            }
+
+            set
+            {
+                throw new NotSupportedException();
+            }
+        }
+
+        IHeaderDictionary IHttpRequestFeature.Headers
+        {
+            get
+            {
+                return RequestHeaders;
+            }
+
+            set
+            {
+                throw new NotSupportedException();
+            }
+        }
+
+        public bool IsReadOnly => false;
+
+        public string Method { get; set; }
+
+        public string Path { get; set; }
+
+        public string PathBase { get; set; }
+
+        public string Protocol { get; set; }
+
+        public string QueryString { get; set; }
+
+        public string RawTarget { get; set; }
+
+        public string ReasonPhrase { get; set; }
+
+        public int Revision { get; set; }
+
+        public string Scheme { get; set; } = "http";
+
+        public int StatusCode { get; set; }
+
+        public TFeature Get<TFeature>()
+        {
+            return (TFeature)this[typeof(TFeature)];
+        }
+
+        public IEnumerator<KeyValuePair<Type, object>> GetEnumerator()
+        {
+            throw new NotImplementedException();
+        }
+
+        public void OnCompleted(Func<object, Task> callback, object state)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void OnStarting(Func<object, Task> callback, object state)
+        {
+            throw new NotImplementedException();
+        }
+
+        public void Set<TFeature>(TFeature instance)
+        {
+            this[typeof(TFeature)] = instance;
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            throw new NotSupportedException();
+        }
+    }
+}

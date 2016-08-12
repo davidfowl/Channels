@@ -6,6 +6,11 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Channels.Samples.Http;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Hosting.Server;
+using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Channels.Samples
 {
@@ -13,23 +18,21 @@ namespace Channels.Samples
     {
         public static void Main(string[] args)
         {
-            HttpServer.Listen(5000, app =>
-            {
-                app.Run(async context =>
-                {
-                    var data = Encoding.UTF8.GetBytes("Hello World");
-                    context.ResponseHeaders["Content-Length"] = data.Length.ToString();
-                    await context.Output.WriteAsync(data, 0, data.Length);
-                });
-            });
-
-            Console.WriteLine("Listening on port 5000");
-            var wh = new ManualResetEventSlim();
-            Console.CancelKeyPress += (sender, e) =>
-            {
-                wh.Set();
-            };
-            wh.Wait();
+            var host = new WebHostBuilder()
+                            .ConfigureServices(services =>
+                            {
+                                // Use a custom server
+                                services.AddTransient<IServer, HttpServer>();
+                            })
+                            .Configure(app =>
+                            {
+                                app.Run(async context =>
+                                {
+                                    await context.Response.WriteAsync("Hello World");
+                                });
+                            })
+                            .Build();
+            host.Run();
         }
     }
 }
