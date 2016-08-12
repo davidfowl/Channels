@@ -134,11 +134,6 @@ namespace Channels.Samples.Http
                 var chunkedEnding = Encoding.UTF8.GetBytes("0\r\n\r\n");
                 buffer.Write(chunkedEnding, 0, chunkedEnding.Length);
             }
-            else
-            {
-                var crlf = Encoding.UTF8.GetBytes("\r\n\r\n");
-                buffer.Write(crlf, 0, crlf.Length);
-            }
         }
 
         private async Task FinishResponse()
@@ -311,26 +306,27 @@ namespace Channels.Samples.Http
                     Input.EndRead(end);
                 }
 
-
                 if (!needMoreData)
                 {
-                    var context = Application.CreateContext(this);
-
-                    try
-                    {
-                        await Application.ProcessRequestAsync(context);
-                    }
-                    catch (Exception ex)
-                    {
-                        ApplicationError = ex;
-                        Application.DisposeContext(context, ex);
-                    }
-
                     break;
                 }
             }
 
-            await FinishResponse();
+            var context = Application.CreateContext(this);
+
+            try
+            {
+                await Application.ProcessRequestAsync(context);
+            }
+            catch (Exception ex)
+            {
+                ApplicationError = ex;
+                Application.DisposeContext(context, ex);
+            }
+            finally
+            {
+                await FinishResponse();
+            }
         }
     }
 }
