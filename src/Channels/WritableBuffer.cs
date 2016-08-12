@@ -3,35 +3,35 @@
 
 using System;
 using System.Diagnostics;
-using System.Numerics;
-using System.Text;
 using System.Threading;
 
 namespace Channels
 {
     public struct WritableBuffer
     {
-        private MemoryPoolBlock _block;
+        private LinkedSegment _segment;
+        // TODO: remove _block, use the one in _segment
         private int _index;
 
-        public WritableBuffer(MemoryPoolBlock block)
+        internal WritableBuffer(LinkedSegment segment)
         {
-            _block = block;
-            _index = _block?.Start ?? 0;
+            _segment = segment;
+            _index = segment?.Start ?? 0;
         }
-        public WritableBuffer(MemoryPoolBlock block, int index)
+
+        internal WritableBuffer(LinkedSegment segment, int index)
         {
-            _block = block;
+            _segment = segment;
             _index = index;
         }
 
-        internal MemoryPoolBlock Block => _block;
+        internal LinkedSegment Segment => _segment;
 
         internal int Index => _index;
 
-        internal bool IsDefault => _block == null;
+        internal bool IsDefault => _segment == null;
 
-        public BufferSpan Memory => new BufferSpan(Block.DataArrayPtr, Block.Array, Block.End, Block.Data.Offset + Block.Data.Count - Block.End);
+        public BufferSpan Memory => new BufferSpan(_segment.Block.DataArrayPtr, _segment.Block.Array, Segment.End, _segment.Block.Data.Offset + _segment.Block.Data.Count - Segment.End);
 
         public void Write(byte data)
         {
@@ -40,12 +40,13 @@ namespace Channels
                 return;
             }
 
-            Debug.Assert(_block != null);
-            Debug.Assert(_block.Next == null);
-            Debug.Assert(_block.End == _index);
+            Debug.Assert(_segment.Block != null);
+            Debug.Assert(_segment.Next == null);
+            Debug.Assert(_segment.End == _index);
 
-            var pool = _block.Pool;
-            var block = _block;
+            var block = _segment.Block;
+            var pool = block.Pool;
+            var segment = _segment;
             var blockIndex = _index;
 
             var bytesLeftInBlock = block.Data.Offset + block.Data.Count - blockIndex;
@@ -53,20 +54,21 @@ namespace Channels
             if (bytesLeftInBlock == 0)
             {
                 var nextBlock = pool.Lease();
-                block.End = blockIndex;
-                Volatile.Write(ref block.Next, nextBlock);
+                var nextSegment = new LinkedSegment(nextBlock);
+                segment.End = blockIndex;
+                Volatile.Write(ref segment.Next, nextSegment);
+                segment = nextSegment;
                 block = nextBlock;
 
                 blockIndex = block.Data.Offset;
-                bytesLeftInBlock = block.Data.Count;
             }
 
             block.Array[blockIndex] = data;
 
             blockIndex++;
 
-            block.End = blockIndex;
-            _block = block;
+            segment.End = blockIndex;
+            _segment = segment;
             _index = blockIndex;
         }
 
@@ -77,12 +79,13 @@ namespace Channels
                 return;
             }
 
-            Debug.Assert(_block != null);
-            Debug.Assert(_block.Next == null);
-            Debug.Assert(_block.End == _index);
+            Debug.Assert(_segment.Block != null);
+            Debug.Assert(_segment.Next == null);
+            Debug.Assert(_segment.End == _index);
 
-            var pool = _block.Pool;
-            var block = _block;
+            var block = _segment.Block;
+            var pool = block.Pool;
+            var segment = _segment;
             var blockIndex = _index;
 
             var bufferIndex = offset;
@@ -94,8 +97,10 @@ namespace Channels
                 if (bytesLeftInBlock == 0)
                 {
                     var nextBlock = pool.Lease();
-                    block.End = blockIndex;
-                    Volatile.Write(ref block.Next, nextBlock);
+                    var nextSegment = new LinkedSegment(nextBlock);
+                    segment.End = blockIndex;
+                    Volatile.Write(ref segment.Next, nextSegment);
+                    segment = nextSegment;
                     block = nextBlock;
 
                     blockIndex = block.Data.Offset;
@@ -112,47 +117,46 @@ namespace Channels
                 bytesLeftInBlock -= bytesToCopy;
             }
 
-            block.End = blockIndex;
-            _block = block;
+            segment.End = blockIndex;
+            segment.Block = block;
+            _segment = segment;
             _index = blockIndex;
         }
 
         public void Append(ReadableBuffer begin, ReadableBuffer end)
         {
-            Debug.Assert(_block != null);
-            Debug.Assert(_block.Next == null);
-            Debug.Assert(_block.End == _index);
+            Debug.Assert(_segment != null);
+            Debug.Assert(_segment.Block != null);
+            Debug.Assert(_segment.Next == null);
+            Debug.Assert(_segment.End == _index);
 
-            _block.Next = begin.Block;
-            _block = end.Block;
-            _index = end.Block.End;
+            var clonedBegin = LinkedSegment.Clone(begin, end);
+            var clonedEnd = clonedBegin;
+            while (clonedEnd.Next != null)
+            {
+                clonedEnd = clonedEnd.Next;
+            }
+
+            _segment.Next = clonedBegin;
+            _segment = clonedEnd;
+            _index = clonedEnd.End;
         }
 
         public void UpdateWritten(int bytesWritten)
         {
-            Debug.Assert(_block != null);
-            Debug.Assert(_block.Next == null);
-            Debug.Assert(_block.End == _index);
+            Debug.Assert(_segment != null);
+            Debug.Assert(!_segment.ReadOnly);
+            Debug.Assert(_segment.Block != null);
+            Debug.Assert(_segment.Next == null);
+            Debug.Assert(_segment.End == _index);
 
-            var block = _block;
+            var block = _segment.Block;
             var blockIndex = _index + bytesWritten;
 
             Debug.Assert(blockIndex <= block.Data.Offset + block.Data.Count);
 
-            block.End = blockIndex;
-            _block = block;
+            _segment.End = blockIndex;
             _index = blockIndex;
-        }
-
-        public override string ToString()
-        {
-            var builder = new StringBuilder();
-            for (int i = 0; i < (_block.End - _index); i++)
-            {
-                builder.Append(_block.Array[i + _index].ToString("X2"));
-                builder.Append(" ");
-            }
-            return builder.ToString();
         }
     }
 }

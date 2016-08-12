@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.Text;
+using System.Threading;
 
 namespace Channels
 {
@@ -32,6 +33,7 @@ namespace Channels
         {
             DataArrayPtr = dataArrayPtr;
             DataFixedPtr = (byte*)dataArrayPtr.ToPointer();
+            _referenceCount = 1;
         }
 
         /// <summary>
@@ -49,27 +51,7 @@ namespace Channels
         /// </summary>
         public byte[] Array => Data.Array;
 
-        /// <summary>
-        /// The Start represents the offset into Array where the range of "active" bytes begins. At the point when the block is leased
-        /// the Start is guaranteed to be equal to Array.Offset. The value of Start may be assigned anywhere between Data.Offset and
-        /// Data.Offset + Data.Count, and must be equal to or less than End.
-        /// </summary>
-        public int Start;
-
-        /// <summary>
-        /// The End represents the offset into Array where the range of "active" bytes ends. At the point when the block is leased
-        /// the End is guaranteed to be equal to Array.Offset. The value of Start may be assigned anywhere between Data.Offset and
-        /// Data.Offset + Data.Count, and must be equal to or less than End.
-        /// </summary>
-        public volatile int End;
-
-        /// <summary>
-        /// Reference to the next block of data when the overall "active" bytes spans multiple blocks. At the point when the block is
-        /// leased Next is guaranteed to be null. Start, End, and Next are used together in order to create a linked-list of discontiguous 
-        /// working memory. The "active" memory is grown when bytes are copied in, End is increased, and Next is assigned. The "active" 
-        /// memory is shrunk when bytes are consumed, Start is increased, and blocks are returned to the pool.
-        /// </summary>
-        public MemoryPoolBlock Next;
+        private int _referenceCount;
 
 #if DEBUG
         public bool IsLeased { get; set; }
@@ -103,8 +85,6 @@ namespace Channels
                 Data = data,
                 Pool = pool,
                 Slab = slab,
-                Start = data.Offset,
-                End = data.Offset,
             };
         }
 
@@ -113,18 +93,36 @@ namespace Channels
         /// </summary>
         public void Reset()
         {
-            Next = null;
-            Start = Data.Offset;
-            End = Data.Offset;
+            _referenceCount = 1;
         }
 
         /// <summary>
         /// ToString overridden for debugger convenience. This displays the "active" byte information in this block as ASCII characters.
+        /// ToString overridden for debugger convenience. This displays the byte information in this block as ASCII characters.
         /// </summary>
         /// <returns></returns>
         public override string ToString()
         {
-            return Encoding.ASCII.GetString(Array, Start, End - Start);
+            var builder = new StringBuilder();
+            for (int i = 0; i < Data.Count; i++)
+            {
+                builder.Append(Array[i + Data.Offset].ToString("X2"));
+                builder.Append(" ");
+            }
+            return builder.ToString();
+        }
+
+        internal void AddReference()
+        {
+            Interlocked.Increment(ref _referenceCount);
+        }
+
+        internal void RemoveReference()
+        {
+            if (Interlocked.Decrement(ref _referenceCount) == 0)
+            {
+                Pool.Return(this);
+            }
         }
     }
 }

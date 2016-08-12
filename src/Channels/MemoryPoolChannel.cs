@@ -3,7 +3,6 @@
 
 using System;
 using System.Diagnostics;
-using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -19,8 +18,8 @@ namespace Channels
 
         private Action _awaitableState;
 
-        private MemoryPoolBlock _head;
-        private MemoryPoolBlock _tail;
+        private LinkedSegment _head;
+        private LinkedSegment _tail;
 
         private bool _completedWriting;
         private bool _completedReading;
@@ -54,36 +53,36 @@ namespace Channels
 
         public WritableBuffer BeginWrite(int minimumSize = 0)
         {
-            MemoryPoolBlock block = null;
+            LinkedSegment segment = null;
 
-            if (_tail != null)
+            if (_tail != null && !_tail.ReadOnly)
             {
-                int remaining = _tail.Data.Offset + _tail.Data.Count - _tail.End;
+                int remaining = _tail.Block.Data.Offset + _tail.Block.Data.Count - _tail.End;
 
                 if (minimumSize <= remaining && remaining > 0)
                 {
-                    block = _tail;
+                    segment = _tail;
                 }
             }
 
-            if (block == null)
+            if (segment == null)
             {
-                block = _memory.Lease();
+                segment = new LinkedSegment(_memory.Lease());
             }
 
             lock (_sync)
             {
                 if (_head == null)
                 {
-                    _head = block;
+                    _head = segment;
                 }
-                else if (block != _tail)
+                else if (segment != _tail)
                 {
-                    Volatile.Write(ref _tail.Next, block);
-                    _tail = block;
+                    Volatile.Write(ref _tail.Next, segment);
+                    _tail = segment;
                 }
 
-                return new WritableBuffer(block, block.End);
+                return new WritableBuffer(segment, segment.End);
             }
         }
 
@@ -93,7 +92,7 @@ namespace Channels
             {
                 if (!end.IsDefault)
                 {
-                    _tail = end.Block;
+                    _tail = end.Segment;
                     _tail.End = end.Index;
                 }
 
@@ -144,16 +143,16 @@ namespace Channels
             ReadableBuffer consumed,
             ReadableBuffer examined)
         {
-            MemoryPoolBlock returnStart = null;
-            MemoryPoolBlock returnEnd = null;
+            LinkedSegment returnStart = null;
+            LinkedSegment returnEnd = null;
 
             lock (_sync)
             {
                 if (!consumed.IsDefault)
                 {
                     returnStart = _head;
-                    returnEnd = consumed.Block;
-                    _head = consumed.Block;
+                    returnEnd = consumed.Segment;
+                    _head = consumed.Segment;
                     _head.Start = consumed.Index;
                 }
 
@@ -172,9 +171,9 @@ namespace Channels
 
             while (returnStart != returnEnd)
             {
-                var returnBlock = returnStart;
+                var returnSegment = returnStart;
                 returnStart = returnStart.Next;
-                returnBlock.Pool.Return(returnBlock);
+                returnSegment.Dispose();
             }
 
             if (Interlocked.CompareExchange(ref _consumingState, 0, 1) != 1)
@@ -286,14 +285,14 @@ namespace Channels
 
             lock (_sync)
             {
-                // Return all blocks
-                var block = _head;
-                while (block != null)
+                // Return all segments
+                var segment = _head;
+                while (segment != null)
                 {
-                    var returnBlock = block;
-                    block = block.Next;
+                    var returnSegment = segment;
+                    segment = segment.Next;
 
-                    returnBlock.Pool.Return(returnBlock);
+                    returnSegment.Dispose();
                 }
 
                 _head = null;

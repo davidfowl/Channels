@@ -1,11 +1,9 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
+﻿// Copyright (c) .NET Foundation. All rights reserved.
+// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+
+using System;
 using System.Numerics;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace Channels
 {
@@ -13,48 +11,49 @@ namespace Channels
     {
         private static readonly int _vectorSpan = Vector<byte>.Count;
 
-        private MemoryPoolBlock _block;
+        private LinkedSegment _segment;
         private int _index;
 
-        public ReadableBuffer(MemoryPoolBlock block)
+        internal ReadableBuffer(LinkedSegment segment)
         {
-            _block = block;
-            _index = _block?.Start ?? 0;
+            _segment = segment;
+            _index = segment?.Start ?? 0;
         }
-        public ReadableBuffer(MemoryPoolBlock block, int index)
+
+        internal ReadableBuffer(LinkedSegment segment, int index)
         {
-            _block = block;
+            _segment = segment;
             _index = index;
         }
 
-        internal MemoryPoolBlock Block => _block;
+        internal LinkedSegment Segment => _segment;
 
         internal int Index => _index;
 
-        internal bool IsDefault => _block == null;
+        internal bool IsDefault => _segment == null;
 
         public bool IsEnd
         {
             get
             {
-                if (_block == null)
+                if (_segment == null)
                 {
                     return true;
                 }
-                else if (_index < _block.End)
+                else if (_index < _segment.End)
                 {
                     return false;
                 }
                 else
                 {
-                    var block = _block.Next;
-                    while (block != null)
+                    var segment = _segment.Next;
+                    while (segment != null)
                     {
-                        if (block.Start < block.End)
+                        if (segment.Start < segment.End)
                         {
                             return false; // subsequent block has data - IsEnd is false
                         }
-                        block = block.Next;
+                        segment = segment.Next;
                     }
                     return true;
                 }
@@ -63,19 +62,19 @@ namespace Channels
 
         public int Take()
         {
-            var block = _block;
-            if (block == null)
+            var segment = _segment;
+            if (segment == null)
             {
                 return -1;
             }
 
             var index = _index;
-            var wasLastBlock = block.Next == null;
+            var wasLastBlock = segment.Next == null;
 
-            if (index < block.End)
+            if (index < segment.End)
             {
                 _index = index + 1;
-                return block.Array[index];
+                return segment.Block.Array[index];
             }
 
             do
@@ -86,30 +85,30 @@ namespace Channels
                 }
                 else
                 {
-                    block = block.Next;
-                    index = block.Start;
+                    segment = segment.Next;
+                    index = segment.Start;
                 }
 
-                wasLastBlock = block.Next == null;
+                wasLastBlock = segment.Next == null;
 
-                if (index < block.End)
+                if (index < segment.End)
                 {
-                    _block = block;
+                    _segment = segment;
                     _index = index + 1;
-                    return block.Array[index];
+                    return segment.Block.Array[index];
                 }
             } while (true);
         }
 
         public void Skip(int bytesToSkip)
         {
-            if (_block == null)
+            if (_segment == null)
             {
                 return;
             }
 
-            var wasLastBlock = _block.Next == null;
-            var following = _block.End - _index;
+            var wasLastBlock = _segment.Next == null;
+            var following = _segment.End - _index;
 
             if (following >= bytesToSkip)
             {
@@ -117,7 +116,7 @@ namespace Channels
                 return;
             }
 
-            var block = _block;
+            var segment = _segment;
             var index = _index;
             while (true)
             {
@@ -128,16 +127,16 @@ namespace Channels
                 else
                 {
                     bytesToSkip -= following;
-                    block = block.Next;
-                    index = block.Start;
+                    segment = segment.Next;
+                    index = segment.Start;
                 }
 
-                wasLastBlock = block.Next == null;
-                following = block.End - index;
+                wasLastBlock = segment.Next == null;
+                following = segment.End - index;
 
                 if (following >= bytesToSkip)
                 {
-                    _block = block;
+                    _segment = segment;
                     _index = index + bytesToSkip;
                     return;
                 }
@@ -151,13 +150,13 @@ namespace Channels
 
         public int Seek(int bytes)
         {
-            if (_block == null || IsEnd)
+            if (_segment == null || IsEnd)
             {
                 return 0;
             }
 
-            var wasLastBlock = _block.Next == null;
-            var following = _block.End - _index;
+            var wasLastBlock = _segment.Next == null;
+            var following = _segment.End - _index;
 
             if (following >= bytes)
             {
@@ -165,29 +164,29 @@ namespace Channels
                 return bytes;
             }
 
-            var block = _block;
+            var segment = _segment;
             var index = _index;
             while (true)
             {
                 if (wasLastBlock)
                 {
-                    _block = block;
+                    _segment = segment;
                     _index = index + following;
                     return following;
                 }
                 else
                 {
                     bytes -= following;
-                    block = block.Next;
-                    index = block.Start;
+                    segment = segment.Next;
+                    index = segment.Start;
                 }
 
-                wasLastBlock = block.Next == null;
-                following = block.End - index;
+                wasLastBlock = segment.Next == null;
+                following = segment.End - index;
 
                 if (following >= bytes)
                 {
-                    _block = block;
+                    _segment = segment;
                     _index = index + bytes;
                     return bytes;
                 }
@@ -196,18 +195,18 @@ namespace Channels
 
         public int Peek()
         {
-            var block = _block;
-            if (block == null)
+            var segment = _segment;
+            if (segment == null)
             {
                 return -1;
             }
 
-            var wasLastBlock = _block.Next == null;
+            var wasLastBlock = _segment.Next == null;
             var index = _index;
 
-            if (index < block.End)
+            if (index < segment.End)
             {
-                return block.Array[index];
+                return segment.Block.Array[index];
             }
 
             do
@@ -218,31 +217,31 @@ namespace Channels
                 }
                 else
                 {
-                    block = block.Next;
-                    index = block.Start;
+                    segment = segment.Next;
+                    index = segment.Start;
                 }
 
-                wasLastBlock = block.Next == null;
+                wasLastBlock = segment.Next == null;
 
-                if (index < block.End)
+                if (index < segment.End)
                 {
-                    return block.Array[index];
+                    return segment.Block.Array[index];
                 }
             } while (true);
         }
 
         public unsafe long PeekLong()
         {
-            if (_block == null)
+            if (_segment == null)
             {
                 return -1;
             }
 
-            var wasLastBlock = _block.Next == null;
+            var wasLastBlock = _segment.Next == null;
 
-            if (_block.End - _index >= sizeof(long))
+            if (_segment.End - _index >= sizeof(long))
             {
-                return *(long*)(_block.DataFixedPtr + _index);
+                return *(long*)(_segment.Block.DataFixedPtr + _index);
             }
             else if (wasLastBlock)
             {
@@ -250,19 +249,19 @@ namespace Channels
             }
             else
             {
-                var blockBytes = _block.End - _index;
-                var nextBytes = sizeof(long) - blockBytes;
+                var segmentBytes = _segment.End - _index;
+                var nextBytes = sizeof(long) - segmentBytes;
 
-                if (_block.Next.End - _block.Next.Start < nextBytes)
+                if (_segment.Next.End - _segment.Next.Start < nextBytes)
                 {
                     return -1;
                 }
 
-                var blockLong = *(long*)(_block.DataFixedPtr + _block.End - sizeof(long));
+                var segmentLong = *(long*)(_segment.Block.DataFixedPtr + _segment.End - sizeof(long));
 
-                var nextLong = *(long*)(_block.Next.DataFixedPtr + _block.Next.Start);
+                var nextLong = *(long*)(_segment.Next.Block.DataFixedPtr + _segment.Next.Start);
 
-                return (blockLong >> (sizeof(long) - blockBytes) * 8) | (nextLong << (sizeof(long) - nextBytes) * 8);
+                return (segmentLong >> (sizeof(long) - segmentBytes) * 8) | (nextLong << (sizeof(long) - nextBytes) * 8);
             }
         }
 
@@ -273,10 +272,10 @@ namespace Channels
                 return -1;
             }
 
-            var block = _block;
+            var segment = _segment;
             var index = _index;
-            var wasLastBlock = block.Next == null;
-            var following = block.End - index;
+            var wasLastBlock = segment.Next == null;
+            var following = segment.End - index;
             byte[] array;
             var byte0 = byte0Vector[0];
 
@@ -286,16 +285,16 @@ namespace Channels
                 {
                     if (wasLastBlock)
                     {
-                        _block = block;
+                        _segment = segment;
                         _index = index;
                         return -1;
                     }
-                    block = block.Next;
-                    index = block.Start;
-                    wasLastBlock = block.Next == null;
-                    following = block.End - index;
+                    segment = segment.Next;
+                    index = segment.Start;
+                    wasLastBlock = segment.Next == null;
+                    following = segment.End - index;
                 }
-                array = block.Array;
+                array = segment.Block.Array;
                 while (following > 0)
                 {
                     // Need unit tests to test Vector path
@@ -315,7 +314,7 @@ namespace Channels
                             continue;
                         }
 
-                        _block = block;
+                        _segment = segment;
                         _index = index + FindFirstEqualByte(ref byte0Equals);
                         return byte0;
                     }
@@ -324,13 +323,13 @@ namespace Channels
                     }
 #endif
 
-                    var pCurrent = (block.DataFixedPtr + index);
+                    var pCurrent = (segment.Block.DataFixedPtr + index);
                     var pEnd = pCurrent + following;
                     do
                     {
                         if (*pCurrent == byte0)
                         {
-                            _block = block;
+                            _segment = segment;
                             _index = index;
                             return byte0;
                         }
@@ -351,10 +350,10 @@ namespace Channels
                 return -1;
             }
 
-            var block = _block;
+            var segment = _segment;
             var index = _index;
-            var wasLastBlock = block.Next == null;
-            var following = block.End - index;
+            var wasLastBlock = segment.Next == null;
+            var following = segment.End - index;
             byte[] array;
             int byte0Index = int.MaxValue;
             int byte1Index = int.MaxValue;
@@ -367,16 +366,16 @@ namespace Channels
                 {
                     if (wasLastBlock)
                     {
-                        _block = block;
+                        _segment = segment;
                         _index = index;
                         return -1;
                     }
-                    block = block.Next;
-                    index = block.Start;
-                    wasLastBlock = block.Next == null;
-                    following = block.End - index;
+                    segment = segment.Next;
+                    index = segment.Start;
+                    wasLastBlock = segment.Next == null;
+                    following = segment.End - index;
                 }
-                array = block.Array;
+                array = segment.Block.Array;
                 while (following > 0)
                 {
 
@@ -408,7 +407,7 @@ namespace Channels
                             continue;
                         }
 
-                        _block = block;
+                        _segment = segment;
 
                         if (byte0Index < byte1Index)
                         {
@@ -423,19 +422,19 @@ namespace Channels
 #if !DEBUG
                     }
 #endif
-                    var pCurrent = (block.DataFixedPtr + index);
+                    var pCurrent = (segment.Block.DataFixedPtr + index);
                     var pEnd = pCurrent + following;
                     do
                     {
                         if (*pCurrent == byte0)
                         {
-                            _block = block;
+                            _segment = segment;
                             _index = index;
                             return byte0;
                         }
                         if (*pCurrent == byte1)
                         {
-                            _block = block;
+                            _segment = segment;
                             _index = index;
                             return byte1;
                         }
@@ -456,10 +455,10 @@ namespace Channels
                 return -1;
             }
 
-            var block = _block;
+            var segment = _segment;
             var index = _index;
-            var wasLastBlock = block.Next == null;
-            var following = block.End - index;
+            var wasLastBlock = segment.Next == null;
+            var following = segment.End - index;
             byte[] array;
             int byte0Index = int.MaxValue;
             int byte1Index = int.MaxValue;
@@ -474,16 +473,16 @@ namespace Channels
                 {
                     if (wasLastBlock)
                     {
-                        _block = block;
+                        _segment = segment;
                         _index = index;
                         return -1;
                     }
-                    block = block.Next;
-                    index = block.Start;
-                    wasLastBlock = block.Next == null;
-                    following = block.End - index;
+                    segment = segment.Next;
+                    index = segment.Start;
+                    wasLastBlock = segment.Next == null;
+                    following = segment.End - index;
                 }
-                array = block.Array;
+                array = segment.Block.Array;
                 while (following > 0)
                 {
                     // Need unit tests to test Vector path
@@ -519,7 +518,7 @@ namespace Channels
                             continue;
                         }
 
-                        _block = block;
+                        _segment = segment;
 
                         int toReturn, toMove;
                         if (byte0Index < byte1Index)
@@ -556,25 +555,25 @@ namespace Channels
 #if !DEBUG
                     }
 #endif
-                    var pCurrent = (block.DataFixedPtr + index);
+                    var pCurrent = (segment.Block.DataFixedPtr + index);
                     var pEnd = pCurrent + following;
                     do
                     {
                         if (*pCurrent == byte0)
                         {
-                            _block = block;
+                            _segment = segment;
                             _index = index;
                             return byte0;
                         }
                         if (*pCurrent == byte1)
                         {
-                            _block = block;
+                            _segment = segment;
                             _index = index;
                             return byte1;
                         }
                         if (*pCurrent == byte2)
                         {
-                            _block = block;
+                            _segment = segment;
                             _index = index;
                             return byte2;
                         }
@@ -652,22 +651,22 @@ namespace Channels
         /// <returns>true if the operation successes. false if can't find available space.</returns>
         public bool Put(byte data)
         {
-            if (_block == null)
+            if (_segment == null)
             {
                 return false;
             }
 
-            var block = _block;
+            var segment = _segment;
             var index = _index;
             while (true)
             {
-                var wasLastBlock = block.Next == null;
+                var wasLastBlock = segment.Next == null;
 
-                if (index < block.End)
+                if (index < segment.End)
                 {
-                    _block = block;
+                    _segment = segment;
                     _index = index + 1;
-                    block.Array[index] = data;
+                    segment.Block.Array[index] = data;
                     return true;
                 }
                 else if (wasLastBlock)
@@ -676,8 +675,8 @@ namespace Channels
                 }
                 else
                 {
-                    block = block.Next;
-                    index = block.Start;
+                    segment = segment.Next;
+                    index = segment.Start;
                 }
             }
         }
@@ -689,26 +688,26 @@ namespace Channels
                 return -1;
             }
 
-            var block = _block;
+            var segment = _segment;
             var index = _index;
             var length = 0;
             checked
             {
                 while (true)
                 {
-                    if (block == end._block)
+                    if (segment == end._segment)
                     {
                         return length + end._index - index;
                     }
-                    else if (block.Next == null)
+                    else if (segment.Next == null)
                     {
                         throw new InvalidOperationException("end did not follow iterator");
                     }
                     else
                     {
-                        length += block.End - index;
-                        block = block.Next;
-                        index = block.Start;
+                        length += segment.End - index;
+                        segment = segment.Next;
+                        index = segment.Start;
                     }
                 }
             }
@@ -728,27 +727,27 @@ namespace Channels
                 return false;
             }
 
-            var block = _block;
+            var segment = _segment;
             var index = _index;
 
-            // Determine if we might attempt to copy data from block.Next before
+            // Determine if we might attempt to copy data from segment.Next before
             // calculating "following" so we don't risk skipping data that could
-            // be added after block.End when we decide to copy from block.Next.
-            // block.End will always be advanced before block.Next is set.
+            // be added after segment.End when we decide to copy from segment.Next.
+            // segment.End will always be advanced before segment.Next is set.
 
             int following = 0;
 
             while (true)
             {
-                var wasLastBlock = block.Next == null || end.Block == block;
+                var wasLastBlock = segment.Next == null || end.Segment == segment;
 
-                if (end.Block == block)
+                if (end.Segment == segment)
                 {
                     following = end.Index - index;
                 }
                 else
                 {
-                    following = block.End - index;
+                    following = segment.End - index;
                 }
 
                 if (following > 0)
@@ -762,14 +761,14 @@ namespace Channels
                 }
                 else
                 {
-                    block = block.Next;
-                    index = block.Start;
+                    segment = segment.Next;
+                    index = segment.Start;
                 }
             }
 
-            span = new BufferSpan(block.DataArrayPtr, block.Array, index, following);
+            span = new BufferSpan(segment.Block.DataArrayPtr, segment.Block.Array, index, following);
 
-            _block = block;
+            _segment = segment;
             _index = index + following;
             return true;
         }
@@ -782,26 +781,26 @@ namespace Channels
             }
 
             var actual = 0;
-            var block = _block;
+            var segment = _segment;
             var index = _index;
             var remaining = count;
             while (true)
             {
-                // Determine if we might attempt to copy data from block.Next before
+                // Determine if we might attempt to copy data from segment.Next before
                 // calculating "following" so we don't risk skipping data that could
-                // be added after block.End when we decide to copy from block.Next.
-                // block.End will always be advanced before block.Next is set.
-                var wasLastBlock = block.Next == null;
-                var following = block.End - index;
+                // be added after segment.End when we decide to copy from segment.Next.
+                // segment.End will always be advanced before segment.Next is set.
+                var wasLastBlock = segment.Next == null;
+                var following = segment.End - index;
                 if (remaining <= following)
                 {
                     actual = count;
                     if (array != null)
                     {
-                        Buffer.BlockCopy(block.Array, index, array, offset, remaining);
+                        Buffer.BlockCopy(segment.Block.Array, index, array, offset, remaining);
                     }
 
-                    _block = block;
+                    _segment = segment;
                     _index = index + remaining;
                     return actual;
                 }
@@ -810,9 +809,9 @@ namespace Channels
                     actual = count - remaining + following;
                     if (array != null)
                     {
-                        Buffer.BlockCopy(block.Array, index, array, offset, following);
+                        Buffer.BlockCopy(segment.Block.Array, index, array, offset, following);
                     }
-                    _block = block;
+                    _segment = segment;
                     _index = following;
                     return actual;
                 }
@@ -820,12 +819,12 @@ namespace Channels
                 {
                     if (array != null)
                     {
-                        Buffer.BlockCopy(block.Array, index, array, offset, following);
+                        Buffer.BlockCopy(segment.Block.Array, index, array, offset, following);
                     }
                     offset += following;
                     remaining -= following;
-                    block = block.Next;
-                    index = block.Start;
+                    segment = segment.Next;
+                    index = segment.Start;
                 }
             }
         }
@@ -833,13 +832,13 @@ namespace Channels
         public override string ToString()
         {
             var builder = new StringBuilder();
-            for (int i = 0; i < (Block.End - Index); i++)
+            for (int i = 0; i < (Segment.End - Index); i++)
             {
                 if (i > 0)
                 {
                     builder.Append(" ");
                 }
-                builder.Append(Block.Array[i + Index].ToString("X2"));
+                builder.Append(Segment.Block.Array[i + Index].ToString("X2"));
             }
             return builder.ToString();
         }
