@@ -38,6 +38,7 @@ namespace Channels.Samples.Http
 
         // TODO: Check the http version
         internal bool KeepAlive => RequestHeaders.ContainsKey("Connection") && string.Equals(RequestHeaders["Connection"], "keep-alive");
+
         internal bool HasContentLength => ResponseHeaders.ContainsKey("Content-Length");
 
         internal RequestDelegate ProcessRequestCallback;
@@ -63,7 +64,7 @@ namespace Channels.Samples.Http
 
                 var buffer = outgoing.BeginWrite();
 
-                WriteResponseHeaders(ref buffer);
+                WriteBeginResponseHeaders(ref buffer);
 
                 try
                 {
@@ -87,7 +88,7 @@ namespace Channels.Samples.Http
             outgoing.CompleteWriting();
         }
 
-        internal void WriteResponseHeaders(ref WritableBuffer buffer)
+        private void WriteBeginResponseHeaders(ref WritableBuffer buffer)
         {
             if (ResponseHeadersSent)
             {
@@ -116,24 +117,24 @@ namespace Channels.Samples.Http
             buffer.Write(crlf, 0, crlf.Length);
         }
 
-        internal void WriteResponseEnd(ref WritableBuffer buffer)
+        private void WriteEndResponse(ref WritableBuffer buffer)
         {
             var crlf = Encoding.UTF8.GetBytes("0\r\n\r\n");
             buffer.Write(crlf, 0, crlf.Length);
         }
 
-        internal async Task FinishResponse()
+        private async Task FinishResponse()
         {
             var buffer = Outgoing.BeginWrite();
 
-            WriteResponseHeaders(ref buffer);
+            WriteBeginResponseHeaders(ref buffer);
 
-            WriteResponseEnd(ref buffer);
+            WriteEndResponse(ref buffer);
 
             await Outgoing.EndWriteAsync(buffer);
         }
 
-        internal void Reset()
+        private void Reset()
         {
             RequestHeaders.Clear();
             ResponseHeaders.Clear();
