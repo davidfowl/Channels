@@ -274,7 +274,7 @@ namespace Channels.Samples.Http
                         // :
                         if (end.Seek(ref _vectorColons) == -1)
                         {
-                            continue;
+                            break;
                         }
 
                         if (begin.TryGetBuffer(end, out span))
@@ -288,7 +288,7 @@ namespace Channels.Samples.Http
                         // \n
                         if (end.Seek(ref _vectorLFs) == -1)
                         {
-                            continue;
+                            break;
                         }
 
                         if (begin.TryGetBuffer(end, out span))
