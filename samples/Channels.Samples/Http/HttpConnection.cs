@@ -44,7 +44,7 @@ namespace Channels.Samples.Http
 
         private ChannelStream InitialBody;
 
-        internal async Task ProcessOutput(IReadableChannel incoming, IWritableChannel outgoing)
+        internal async Task ProcessResponseBody(IReadableChannel incoming, IWritableChannel outgoing)
         {
             Outgoing = outgoing;
 

@@ -66,7 +66,7 @@ namespace Channels.Samples.Http
                 var output = channelFactory.MakeWriteableChannel(ns);
                 var connection = new HttpConnection<TContext>();
                 // output = channelFactory.MakeWriteableChannel(output, Dump);
-                output = channelFactory.MakeWriteableChannel(output, connection.ProcessOutput);
+                output = channelFactory.MakeWriteableChannel(output, connection.ProcessResponseBody);
                 // input = channelFactory.MakeReadableChannel(input, Dump);
 
                 connection.Input = input;
