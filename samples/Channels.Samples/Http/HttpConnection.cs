@@ -29,7 +29,7 @@ namespace Channels.Samples.Http
         private string HttpVersion { get; set; }
 
         // TODO: Check the http version
-        internal bool KeepAlive => RequestHeaders.ContainsKey("Connection") && string.Equals(RequestHeaders["Connection"], "keep-alive");
+        internal bool KeepAlive => true; //RequestHeaders.ContainsKey("Connection") && string.Equals(RequestHeaders["Connection"], "keep-alive");
 
         internal bool HasContentLength => ResponseHeaders.ContainsKey("Content-Length");
         internal bool HasTransferEncoding => ResponseHeaders.ContainsKey("Transfer-Encoding");
