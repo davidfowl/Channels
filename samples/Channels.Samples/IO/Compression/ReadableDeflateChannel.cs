@@ -82,6 +82,20 @@ namespace Channels.Samples.IO.Compression
                     await output.EndWriteAsync(writerBuffer);
                 }
 
+                bool flushed;
+                do
+                {
+                    // Need to do more stuff here
+                    var writerBuffer = output.BeginWrite(2048);
+
+                    int compressedBytes;
+                    flushed = _deflater.Flush(writerBuffer.Memory.BufferPtr, writerBuffer.Memory.Length, out compressedBytes);
+                    writerBuffer.UpdateWritten(compressedBytes);
+
+                    await output.EndWriteAsync(writerBuffer);
+                }
+                while (flushed);
+
                 bool finished;
                 do
                 {
@@ -90,6 +104,7 @@ namespace Channels.Samples.IO.Compression
 
                     int compressedBytes;
                     finished = _deflater.Finish(writerBuffer.Memory.BufferPtr, writerBuffer.Memory.Length, out compressedBytes);
+                    writerBuffer.UpdateWritten(compressedBytes);
 
                     await output.EndWriteAsync(writerBuffer);
                 }
