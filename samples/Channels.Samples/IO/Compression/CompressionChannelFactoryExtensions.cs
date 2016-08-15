@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace Channels.Samples.IO.Compression
 {
-    public static class ChannelFactoryExtensions
+    public static class CompressionChannelFactoryExtensions
     {
         public static IReadableChannel CreateDeflateDecompressChannel(this ChannelFactory factory, IReadableChannel channel)
         {
