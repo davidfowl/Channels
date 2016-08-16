@@ -90,14 +90,13 @@ namespace Channels.Samples.Http
                     }
                 }
 
-                GC.Collect();
-                GC.WaitForPendingFinalizers();
-
                 // Console.WriteLine($"[{id}]: Connection ended");
 
                 output.CompleteWriting();
-
                 input.CompleteReading();
+
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
             }
         }
 

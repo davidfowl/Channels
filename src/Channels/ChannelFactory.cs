@@ -51,6 +51,7 @@ namespace Channels
 
             channel.CopyToAsync(stream).ContinueWith((task) =>
             {
+                channel.CompleteReading();
             });
 
             return channel;
@@ -62,7 +63,6 @@ namespace Channels
 
             consume(newChannel, channel).ContinueWith(t =>
             {
-
             });
 
             return newChannel;
@@ -77,7 +77,6 @@ namespace Channels
             {
                 produce(channel, newChannel).ContinueWith(t =>
                 {
-
                 });
             });
 

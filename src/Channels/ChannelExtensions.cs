@@ -64,13 +64,13 @@ namespace Channels
                 var begin = input.BeginRead();
                 var end = begin;
 
-                if (begin.IsEnd && fin)
-                {
-                    return;
-                }
-
                 try
                 {
+                    if (begin.IsEnd && fin)
+                    {
+                        return;
+                    }
+
                     BufferSpan span;
                     while (end.TryGetBuffer(out span))
                     {
@@ -97,13 +97,13 @@ namespace Channels
                 var begin = input.BeginRead();
                 var end = begin;
 
-                if (begin.IsEnd && fin)
-                {
-                    return;
-                }
-
                 try
                 {
+                    if (begin.IsEnd && fin)
+                    {
+                        return;
+                    }
+
                     BufferSpan span;
                     while (end.TryGetBuffer(out span))
                     {
