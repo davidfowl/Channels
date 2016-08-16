@@ -95,8 +95,8 @@ namespace Channels.Samples.Http
                 output.CompleteWriting();
                 input.CompleteReading();
 
-                GC.Collect();
-                GC.WaitForPendingFinalizers();
+                //GC.Collect();
+                //GC.WaitForPendingFinalizers();
             }
         }
 
