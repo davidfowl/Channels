@@ -1,13 +1,12 @@
 using System;
 using System.Diagnostics;
-using System.Runtime.InteropServices;
 using System.Text;
 
 namespace Channels
 {
     /// <summary>
     /// Block tracking object used by the byte buffer memory pool. A slab is a large allocation which is divided into smaller blocks. The
-    /// individual blocks are then treated as independant array segments.
+    /// individual blocks are then treated as independent array segments.
     /// </summary>
     public class MemoryPoolBlock
     {
@@ -34,8 +33,6 @@ namespace Channels
             DataArrayPtr = dataArrayPtr;
             DataFixedPtr = (byte*)dataArrayPtr.ToPointer();
         }
-
-        public string StackTrace { get; set; }
 
         /// <summary>
         /// Back-reference to the memory pool which this block was allocated from. It may only be returned to this pool.
@@ -74,10 +71,16 @@ namespace Channels
         /// </summary>
         public MemoryPoolBlock Next;
 
+#if DEBUG
+        public bool IsLeased { get; set; }
+        public string Leaser { get; set; }
+#endif
+
         ~MemoryPoolBlock()
         {
-            Debug.Assert(Slab == null || !Slab.IsActive, "Block being garbage collected instead of returned to pool: \r\n" + StackTrace);
-
+#if DEBUG
+            Debug.Assert(Slab == null || !Slab.IsActive, $"{Environment.NewLine}{Environment.NewLine}*** Block being garbage collected instead of returned to pool: {Leaser} ***{Environment.NewLine}");
+#endif
             if (Slab != null && Slab.IsActive)
             {
                 Pool.Return(new MemoryPoolBlock(DataArrayPtr)
@@ -121,13 +124,7 @@ namespace Channels
         /// <returns></returns>
         public override string ToString()
         {
-            var builder = new StringBuilder();
-            for (int i = 0; i < (End - Start); i++)
-            {
-                builder.Append(Array[i + Start].ToString("X2"));
-                builder.Append(" ");
-            }
-            return builder.ToString();
+            return Encoding.ASCII.GetString(Array, Start, End - Start);
         }
     }
 }

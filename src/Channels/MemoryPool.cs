@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 
 namespace Channels
 {
@@ -31,7 +32,7 @@ namespace Channels
         /// 4096 - 64 gives you a blockLength of 4032 usable bytes per block.
         /// </summary>
         private const int _blockLength = _blockStride - _blockUnused;
-        
+
         /// <summary>
         /// Max allocation block size for pooled blocks, 
         /// larger values can be leased but they will be disposed after use rather than returned to the pool.
@@ -64,16 +65,32 @@ namespace Channels
         /// Called to take a block from the pool.
         /// </summary>
         /// <returns>The block that is reserved for the called. It must be passed to Return when it is no longer being used.</returns>
+#if DEBUG
+        public MemoryPoolBlock Lease(
+            [CallerMemberName] string memberName = "",
+            [CallerFilePath] string sourceFilePath = "",
+            [CallerLineNumber] int sourceLineNumber = 0)
+        {
+            Debug.Assert(!_disposedValue, "Block being leased from disposed pool!");
+#else
         public MemoryPoolBlock Lease()
         {
+#endif
             MemoryPoolBlock block;
-            if (!_blocks.TryDequeue(out block))
+            if (_blocks.TryDequeue(out block))
             {
-                // no blocks available - grow the pool
-                block = AllocateSlab();
+                // block successfully taken from the stack - return it
+#if DEBUG
+                block.Leaser = memberName + ", " + sourceFilePath + ", " + sourceLineNumber;
+                block.IsLeased = true;
+#endif
+                return block;
             }
-#if NET451
-           //block.StackTrace = new StackTrace().ToString();
+            // no blocks available - grow the pool
+            block = AllocateSlab();
+#if DEBUG
+            block.Leaser = memberName + ", " + sourceFilePath + ", " + sourceLineNumber;
+            block.IsLeased = true;
 #endif
             return block;
         }
@@ -102,6 +119,9 @@ namespace Channels
                     basePtr,
                     this,
                     slab);
+#if DEBUG
+                block.IsLeased = true;
+#endif
                 Return(block);
             }
 
@@ -125,12 +145,20 @@ namespace Channels
         /// <param name="block">The block to return. It must have been acquired by calling Lease on the same memory pool instance.</param>
         public void Return(MemoryPoolBlock block)
         {
+#if DEBUG
             Debug.Assert(block.Pool == this, "Returned block was not leased from this pool");
+            Debug.Assert(block.IsLeased, $"Block being returned to pool twice: {block.Leaser}{Environment.NewLine}");
+            block.IsLeased = false;
+#endif
 
             if (block.Slab != null && block.Slab.IsActive)
             {
                 block.Reset();
                 _blocks.Enqueue(block);
+            }
+            else
+            {
+                GC.SuppressFinalize(block);
             }
         }
 
@@ -138,6 +166,12 @@ namespace Channels
         {
             if (!_disposedValue)
             {
+                _disposedValue = true;
+#if DEBUG
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+                GC.Collect();
+#endif
                 if (disposing)
                 {
                     MemoryPoolSlab slab;
@@ -148,7 +182,9 @@ namespace Channels
                     }
                 }
 
-                foreach (var block in _blocks)
+                // Discard blocks in pool
+                MemoryPoolBlock block;
+                while (_blocks.TryDequeue(out block))
                 {
                     GC.SuppressFinalize(block);
                 }
@@ -157,7 +193,6 @@ namespace Channels
 
                 // N/A: set large fields to null.
 
-                _disposedValue = true;
             }
         }
 

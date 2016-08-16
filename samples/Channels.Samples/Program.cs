@@ -20,8 +20,8 @@ namespace Channels.Samples
     {
         public static void Main(string[] args)
         {
-            // RunHttpServer();
-            RunCompressionSample();
+            RunHttpServer();
+            // RunCompressionSample();
         }
 
         private static void RunCompressionSample()
@@ -72,6 +72,7 @@ namespace Channels.Samples
                                         {
                                             app.Run(async context =>
                                             {
+                                                context.Response.ContentLength = 11;
                                                 await context.Response.WriteAsync("Hello World");
                                             });
                                         })

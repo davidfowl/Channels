@@ -60,7 +60,7 @@ namespace Channels.Samples.Http
         {
             using (var ns = new NetworkStream(socket))
             {
-                var id = Guid.NewGuid();
+                // var id = Guid.NewGuid();
                 var channelFactory = new ChannelFactory(pool);
                 var input = channelFactory.MakeReadableChannel(ns);
                 var output = channelFactory.MakeWriteableChannel(ns);
@@ -73,7 +73,7 @@ namespace Channels.Samples.Http
                 connection.Output = output;
                 connection.Application = application;
 
-                Console.WriteLine($"[{id}]: Connection started");
+                // Console.WriteLine($"[{id}]: Connection started");
 
                 while (true)
                 {
@@ -90,7 +90,10 @@ namespace Channels.Samples.Http
                     }
                 }
 
-                Console.WriteLine($"[{id}]: Connection ended");
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
+
+                // Console.WriteLine($"[{id}]: Connection ended");
 
                 output.CompleteWriting();
 
