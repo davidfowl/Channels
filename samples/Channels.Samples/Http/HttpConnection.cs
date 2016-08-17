@@ -17,8 +17,6 @@ namespace Channels.Samples.Http
         private static Vector<byte> _vectorQuestionMarks = new Vector<byte>((byte)'?');
         private static Vector<byte> _vectorPercentages = new Vector<byte>((byte)'%');
 
-        private static readonly byte[] _bytesTransferEncodingChunked = Encoding.ASCII.GetBytes("\r\nTransfer-Encoding: chunked");
-
         private readonly IReadableChannel _input;
         private readonly IWritableChannel _output;
         private readonly ChannelFactory _channelFactory;
