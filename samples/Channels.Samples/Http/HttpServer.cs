@@ -37,11 +37,14 @@ namespace Channels.Samples.Http
             {
                 while (true)
                 {
-                    var clientSocket = await _listenSocket.AcceptAsync();
-
                     try
                     {
+                        var clientSocket = await _listenSocket.AcceptAsync();
                         var task = ProcessClient(application, pool, clientSocket);
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        break;
                     }
                     catch (Exception ex)
                     {
