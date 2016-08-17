@@ -26,6 +26,8 @@ namespace Channels.Samples.Http
 
         public IWritableChannel Output { get; set; }
 
+        public ChannelFactory ChannelFactory { get; set; }
+
         private string HttpVersion { get; set; }
 
         // TODO: Check the http version
@@ -36,17 +38,13 @@ namespace Channels.Samples.Http
 
         internal IHttpApplication<TContext> Application;
 
-        internal IWritableChannel Outgoing;
-
-        private Exception ApplicationError;
+        private IWritableChannel ResponseBody;
 
         private bool AutoChunk;
 
-        private ChannelStream InitialBody;
-
         internal async Task ProcessResponseBody(IReadableChannel incoming, IWritableChannel outgoing)
         {
-            Outgoing = outgoing;
+            var buffer = outgoing.BeginWrite();
 
             while (true)
             {
@@ -58,8 +56,6 @@ namespace Channels.Samples.Http
                 {
                     break;
                 }
-
-                var buffer = outgoing.BeginWrite();
 
                 WriteBeginResponseHeaders(ref buffer);
 
@@ -84,12 +80,15 @@ namespace Channels.Samples.Http
                 {
                     incoming.EndRead(begin);
                 }
-
-                await outgoing.EndWriteAsync(buffer);
             }
 
+            WriteBeginResponseHeaders(ref buffer);
+
+            WriteEndResponse(ref buffer);
+
+            await outgoing.EndWriteAsync(buffer);
+
             incoming.CompleteReading();
-            outgoing.CompleteWriting();
         }
 
         private void WriteBeginResponseHeaders(ref WritableBuffer buffer)
@@ -136,36 +135,10 @@ namespace Channels.Samples.Http
             }
         }
 
-        private async Task FinishResponse()
-        {
-            if (ApplicationError != null)
-            {
-                if (HasStarted)
-                {
-                    // Can't do anything
-                    return;
-                }
-
-                StatusCode = 500;
-            }
-
-            var buffer = Outgoing.BeginWrite();
-
-            WriteBeginResponseHeaders(ref buffer);
-
-            WriteEndResponse(ref buffer);
-
-            await Outgoing.EndWriteAsync(buffer);
-        }
-
         private void Reset()
         {
-            if (InitialBody == null)
-            {
-                InitialBody = new ChannelStream(Input, Output);
-            }
-
-            Body = InitialBody;
+            ResponseBody = ChannelFactory.MakeWriteableChannel(Output, ProcessResponseBody);
+            Body = new ChannelStream(Input, ResponseBody);
             RequestHeaders.Clear();
             ResponseHeaders.Clear();
             HasStarted = false;
@@ -317,15 +290,17 @@ namespace Channels.Samples.Http
             try
             {
                 await Application.ProcessRequestAsync(context);
+                ResponseBody.CompleteWriting();
             }
             catch (Exception ex)
             {
-                ApplicationError = ex;
+                StatusCode = 500;
+
+                ResponseBody.CompleteWriting(ex);
                 Application.DisposeContext(context, ex);
             }
             finally
             {
-                await FinishResponse();
             }
         }
     }
