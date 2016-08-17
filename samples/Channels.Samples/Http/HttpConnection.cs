@@ -27,6 +27,9 @@ namespace Channels.Samples.Http
         public HeaderDictionary RequestHeaders { get; } = new HeaderDictionary();
         public HeaderDictionary ResponseHeaders { get; } = new HeaderDictionary();
 
+        public IReadableChannel RequestBody => _input;
+        public IWritableChannel ResponseBody => _responseBody;
+
         private string HttpVersion { get; set; }
 
         // TODO: Check the http version
@@ -35,12 +38,15 @@ namespace Channels.Samples.Http
         private bool HasContentLength => ResponseHeaders.ContainsKey("Content-Length");
         private bool HasTransferEncoding => ResponseHeaders.ContainsKey("Transfer-Encoding");
 
+        private HttpBodyStream<TContext> _initialBody;
+
         public HttpConnection(IHttpApplication<TContext> application, IReadableChannel input, IWritableChannel output, ChannelFactory channelFactory)
         {
             _application = application;
             _input = input;
             _output = output;
             _channelFactory = channelFactory;
+            _initialBody = new HttpBodyStream<TContext>(this);
         }
 
         public async Task ProcessRequest()
@@ -205,7 +211,7 @@ namespace Channels.Samples.Http
         private void Reset()
         {
             _responseBody = _channelFactory.CreateChannel();
-            Body = new ChannelStream(_input, _responseBody);
+            Body = _initialBody;
             RequestHeaders.Clear();
             ResponseHeaders.Clear();
             HasStarted = false;
