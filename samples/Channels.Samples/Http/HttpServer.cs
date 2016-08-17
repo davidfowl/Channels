@@ -64,14 +64,10 @@ namespace Channels.Samples.Http
                 var channelFactory = new ChannelFactory(pool);
                 var input = channelFactory.MakeReadableChannel(ns);
                 var output = channelFactory.MakeWriteableChannel(ns);
-                var connection = new HttpConnection<TContext>();
-                connection.ChannelFactory = channelFactory;
                 // output = channelFactory.MakeWriteableChannel(output, Dump);
                 // input = channelFactory.MakeReadableChannel(input, Dump);
 
-                connection.Input = input;
-                connection.Output = output;
-                connection.Application = application;
+                var connection = new HttpConnection<TContext>(application, input, output, channelFactory);
 
                 // Console.WriteLine($"[{id}]: Connection started");
 

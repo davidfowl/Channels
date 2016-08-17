@@ -22,131 +22,33 @@ namespace Channels.Samples.Http
         public HeaderDictionary RequestHeaders { get; } = new HeaderDictionary();
         public HeaderDictionary ResponseHeaders { get; } = new HeaderDictionary();
 
-        public IReadableChannel Input { get; set; }
+        public IReadableChannel Input { get; }
 
-        public IWritableChannel Output { get; set; }
+        public IWritableChannel Output { get; }
 
-        public ChannelFactory ChannelFactory { get; set; }
+        public ChannelFactory ChannelFactory { get; }
 
         private string HttpVersion { get; set; }
 
         // TODO: Check the http version
-        internal bool KeepAlive => true; //RequestHeaders.ContainsKey("Connection") && string.Equals(RequestHeaders["Connection"], "keep-alive");
+        public bool KeepAlive => true; //RequestHeaders.ContainsKey("Connection") && string.Equals(RequestHeaders["Connection"], "keep-alive");
 
-        internal bool HasContentLength => ResponseHeaders.ContainsKey("Content-Length");
-        internal bool HasTransferEncoding => ResponseHeaders.ContainsKey("Transfer-Encoding");
+        private bool HasContentLength => ResponseHeaders.ContainsKey("Content-Length");
+        private bool HasTransferEncoding => ResponseHeaders.ContainsKey("Transfer-Encoding");
 
-        internal IHttpApplication<TContext> Application;
+        private IHttpApplication<TContext> Application;
 
         private IWritableChannel ResponseBody;
 
-        private bool AutoChunk;
-
-        internal async Task ProcessResponseBody(IReadableChannel incoming, IWritableChannel outgoing)
+        public HttpConnection(IHttpApplication<TContext> application, IReadableChannel input, IWritableChannel output, ChannelFactory channelFactory)
         {
-            var buffer = outgoing.BeginWrite();
-
-            while (true)
-            {
-                await incoming;
-
-                var begin = incoming.BeginRead();
-
-                if (begin.IsEnd && incoming.Completion.IsCompleted)
-                {
-                    break;
-                }
-
-                WriteBeginResponseHeaders(ref buffer);
-
-                try
-                {
-                    BufferSpan span;
-                    while (begin.TryGetBuffer(out span))
-                    {
-                        if (AutoChunk)
-                        {
-                            ChunkWriter.WriteBeginChunkBytes(ref buffer, span.Length);
-                            span.CopyTo(ref buffer);
-                            ChunkWriter.WriteEndChunkBytes(ref buffer);
-                        }
-                        else
-                        {
-                            span.CopyTo(ref buffer);
-                        }
-                    }
-                }
-                finally
-                {
-                    incoming.EndRead(begin);
-                }
-            }
-
-            WriteBeginResponseHeaders(ref buffer);
-
-            WriteEndResponse(ref buffer);
-
-            await outgoing.EndWriteAsync(buffer);
-
-            incoming.CompleteReading();
+            Application = application;
+            Input = input;
+            Output = output;
+            ChannelFactory = channelFactory;
         }
 
-        private void WriteBeginResponseHeaders(ref WritableBuffer buffer)
-        {
-            if (HasStarted)
-            {
-                return;
-            }
-
-            HasStarted = true;
-
-            ResponseHeaders["Server"] = "Channels HTTP Sample Server";
-            ResponseHeaders["Date"] = DateTime.UtcNow.ToString("r");
-
-            AutoChunk = !HasContentLength && !HasTransferEncoding && KeepAlive;
-
-            if (AutoChunk)
-            {
-                ResponseHeaders["Transfer-Encoding"] = "chunked";
-            }
-
-            var httpVersion = Encoding.UTF8.GetBytes("HTTP/1.1 ");
-            buffer.Write(httpVersion, 0, httpVersion.Length);
-            var status = ReasonPhrases.ToStatusBytes(StatusCode);
-            buffer.Write(status, 0, status.Length);
-
-            foreach (var header in ResponseHeaders)
-            {
-                var headerRaw = "\r\n" + header.Key + ':' + header.Value;
-                var headerBytes = Encoding.UTF8.GetBytes(headerRaw);
-                buffer.Write(headerBytes, 0, headerBytes.Length);
-            }
-
-            var crlf = Encoding.UTF8.GetBytes("\r\n\r\n");
-            buffer.Write(crlf, 0, crlf.Length);
-        }
-
-        private void WriteEndResponse(ref WritableBuffer buffer)
-        {
-            if (AutoChunk)
-            {
-                var chunkedEnding = Encoding.UTF8.GetBytes("0\r\n\r\n");
-                buffer.Write(chunkedEnding, 0, chunkedEnding.Length);
-            }
-        }
-
-        private void Reset()
-        {
-            ResponseBody = ChannelFactory.MakeWriteableChannel(Output, ProcessResponseBody);
-            Body = new ChannelStream(Input, ResponseBody);
-            RequestHeaders.Clear();
-            ResponseHeaders.Clear();
-            HasStarted = false;
-            AutoChunk = false;
-            StatusCode = 200;
-        }
-
-        internal async Task ProcessRequest()
+        public async Task ProcessRequest()
         {
             Reset();
 
@@ -302,6 +204,110 @@ namespace Channels.Samples.Http
             finally
             {
             }
+        }
+
+        private void Reset()
+        {
+            ResponseBody = ChannelFactory.MakeWriteableChannel(Output, ProcessResponseBody);
+            Body = new ChannelStream(Input, ResponseBody);
+            RequestHeaders.Clear();
+            ResponseHeaders.Clear();
+            HasStarted = false;
+            StatusCode = 200;
+        }
+
+        private async Task ProcessResponseBody(IReadableChannel incoming, IWritableChannel outgoing)
+        {
+            var buffer = outgoing.BeginWrite();
+            var autoChunk = false;
+
+            while (true)
+            {
+                await incoming;
+
+                var begin = incoming.BeginRead();
+
+                if (begin.IsEnd && incoming.Completion.IsCompleted)
+                {
+                    break;
+                }
+
+                WriteBeginResponseHeaders(ref buffer, ref autoChunk);
+
+                try
+                {
+                    BufferSpan span;
+                    while (begin.TryGetBuffer(out span))
+                    {
+                        if (autoChunk)
+                        {
+                            ChunkWriter.WriteBeginChunkBytes(ref buffer, span.Length);
+                            span.CopyTo(ref buffer);
+                            ChunkWriter.WriteEndChunkBytes(ref buffer);
+                        }
+                        else
+                        {
+                            span.CopyTo(ref buffer);
+                        }
+                    }
+                }
+                finally
+                {
+                    incoming.EndRead(begin);
+                }
+            }
+
+            WriteBeginResponseHeaders(ref buffer, ref autoChunk);
+
+            if (autoChunk)
+            {
+                WriteEndResponse(ref buffer);
+            }
+
+            await outgoing.EndWriteAsync(buffer);
+
+            incoming.CompleteReading();
+        }
+
+        private void WriteBeginResponseHeaders(ref WritableBuffer buffer, ref bool autoChunk)
+        {
+            if (HasStarted)
+            {
+                return;
+            }
+
+            HasStarted = true;
+
+            ResponseHeaders["Server"] = "Channels HTTP Sample Server";
+            ResponseHeaders["Date"] = DateTime.UtcNow.ToString("r");
+
+            autoChunk = !HasContentLength && !HasTransferEncoding && KeepAlive;
+
+            if (autoChunk)
+            {
+                ResponseHeaders["Transfer-Encoding"] = "chunked";
+            }
+
+            var httpVersion = Encoding.UTF8.GetBytes("HTTP/1.1 ");
+            buffer.Write(httpVersion, 0, httpVersion.Length);
+            var status = ReasonPhrases.ToStatusBytes(StatusCode);
+            buffer.Write(status, 0, status.Length);
+
+            foreach (var header in ResponseHeaders)
+            {
+                var headerRaw = "\r\n" + header.Key + ':' + header.Value;
+                var headerBytes = Encoding.UTF8.GetBytes(headerRaw);
+                buffer.Write(headerBytes, 0, headerBytes.Length);
+            }
+
+            var crlf = Encoding.UTF8.GetBytes("\r\n\r\n");
+            buffer.Write(crlf, 0, crlf.Length);
+        }
+
+        private void WriteEndResponse(ref WritableBuffer buffer)
+        {
+            var chunkedEnding = Encoding.UTF8.GetBytes("0\r\n\r\n");
+            buffer.Write(chunkedEnding, 0, chunkedEnding.Length);
         }
     }
 }
