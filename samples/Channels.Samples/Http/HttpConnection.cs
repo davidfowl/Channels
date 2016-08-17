@@ -19,14 +19,15 @@ namespace Channels.Samples.Http
 
         private static readonly byte[] _bytesTransferEncodingChunked = Encoding.ASCII.GetBytes("\r\nTransfer-Encoding: chunked");
 
+        private readonly IReadableChannel _input;
+        private readonly IWritableChannel _output;
+        private readonly ChannelFactory _channelFactory;
+        private IHttpApplication<TContext> _application;
+        private MemoryPoolChannel _responseBody;
+        private Task _responseBodyProcessing;
+
         public HeaderDictionary RequestHeaders { get; } = new HeaderDictionary();
         public HeaderDictionary ResponseHeaders { get; } = new HeaderDictionary();
-
-        public IReadableChannel Input { get; }
-
-        public IWritableChannel Output { get; }
-
-        public ChannelFactory ChannelFactory { get; }
 
         private string HttpVersion { get; set; }
 
@@ -36,16 +37,12 @@ namespace Channels.Samples.Http
         private bool HasContentLength => ResponseHeaders.ContainsKey("Content-Length");
         private bool HasTransferEncoding => ResponseHeaders.ContainsKey("Transfer-Encoding");
 
-        private IHttpApplication<TContext> Application;
-
-        private IWritableChannel ResponseBody;
-
         public HttpConnection(IHttpApplication<TContext> application, IReadableChannel input, IWritableChannel output, ChannelFactory channelFactory)
         {
-            Application = application;
-            Input = input;
-            Output = output;
-            ChannelFactory = channelFactory;
+            _application = application;
+            _input = input;
+            _output = output;
+            _channelFactory = channelFactory;
         }
 
         public async Task ProcessRequest()
@@ -54,14 +51,14 @@ namespace Channels.Samples.Http
 
             while (true)
             {
-                await Input;
+                await _input;
 
-                var begin = Input.BeginRead();
+                var begin = _input.BeginRead();
                 var end = begin;
 
                 bool needMoreData = true;
 
-                if (begin.IsEnd && Input.Completion.IsCompleted)
+                if (begin.IsEnd && _input.Completion.IsCompleted)
                 {
                     // We're done with this connection
                     return;
@@ -178,7 +175,7 @@ namespace Channels.Samples.Http
                 }
                 finally
                 {
-                    Input.EndRead(end);
+                    _input.EndRead(end);
                 }
 
                 if (!needMoreData)
@@ -187,47 +184,49 @@ namespace Channels.Samples.Http
                 }
             }
 
-            var context = Application.CreateContext(this);
+            var context = _application.CreateContext(this);
 
             try
             {
-                await Application.ProcessRequestAsync(context);
-                ResponseBody.CompleteWriting();
+                await _application.ProcessRequestAsync(context);
+                _responseBody.CompleteWriting();
             }
             catch (Exception ex)
             {
                 StatusCode = 500;
 
-                ResponseBody.CompleteWriting(ex);
-                Application.DisposeContext(context, ex);
+                _responseBody.CompleteWriting(ex);
+                _application.DisposeContext(context, ex);
             }
             finally
             {
+                await _responseBodyProcessing;
             }
         }
 
         private void Reset()
         {
-            ResponseBody = ChannelFactory.MakeWriteableChannel(Output, ProcessResponseBody);
-            Body = new ChannelStream(Input, ResponseBody);
+            _responseBody = _channelFactory.CreateChannel();
+            Body = new ChannelStream(_input, _responseBody);
             RequestHeaders.Clear();
             ResponseHeaders.Clear();
             HasStarted = false;
             StatusCode = 200;
+            _responseBodyProcessing = ProcessResponse();
         }
 
-        private async Task ProcessResponseBody(IReadableChannel incoming, IWritableChannel outgoing)
+        private async Task ProcessResponse()
         {
-            var buffer = outgoing.BeginWrite();
+            var buffer = _output.BeginWrite();
             var autoChunk = false;
 
             while (true)
             {
-                await incoming;
+                await _responseBody;
 
-                var begin = incoming.BeginRead();
+                var begin = _responseBody.BeginRead();
 
-                if (begin.IsEnd && incoming.Completion.IsCompleted)
+                if (begin.IsEnd && _responseBody.Completion.IsCompleted)
                 {
                     break;
                 }
@@ -253,7 +252,7 @@ namespace Channels.Samples.Http
                 }
                 finally
                 {
-                    incoming.EndRead(begin);
+                    _responseBody.EndRead(begin);
                 }
             }
 
@@ -264,9 +263,9 @@ namespace Channels.Samples.Http
                 WriteEndResponse(ref buffer);
             }
 
-            await outgoing.EndWriteAsync(buffer);
+            await _output.EndWriteAsync(buffer);
 
-            incoming.CompleteReading();
+            _responseBody.CompleteReading();
         }
 
         private void WriteBeginResponseHeaders(ref WritableBuffer buffer, ref bool autoChunk)
