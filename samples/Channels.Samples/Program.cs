@@ -70,6 +70,7 @@ namespace Channels.Samples
                                 // Use a custom server
                                 services.AddTransient<IServer, HttpServer>();
                             })
+                            // .UseKestrel()
                             .Configure(app =>
                             {
                                 app.Run(async context =>

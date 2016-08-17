@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
@@ -40,7 +39,8 @@ namespace Channels.Samples.Http
                     try
                     {
                         var clientSocket = await _listenSocket.AcceptAsync();
-                        var task = ProcessClient(application, pool, clientSocket);
+                        clientSocket.NoDelay = true;
+                        var task = Task.Factory.StartNew(() => ProcessClient(application, pool, clientSocket));
                     }
                     catch (ObjectDisposedException)
                     {
