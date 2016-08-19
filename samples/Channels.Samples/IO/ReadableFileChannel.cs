@@ -47,7 +47,7 @@ namespace Channels.Samples.IO
             var buffer = operation.BoxedBuffer.Value;
 
             buffer.UpdateWritten((int)numBytes);
-            operation.Channel.EndWriteAsync(buffer);
+            operation.Channel.WriteAsync(buffer);
 
             if (numBytes == 0)
             {
@@ -87,7 +87,7 @@ namespace Channels.Samples.IO
 
             public unsafe void Read()
             {
-                var buffer = Channel.BeginWrite(2048);
+                var buffer = Channel.Allocate(2048);
 
                 var data = buffer.Memory.BufferPtr;
                 var count = buffer.Memory.Length;

@@ -13,7 +13,7 @@ namespace Channels
         private static readonly Action _awaitableIsCompleted = () => { };
         private static readonly Action _awaitableIsNotCompleted = () => { };
 
-        private readonly MemoryPool _memory;
+        private readonly MemoryPool _pool;
         private readonly ManualResetEventSlim _manualResetEvent = new ManualResetEventSlim(false, 0);
 
         private Action _awaitableState;
@@ -25,15 +25,16 @@ namespace Channels
         private bool _completedReading;
 
         private int _consumingState;
+        private int _producingState;
         private object _sync = new object();
         private readonly TaskCompletionSource<object> _tcs = new TaskCompletionSource<object>();
 
         private Action _startReadingCallback;
         private Action _disposeCallback;
 
-        public MemoryPoolChannel(MemoryPool memory)
+        public MemoryPoolChannel(MemoryPool pool)
         {
-            _memory = memory;
+            _pool = pool;
             _awaitableState = _awaitableIsNotCompleted;
         }
 
@@ -51,8 +52,13 @@ namespace Channels
 
         public bool IsCompleted => ReferenceEquals(_awaitableState, _awaitableIsCompleted);
 
-        public WritableBuffer BeginWrite(int minimumSize = 0)
+        public WritableBuffer Allocate(int minimumSize = 0)
         {
+            if (Interlocked.CompareExchange(ref _producingState, 1, 0) != 0)
+            {
+                throw new InvalidOperationException("Already producing output.");
+            }
+
             LinkedSegment segment = null;
 
             if (_tail != null && !_tail.ReadOnly)
@@ -64,10 +70,10 @@ namespace Channels
                     segment = _tail;
                 }
             }
-
-            if (segment == null)
+            
+            if (segment == null && minimumSize > 0)
             {
-                segment = new LinkedSegment(_memory.Lease());
+                segment = new LinkedSegment(_pool.Lease());
             }
 
             lock (_sync)
@@ -82,19 +88,31 @@ namespace Channels
                     _tail = segment;
                 }
 
-                return new WritableBuffer(segment, segment.End);
+                return new WritableBuffer(_pool, segment, segment?.End ?? 0);
             }
         }
 
-        public Task EndWriteAsync(WritableBuffer end)
+        public Task WriteAsync(WritableBuffer buffer)
         {
             lock (_sync)
             {
-                if (!end.IsDefault)
+                if (Interlocked.CompareExchange(ref _producingState, 0, 1) != 1)
                 {
-                    _tail = end.Segment;
-                    _tail.End = end.Index;
+                    throw new InvalidOperationException("No ongoing producing operation to complete.");
                 }
+
+                if (_head == null)
+                {
+                    _head = buffer.Head;
+                    _head.Start = buffer.HeadIndex;
+                }
+                else if (_tail != null && buffer.Head != _tail)
+                {
+                    _tail.Next = buffer.Head;
+                }
+
+                _tail = buffer.Segment;
+                _tail.End = buffer.Index;
 
                 Complete();
 
@@ -242,7 +260,8 @@ namespace Channels
             else if (ReferenceEquals(awaitableState, _awaitableIsCompleted))
             {
                 // Dispatch here to avoid stack diving
-                Task.Run(continuation);
+                // Task.Run(continuation);
+                continuation();
             }
             else
             {
@@ -280,6 +299,8 @@ namespace Channels
 
         public void Dispose()
         {
+            GC.SuppressFinalize(this);
+
             Debug.Assert(_completedWriting, "Not completed writing");
             Debug.Assert(_completedReading, "Not completed reading");
 
@@ -300,6 +321,11 @@ namespace Channels
 
                 Interlocked.Exchange(ref _disposeCallback, null)?.Invoke();
             }
+        }
+
+        ~MemoryPoolChannel()
+        {
+            Debug.Assert(false);
         }
     }
 }

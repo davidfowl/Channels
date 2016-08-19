@@ -221,7 +221,7 @@ namespace Channels.Samples.Http
 
         private async Task ProcessResponse()
         {
-            var buffer = _output.BeginWrite();
+            var buffer = _output.Allocate();
             var autoChunk = false;
 
             while (true)
@@ -270,7 +270,7 @@ namespace Channels.Samples.Http
                 WriteEndResponse(ref buffer);
             }
 
-            await _output.EndWriteAsync(buffer);
+            await _output.WriteAsync(buffer);
 
             _responseBody.CompleteReading();
         }

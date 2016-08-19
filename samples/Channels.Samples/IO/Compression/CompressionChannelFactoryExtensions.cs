@@ -62,7 +62,7 @@ namespace Channels.Samples.IO.Compression
                         break;
                     }
 
-                    var writerBuffer = output.BeginWrite(2048);
+                    var writerBuffer = output.Allocate(2048);
 
                     _deflater.SetInput(span.BufferPtr, span.Length);
 
@@ -79,20 +79,20 @@ namespace Channels.Samples.IO.Compression
 
                     input.EndRead(readBuffer);
 
-                    await output.EndWriteAsync(writerBuffer);
+                    await output.WriteAsync(writerBuffer);
                 }
 
                 bool flushed;
                 do
                 {
                     // Need to do more stuff here
-                    var writerBuffer = output.BeginWrite(2048);
+                    var writerBuffer = output.Allocate(2048);
 
                     int compressedBytes;
                     flushed = _deflater.Flush(writerBuffer.Memory.BufferPtr, writerBuffer.Memory.Length, out compressedBytes);
                     writerBuffer.UpdateWritten(compressedBytes);
 
-                    await output.EndWriteAsync(writerBuffer);
+                    await output.WriteAsync(writerBuffer);
                 }
                 while (flushed);
 
@@ -100,13 +100,13 @@ namespace Channels.Samples.IO.Compression
                 do
                 {
                     // Need to do more stuff here
-                    var writerBuffer = output.BeginWrite(2048);
+                    var writerBuffer = output.Allocate(2048);
 
                     int compressedBytes;
                     finished = _deflater.Finish(writerBuffer.Memory.BufferPtr, writerBuffer.Memory.Length, out compressedBytes);
                     writerBuffer.UpdateWritten(compressedBytes);
 
-                    await output.EndWriteAsync(writerBuffer);
+                    await output.WriteAsync(writerBuffer);
                 }
                 while (!finished);
 
@@ -142,7 +142,7 @@ namespace Channels.Samples.IO.Compression
                         break;
                     }
 
-                    var writerBuffer = output.BeginWrite(2048);
+                    var writerBuffer = output.Allocate(2048);
 
                     if (span.Length > 0)
                     {
@@ -160,7 +160,7 @@ namespace Channels.Samples.IO.Compression
 
                     input.EndRead(readBuffer);
 
-                    await output.EndWriteAsync(writerBuffer);
+                    await output.WriteAsync(writerBuffer);
                 }
 
                 input.CompleteReading();

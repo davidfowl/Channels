@@ -81,7 +81,7 @@ namespace Channels
             {
                 // block successfully taken from the stack - return it
 #if DEBUG
-                block.Leaser = memberName + ", " + sourceFilePath + ", " + sourceLineNumber;
+                block.Leaser = Environment.StackTrace;
                 block.IsLeased = true;
 #endif
                 return block;
@@ -89,7 +89,7 @@ namespace Channels
             // no blocks available - grow the pool
             block = AllocateSlab();
 #if DEBUG
-            block.Leaser = memberName + ", " + sourceFilePath + ", " + sourceLineNumber;
+            block.Leaser = Environment.StackTrace;
             block.IsLeased = true;
 #endif
             return block;

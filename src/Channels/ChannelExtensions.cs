@@ -11,9 +11,9 @@ namespace Channels
     {
         public static Task WriteAsync(this IWritableChannel channel, byte[] buffer, int offset, int count)
         {
-            var end = channel.BeginWrite();
+            var end = channel.Allocate();
             end.Write(buffer, offset, count);
-            return channel.EndWriteAsync(end);
+            return channel.WriteAsync(end);
         }
 
         public static Task WriteAsync(this IWritableChannel channel, ArraySegment<byte> buffer)
@@ -102,15 +102,17 @@ namespace Channels
                         return;
                     }
 
+                    var buffer = channel.Allocate();
+
                     BufferSpan span;
                     while (end.TryGetBuffer(out span))
                     {
                         onData?.Invoke(span);
-                        var buffer = channel.BeginWrite();
                         buffer.Append(begin, end);
-                        await channel.EndWriteAsync(buffer);
                         begin = end;
                     }
+
+                    await channel.WriteAsync(buffer);
                 }
                 finally
                 {

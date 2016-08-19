@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
+using System.Diagnostics;
 using System.Text;
 
 namespace Channels
@@ -43,12 +44,16 @@ namespace Channels
         /// </summary>
         public bool ReadOnly;
 
+        public string StackTrace;
+
         // Leasing ctor
         public LinkedSegment(MemoryPoolBlock block)
         {
             Block = block;
             Start = block.Data.Offset;
             End = block.Data.Offset;
+
+            StackTrace = Environment.StackTrace;
         }
 
         // Cloning ctor
@@ -58,13 +63,18 @@ namespace Channels
             Start = start;
             End = end;
 
+
             block.AddReference();
             ReadOnly = true;
+
+            StackTrace = Environment.StackTrace;
         }
 
         public void Dispose()
         {
             Block.RemoveReference();
+
+            GC.SuppressFinalize(this);
         }
 
 
@@ -109,6 +119,11 @@ namespace Channels
             endClone.Next = new LinkedSegment(endOrig.Block, endOrig.Start, endBuffer.Index);
 
             return beginClone;
+        }
+
+        ~LinkedSegment()
+        {
+            Debug.Assert(false, StackTrace);
         }
     }
 }

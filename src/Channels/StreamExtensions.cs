@@ -12,7 +12,7 @@ namespace Channels
         {
             while (true)
             {
-                var end = channel.BeginWrite();
+                var end = channel.Allocate(2096);
 
                 try
                 {
@@ -26,7 +26,7 @@ namespace Channels
                     else
                     {
                         end.UpdateWritten(bytesRead);
-                        await channel.EndWriteAsync(end);
+                        await channel.WriteAsync(end);
                     }
                 }
                 catch (Exception error)

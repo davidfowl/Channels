@@ -9,20 +9,39 @@ namespace Channels
 {
     public struct WritableBuffer
     {
+        private MemoryPool _pool;
+
         private LinkedSegment _segment;
         private int _index;
 
-        internal WritableBuffer(LinkedSegment segment)
+        private LinkedSegment _head;
+        private int _headIndex;
+
+        internal WritableBuffer(MemoryPool pool, LinkedSegment segment)
         {
+            _pool = pool;
+
             _segment = segment;
             _index = segment?.Start ?? 0;
+
+            _head = segment;
+            _headIndex = _index;
         }
 
-        internal WritableBuffer(LinkedSegment segment, int index)
+        internal WritableBuffer(MemoryPool pool, LinkedSegment segment, int index)
         {
+            _pool = pool;
+
             _segment = segment;
             _index = index;
+
+            _head = segment;
+            _headIndex = _index;
         }
+
+        internal LinkedSegment Head => _head;
+
+        internal int HeadIndex => _headIndex;
 
         internal LinkedSegment Segment => _segment;
 
@@ -34,20 +53,21 @@ namespace Channels
 
         public void Write(byte[] data, int offset, int count)
         {
-            if (IsDefault)
+            if (_segment == null)
             {
-                return;
+                _segment = new LinkedSegment(_pool.Lease());
+                _index = _segment.End;
+                _head = _segment;
+                _headIndex = _segment.Start;
             }
 
             Debug.Assert(_segment.Block != null);
             Debug.Assert(_segment.Next == null);
             Debug.Assert(_segment.End == _index);
 
-            var block = _segment.Block;
-            var pool = block.Pool;
             var segment = _segment;
+            var block = _segment.Block;
             var blockIndex = _index;
-
             var bufferIndex = offset;
             var remaining = count;
             var bytesLeftInBlock = block.Data.Offset + block.Data.Count - blockIndex;
@@ -57,7 +77,7 @@ namespace Channels
                 // Try the block empty if the segment is reaodnly
                 if (bytesLeftInBlock == 0 || segment.ReadOnly)
                 {
-                    var nextBlock = pool.Lease();
+                    var nextBlock = _pool.Lease();
                     var nextSegment = new LinkedSegment(nextBlock);
                     segment.End = blockIndex;
                     Volatile.Write(ref segment.Next, nextSegment);
@@ -86,11 +106,6 @@ namespace Channels
 
         public void Append(ReadableBuffer begin, ReadableBuffer end)
         {
-            Debug.Assert(_segment != null);
-            Debug.Assert(_segment.Block != null);
-            Debug.Assert(_segment.Next == null);
-            Debug.Assert(_segment.End == _index);
-
             var clonedBegin = LinkedSegment.Clone(begin, end);
             var clonedEnd = clonedBegin;
             while (clonedEnd.Next != null)
@@ -98,7 +113,20 @@ namespace Channels
                 clonedEnd = clonedEnd.Next;
             }
 
-            _segment.Next = clonedBegin;
+            if (_segment == null)
+            {
+                _head = clonedBegin;
+                _headIndex = clonedBegin.Start;
+            }
+            else
+            {
+                Debug.Assert(_segment.Block != null);
+                Debug.Assert(_segment.Next == null);
+                Debug.Assert(_segment.End == _index);
+
+                _segment.Next = clonedBegin;
+            }
+
             _segment = clonedEnd;
             _index = clonedEnd.End;
         }
