@@ -86,8 +86,6 @@ namespace Channels
 
         public static async Task CopyToAsync(this IReadableChannel input, IWritableChannel channel, Action<BufferSpan> onData = null)
         {
-            // REVIEW: If the blocks returned are from the same pool can do do something crazy like
-            // transfer blocks directly to the writable channel
             while (true)
             {
                 await input;
@@ -108,7 +106,9 @@ namespace Channels
                     while (end.TryGetBuffer(out span))
                     {
                         onData?.Invoke(span);
-                        await channel.WriteAsync(span.Buffer.Array, span.Buffer.Offset, span.Buffer.Count);
+                        var buffer = channel.BeginWrite();
+                        buffer.Append(begin, end);
+                        await channel.EndWriteAsync(buffer);
                     }
                 }
                 finally
