@@ -229,6 +229,7 @@ namespace Channels.Samples.Http
                 await _responseBody;
 
                 var begin = _responseBody.BeginRead();
+                var end = begin;
 
                 if (begin.IsEnd && _responseBody.Completion.IsCompleted)
                 {
@@ -240,23 +241,23 @@ namespace Channels.Samples.Http
                 try
                 {
                     BufferSpan span;
-                    while (begin.TryGetBuffer(out span))
+                    while (end.TryGetBuffer(out span))
                     {
                         if (autoChunk)
                         {
                             ChunkWriter.WriteBeginChunkBytes(ref buffer, span.Length);
-                            span.CopyTo(ref buffer);
+                            buffer.Append(begin, end);
                             ChunkWriter.WriteEndChunkBytes(ref buffer);
                         }
                         else
                         {
-                            span.CopyTo(ref buffer);
+                            buffer.Append(begin, end);
                         }
                     }
                 }
                 finally
                 {
-                    _responseBody.EndRead(begin);
+                    _responseBody.EndRead(end);
                 }
             }
 
