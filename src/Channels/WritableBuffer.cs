@@ -33,45 +33,6 @@ namespace Channels
 
         public BufferSpan Memory => new BufferSpan(_segment.Block.DataArrayPtr, _segment.Block.Array, Segment.End, _segment.Block.Data.Offset + _segment.Block.Data.Count - Segment.End);
 
-        public void Write(byte data)
-        {
-            if (IsDefault)
-            {
-                return;
-            }
-
-            Debug.Assert(_segment.Block != null);
-            Debug.Assert(_segment.Next == null);
-            Debug.Assert(_segment.End == _index);
-
-            var block = _segment.Block;
-            var pool = block.Pool;
-            var segment = _segment;
-            var blockIndex = _index;
-
-            var bytesLeftInBlock = block.Data.Offset + block.Data.Count - blockIndex;
-
-            if (bytesLeftInBlock == 0)
-            {
-                var nextBlock = pool.Lease();
-                var nextSegment = new LinkedSegment(nextBlock);
-                segment.End = blockIndex;
-                Volatile.Write(ref segment.Next, nextSegment);
-                segment = nextSegment;
-                block = nextBlock;
-
-                blockIndex = block.Data.Offset;
-            }
-
-            block.Array[blockIndex] = data;
-
-            blockIndex++;
-
-            segment.End = blockIndex;
-            _segment = segment;
-            _index = blockIndex;
-        }
-
         public void Write(byte[] data, int offset, int count)
         {
             if (IsDefault)
@@ -94,7 +55,8 @@ namespace Channels
 
             while (remaining > 0)
             {
-                if (bytesLeftInBlock == 0)
+                // Try the block empty if the segment is reaodnly
+                if (bytesLeftInBlock == 0 || segment.ReadOnly)
                 {
                     var nextBlock = pool.Lease();
                     var nextSegment = new LinkedSegment(nextBlock);

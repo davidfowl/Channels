@@ -109,6 +109,7 @@ namespace Channels
                         var buffer = channel.BeginWrite();
                         buffer.Append(begin, end);
                         await channel.EndWriteAsync(buffer);
+                        begin = end;
                     }
                 }
                 finally
