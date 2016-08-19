@@ -10,7 +10,6 @@ namespace Channels
     public struct WritableBuffer
     {
         private LinkedSegment _segment;
-        // TODO: remove _block, use the one in _segment
         private int _index;
 
         internal WritableBuffer(LinkedSegment segment)

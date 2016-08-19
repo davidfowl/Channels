@@ -253,6 +253,8 @@ namespace Channels.Samples.Http
                         {
                             buffer.Append(begin, end);
                         }
+
+                        begin = end;
                     }
                 }
                 finally
