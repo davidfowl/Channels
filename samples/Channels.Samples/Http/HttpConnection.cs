@@ -301,7 +301,7 @@ namespace Channels.Samples.Http
 
             foreach (var header in ResponseHeaders)
             {
-                var headerRaw = "\r\n" + header.Key + ':' + header.Value;
+                var headerRaw = "\r\n" + header.Key + ": " + header.Value;
                 var headerBytes = Encoding.UTF8.GetBytes(headerRaw);
                 buffer.Write(headerBytes, 0, headerBytes.Length);
             }

@@ -28,8 +28,10 @@ namespace Channels.Samples.Http
             var uri = new Uri(address);
 
             _listenSocket = new Socket(SocketType.Stream, ProtocolType.Tcp);
-            var ip = string.Equals(uri.Host, "localhost") ? IPAddress.Loopback : IPAddress.Parse(uri.Host);
-            _listenSocket.Bind(new IPEndPoint(ip, uri.Port));
+            IPAddress ip;
+            int port;
+            GetIp(address, out ip, out port);
+            _listenSocket.Bind(new IPEndPoint(ip, port));
             _listenSocket.Listen(10);
 
             using (var pool = new MemoryPool())
@@ -57,6 +59,26 @@ namespace Channels.Samples.Http
         public void Dispose()
         {
             _listenSocket?.Dispose();
+        }
+
+        private static void GetIp(string url, out IPAddress ip, out int port)
+        {
+            ip = null;
+
+            var address = ServerAddress.FromUrl(url);
+            switch (address.Host)
+            {
+                case "localhost":
+                    ip = IPAddress.Loopback;
+                    break;
+                case "*":
+                    ip = IPAddress.Any;
+                    break;
+                default:
+                    break;
+            }
+            ip = ip ?? IPAddress.Parse(address.Host);
+            port = address.Port;
         }
 
         private static async Task ProcessClient<TContext>(IHttpApplication<TContext> application, MemoryPool pool, Socket socket)
