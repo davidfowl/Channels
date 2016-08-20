@@ -25,8 +25,6 @@ namespace Channels.Samples.Http
         {
             var feature = Features.Get<IServerAddressesFeature>();
             var address = feature.Addresses.FirstOrDefault();
-            var uri = new Uri(address);
-
             _listenSocket = new Socket(SocketType.Stream, ProtocolType.Tcp);
             IPAddress ip;
             int port;
@@ -88,7 +86,7 @@ namespace Channels.Samples.Http
                 // var id = Guid.NewGuid();
                 var channelFactory = new ChannelFactory(pool);
                 var input = channelFactory.MakeReadableChannel(ns);
-                var output = channelFactory.MakeWriteableChannel(ns);
+                var output = channelFactory.MakeWriteableChannel(socket);
                 // output = channelFactory.MakeWriteableChannel(output, Dump);
                 // input = channelFactory.MakeReadableChannel(input, Dump);
 

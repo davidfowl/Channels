@@ -221,7 +221,7 @@ namespace Channels.Samples.Http
 
         private async Task ProcessResponse()
         {
-            var buffer = _output.Allocate();
+            var buffer = _output.Alloc();
             var autoChunk = false;
 
             while (true)

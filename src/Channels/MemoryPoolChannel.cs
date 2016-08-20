@@ -52,7 +52,7 @@ namespace Channels
 
         public bool IsCompleted => ReferenceEquals(_awaitableState, _awaitableIsCompleted);
 
-        public WritableBuffer Allocate(int minimumSize = 0)
+        public WritableBuffer Alloc(int minimumSize = 0)
         {
             if (Interlocked.CompareExchange(ref _producingState, 1, 0) != 0)
             {

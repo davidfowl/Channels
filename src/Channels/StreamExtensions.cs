@@ -12,7 +12,7 @@ namespace Channels
         {
             while (true)
             {
-                var end = channel.Allocate(2096);
+                var end = channel.Alloc(2048);
 
                 try
                 {

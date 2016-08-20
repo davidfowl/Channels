@@ -87,7 +87,7 @@ namespace Channels.Samples.IO
 
             public unsafe void Read()
             {
-                var buffer = Channel.Allocate(2048);
+                var buffer = Channel.Alloc(2048);
 
                 var data = buffer.Memory.BufferPtr;
                 var count = buffer.Memory.Length;

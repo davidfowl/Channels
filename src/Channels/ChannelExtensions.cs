@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 
@@ -11,7 +12,7 @@ namespace Channels
     {
         public static Task WriteAsync(this IWritableChannel channel, byte[] buffer, int offset, int count)
         {
-            var end = channel.Allocate();
+            var end = channel.Alloc();
             end.Write(buffer, offset, count);
             return channel.WriteAsync(end);
         }
@@ -102,7 +103,7 @@ namespace Channels
                         return;
                     }
 
-                    var buffer = channel.Allocate();
+                    var buffer = channel.Alloc();
 
                     BufferSpan span;
                     while (end.TryGetBuffer(out span))

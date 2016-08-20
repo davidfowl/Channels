@@ -62,7 +62,7 @@ namespace Channels.Samples.IO.Compression
                         break;
                     }
 
-                    var writerBuffer = output.Allocate(2048);
+                    var writerBuffer = output.Alloc(2048);
 
                     _deflater.SetInput(span.BufferPtr, span.Length);
 
@@ -86,7 +86,7 @@ namespace Channels.Samples.IO.Compression
                 do
                 {
                     // Need to do more stuff here
-                    var writerBuffer = output.Allocate(2048);
+                    var writerBuffer = output.Alloc(2048);
 
                     int compressedBytes;
                     flushed = _deflater.Flush(writerBuffer.Memory.BufferPtr, writerBuffer.Memory.Length, out compressedBytes);
@@ -100,7 +100,7 @@ namespace Channels.Samples.IO.Compression
                 do
                 {
                     // Need to do more stuff here
-                    var writerBuffer = output.Allocate(2048);
+                    var writerBuffer = output.Alloc(2048);
 
                     int compressedBytes;
                     finished = _deflater.Finish(writerBuffer.Memory.BufferPtr, writerBuffer.Memory.Length, out compressedBytes);
@@ -142,7 +142,7 @@ namespace Channels.Samples.IO.Compression
                         break;
                     }
 
-                    var writerBuffer = output.Allocate(2048);
+                    var writerBuffer = output.Alloc(2048);
 
                     if (span.Length > 0)
                     {
