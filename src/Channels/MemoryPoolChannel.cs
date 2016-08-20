@@ -82,7 +82,7 @@ namespace Channels
                 {
                     _head = segment;
                 }
-                else if (segment != _tail)
+                else if (segment != null && segment != _tail)
                 {
                     Volatile.Write(ref _tail.Next, segment);
                     _tail = segment;
@@ -260,8 +260,7 @@ namespace Channels
             else if (ReferenceEquals(awaitableState, _awaitableIsCompleted))
             {
                 // Dispatch here to avoid stack diving
-                // Task.Run(continuation);
-                continuation();
+                Task.Run(continuation);
             }
             else
             {
@@ -321,11 +320,6 @@ namespace Channels
 
                 Interlocked.Exchange(ref _disposeCallback, null)?.Invoke();
             }
-        }
-
-        ~MemoryPoolChannel()
-        {
-            Debug.Assert(false);
         }
     }
 }
