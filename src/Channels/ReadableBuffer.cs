@@ -767,7 +767,7 @@ namespace Channels
             return true;
         }
 
-        public int Read(byte[] array, int offset, int count)
+        public int CopyTo(byte[] array, int offset, int count)
         {
             if (IsDefault)
             {

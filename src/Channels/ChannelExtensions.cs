@@ -38,7 +38,7 @@ namespace Channels
 
                 var begin = input.BeginRead();
                 var end = begin;
-                int actual = end.Read(buffer, offset, count);
+                int actual = end.CopyTo(buffer, offset, count);
                 input.EndRead(end);
 
                 if (actual != 0)
@@ -132,7 +132,7 @@ namespace Channels
 
                 var begin = input.BeginRead();
                 var end = begin;
-                int actual = begin.Read(buffer, offset, count);
+                int actual = begin.CopyTo(buffer, offset, count);
                 input.EndRead(end);
 
                 if (actual != 0)
