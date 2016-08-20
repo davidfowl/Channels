@@ -88,7 +88,7 @@ namespace Channels
                     _tail = segment;
                 }
 
-                return new WritableBuffer(_pool, segment, segment?.End ?? 0);
+                return new WritableBuffer(_pool, segment);
             }
         }
 

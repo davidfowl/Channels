@@ -22,18 +22,7 @@ namespace Channels
             _pool = pool;
 
             _segment = segment;
-            _index = segment?.Start ?? 0;
-
-            _head = segment;
-            _headIndex = _index;
-        }
-
-        internal WritableBuffer(MemoryPool pool, LinkedSegment segment, int index)
-        {
-            _pool = pool;
-
-            _segment = segment;
-            _index = index;
+            _index = segment?.End ?? 0;
 
             _head = segment;
             _headIndex = _index;
