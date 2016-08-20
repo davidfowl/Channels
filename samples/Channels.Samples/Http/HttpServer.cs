@@ -86,7 +86,7 @@ namespace Channels.Samples.Http
                 // var id = Guid.NewGuid();
                 var channelFactory = new ChannelFactory(pool);
                 var input = channelFactory.MakeReadableChannel(ns);
-                var output = channelFactory.MakeWriteableChannel(socket);
+                var output = channelFactory.MakeWriteableChannel(ns);
                 // output = channelFactory.MakeWriteableChannel(output, Dump);
                 // input = channelFactory.MakeReadableChannel(input, Dump);
 

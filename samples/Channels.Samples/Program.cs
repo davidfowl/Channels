@@ -65,6 +65,7 @@ namespace Channels.Samples
         private static void RunHttpServer()
         {
             var host = new WebHostBuilder()
+                            .UseUrls("http://*:5000")
                             .ConfigureServices(services =>
                             {
                                 // Use a custom server
