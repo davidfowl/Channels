@@ -44,7 +44,6 @@ namespace Channels
         /// </summary>
         public bool ReadOnly;
 
-        public string StackTrace;
 
         // Leasing ctor
         public LinkedSegment(MemoryPoolBlock block)
@@ -52,8 +51,6 @@ namespace Channels
             Block = block;
             Start = block.Data.Offset;
             End = block.Data.Offset;
-
-            StackTrace = Environment.StackTrace;
         }
 
         // Cloning ctor
@@ -66,15 +63,11 @@ namespace Channels
 
             block.AddReference();
             ReadOnly = true;
-
-            StackTrace = Environment.StackTrace;
         }
 
         public void Dispose()
         {
             Block.RemoveReference();
-
-            GC.SuppressFinalize(this);
         }
 
 
@@ -119,11 +112,6 @@ namespace Channels
             endClone.Next = new LinkedSegment(endOrig.Block, endOrig.Start, endBuffer.Index);
 
             return beginClone;
-        }
-
-        ~LinkedSegment()
-        {
-            Debug.Assert(false, StackTrace);
         }
     }
 }
