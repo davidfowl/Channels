@@ -56,7 +56,7 @@ namespace Channels
         {
             if (Interlocked.CompareExchange(ref _producingState, 1, 0) != 0)
             {
-                throw new InvalidOperationException("Already producing output.");
+                throw new InvalidOperationException("Already producing.");
             }
 
             LinkedSegment segment = null;
@@ -65,7 +65,7 @@ namespace Channels
             {
                 int remaining = _tail.Block.Data.Offset + _tail.Block.Data.Count - _tail.End;
 
-                if (minimumSize <= remaining && remaining > 0)
+                if (minimumSize <= remaining)
                 {
                     segment = _tail;
                 }
@@ -146,7 +146,7 @@ namespace Channels
         {
             if (Interlocked.CompareExchange(ref _consumingState, 1, 0) != 0)
             {
-                throw new InvalidOperationException("Already consuming input.");
+                throw new InvalidOperationException("Already consuming.");
             }
 
             return new ReadableBuffer(_head);
