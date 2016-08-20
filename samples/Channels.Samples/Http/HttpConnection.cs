@@ -222,57 +222,63 @@ namespace Channels.Samples.Http
         private async Task ProcessResponse()
         {
             var buffer = _output.Alloc();
-            var autoChunk = false;
 
-            while (true)
+            try
             {
-                await _responseBody;
+                var autoChunk = false;
 
-                var begin = _responseBody.BeginRead();
-                var end = begin;
-
-                if (begin.IsEnd && _responseBody.Completion.IsCompleted)
+                while (true)
                 {
-                    break;
+                    await _responseBody;
+
+                    var begin = _responseBody.BeginRead();
+                    var end = begin;
+
+                    if (begin.IsEnd && _responseBody.Completion.IsCompleted)
+                    {
+                        break;
+                    }
+
+                    WriteBeginResponseHeaders(ref buffer, ref autoChunk);
+
+                    try
+                    {
+                        BufferSpan span;
+                        while (end.TryGetBuffer(out span))
+                        {
+                            if (autoChunk)
+                            {
+                                ChunkWriter.WriteBeginChunkBytes(ref buffer, span.Length);
+                                buffer.Append(begin, end);
+                                ChunkWriter.WriteEndChunkBytes(ref buffer);
+                            }
+                            else
+                            {
+                                buffer.Append(begin, end);
+                            }
+
+                            begin = end;
+                        }
+                    }
+                    finally
+                    {
+                        _responseBody.EndRead(end);
+                    }
                 }
 
                 WriteBeginResponseHeaders(ref buffer, ref autoChunk);
 
-                try
+                if (autoChunk)
                 {
-                    BufferSpan span;
-                    while (end.TryGetBuffer(out span))
-                    {
-                        if (autoChunk)
-                        {
-                            ChunkWriter.WriteBeginChunkBytes(ref buffer, span.Length);
-                            buffer.Append(begin, end);
-                            ChunkWriter.WriteEndChunkBytes(ref buffer);
-                        }
-                        else
-                        {
-                            buffer.Append(begin, end);
-                        }
-
-                        begin = end;
-                    }
-                }
-                finally
-                {
-                    _responseBody.EndRead(end);
+                    WriteEndResponse(ref buffer);
                 }
             }
-
-            WriteBeginResponseHeaders(ref buffer, ref autoChunk);
-
-            if (autoChunk)
+            finally
             {
-                WriteEndResponse(ref buffer);
+                await _output.WriteAsync(buffer);
+
+                _responseBody.CompleteReading();
             }
-
-            await _output.WriteAsync(buffer);
-
-            _responseBody.CompleteReading();
         }
 
         private void WriteBeginResponseHeaders(ref WritableBuffer buffer, ref bool autoChunk)
