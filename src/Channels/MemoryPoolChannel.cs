@@ -13,6 +13,8 @@ namespace Channels
         private static readonly Action _awaitableIsCompleted = () => { };
         private static readonly Action _awaitableIsNotCompleted = () => { };
 
+        private static Task _completedTask = Task.FromResult(0);
+
         private readonly MemoryPool _pool;
         private readonly ManualResetEventSlim _manualResetEvent = new ManualResetEventSlim(false, 0);
 
@@ -63,6 +65,7 @@ namespace Channels
 
             if (_tail != null && !_tail.ReadOnly)
             {
+                // Try to return the tail so the calling code can append to it
                 int remaining = _tail.Block.Data.Offset + _tail.Block.Data.Count - _tail.End;
 
                 if (minimumSize <= remaining)
@@ -70,9 +73,10 @@ namespace Channels
                     segment = _tail;
                 }
             }
-            
+
             if (segment == null && minimumSize > 0)
             {
+                // We're out of tail space so lease a new segment only if the requested size > 0
                 segment = new LinkedSegment(_pool.Lease());
             }
 
@@ -84,6 +88,7 @@ namespace Channels
                 }
                 else if (segment != null && segment != _tail)
                 {
+                    // Append the segment to the tail if it's non-null
                     Volatile.Write(ref _tail.Next, segment);
                     _tail = segment;
                 }
@@ -103,20 +108,25 @@ namespace Channels
 
                 if (_head == null)
                 {
+                    // Update the head to point to the head of the buffer. This
+                    // happens if we called alloc(0) then write
                     _head = buffer.Head;
                     _head.Start = buffer.HeadIndex;
                 }
+                // If buffer.Head == tail it means we appended data to the tail
                 else if (_tail != null && buffer.Head != _tail)
                 {
-                    _tail.Next = buffer.Head;
+                    // If we have a tail point next to the head of the buffer
+                    Volatile.Write(ref _tail.Next, buffer.Head);
                 }
 
-                _tail = buffer.Segment;
-                _tail.End = buffer.Index;
+                // Always update tail to the buffer's tail
+                _tail = buffer.Tail;
+                _tail.End = buffer.TailIndex;
 
                 Complete();
 
-                return Task.FromResult(0);
+                return _completedTask;
             }
         }
 
