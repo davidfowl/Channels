@@ -20,12 +20,6 @@ namespace Channels
             _index = segment?.Start ?? 0;
         }
 
-        internal ReadableBuffer(LinkedSegment segment, int index)
-        {
-            _segment = segment;
-            _index = index;
-        }
-
         internal LinkedSegment Segment => _segment;
 
         internal int Index => _index;

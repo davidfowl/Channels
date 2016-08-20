@@ -38,7 +38,7 @@ namespace Channels
 
         internal bool IsDefault => _tail == null;
 
-        public BufferSpan Memory => new BufferSpan(_tail.Block.DataArrayPtr, _tail.Block.Array, Tail.End, _tail.Block.Data.Offset + _tail.Block.Data.Count - Tail.End);
+        public BufferSpan Memory => new BufferSpan(_tail.Block.DataArrayPtr, _tail.Block.Array, _tail.End, _tail.Block.Data.Offset + _tail.Block.Data.Count - _tail.End);
 
         public void Write(byte[] data, int offset, int count)
         {
