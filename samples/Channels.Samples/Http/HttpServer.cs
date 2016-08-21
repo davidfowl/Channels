@@ -16,6 +16,7 @@ namespace Channels.Samples.Http
         public IFeatureCollection Features { get; } = new FeatureCollection();
 
         private Socket _listenSocket;
+        private RIOTcpServer _rioTcpServer;
 
         public HttpServer()
         {
@@ -31,7 +32,7 @@ namespace Channels.Samples.Http
             int port;
             GetIp(address, out ip, out port);
             var addressBytes = ip.GetAddressBytes();
-            var server = new RIOTcpServer((ushort)port, addressBytes[0], addressBytes[1], addressBytes[2], addressBytes[3]);
+            _rioTcpServer = new RIOTcpServer((ushort)port, addressBytes[0], addressBytes[1], addressBytes[2], addressBytes[3]);
             // _listenSocket.Bind(new IPEndPoint(ip, port));
             // _listenSocket.Listen(10);
 
@@ -43,7 +44,7 @@ namespace Channels.Samples.Http
                 {
                     try
                     {
-                        var connection = server.Accept();
+                        var connection = _rioTcpServer.Accept();
                         // var clientSocket = await _listenSocket.AcceptAsync();
                         // clientSocket.NoDelay = true;
                         // var task = Task.Factory.StartNew(() => ProcessConnection(application, channelFactory, socket));
@@ -63,6 +64,7 @@ namespace Channels.Samples.Http
 
         public void Dispose()
         {
+            _rioTcpServer?.Stop();
             _listenSocket?.Dispose();
         }
 
