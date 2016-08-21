@@ -11,13 +11,13 @@ namespace Channels
     {
         private MemoryPool _pool;
 
-        private LinkedSegment _tail;
+        private MemoryBlockSegment _tail;
         private int _tailIndex;
 
-        private LinkedSegment _head;
+        private MemoryBlockSegment _head;
         private int _headIndex;
 
-        internal WritableBuffer(MemoryPool pool, LinkedSegment segment)
+        internal WritableBuffer(MemoryPool pool, MemoryBlockSegment segment)
         {
             _pool = pool;
 
@@ -28,11 +28,11 @@ namespace Channels
             _headIndex = _tailIndex;
         }
 
-        internal LinkedSegment Head => _head;
+        internal MemoryBlockSegment Head => _head;
 
         internal int HeadIndex => _headIndex;
 
-        internal LinkedSegment Tail => _tail;
+        internal MemoryBlockSegment Tail => _tail;
 
         internal int TailIndex => _tailIndex;
 
@@ -44,7 +44,7 @@ namespace Channels
         {
             if (_tail == null)
             {
-                _tail = new LinkedSegment(_pool.Lease());
+                _tail = new MemoryBlockSegment(_pool.Lease());
                 _tailIndex = _tail.End;
                 _head = _tail;
                 _headIndex = _tail.Start;
@@ -67,7 +67,7 @@ namespace Channels
                 if (bytesLeftInBlock == 0 || segment.ReadOnly)
                 {
                     var nextBlock = _pool.Lease();
-                    var nextSegment = new LinkedSegment(nextBlock);
+                    var nextSegment = new MemoryBlockSegment(nextBlock);
                     segment.End = blockIndex;
                     Volatile.Write(ref segment.Next, nextSegment);
                     segment = nextSegment;
@@ -95,7 +95,7 @@ namespace Channels
 
         public void Append(ReadableBuffer begin, ReadableBuffer end)
         {
-            var clonedBegin = LinkedSegment.Clone(begin, end);
+            var clonedBegin = MemoryBlockSegment.Clone(begin, end);
             var clonedEnd = clonedBegin;
             while (clonedEnd.Next != null)
             {

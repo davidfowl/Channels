@@ -20,8 +20,8 @@ namespace Channels
 
         private Action _awaitableState;
 
-        private LinkedSegment _head;
-        private LinkedSegment _tail;
+        private MemoryBlockSegment _head;
+        private MemoryBlockSegment _tail;
 
         private bool _completedWriting;
         private bool _completedReading;
@@ -61,7 +61,7 @@ namespace Channels
                 throw new InvalidOperationException("Already producing.");
             }
 
-            LinkedSegment segment = null;
+            MemoryBlockSegment segment = null;
 
             if (_tail != null && !_tail.ReadOnly)
             {
@@ -77,7 +77,7 @@ namespace Channels
             if (segment == null && minimumSize > 0)
             {
                 // We're out of tail space so lease a new segment only if the requested size > 0
-                segment = new LinkedSegment(_pool.Lease());
+                segment = new MemoryBlockSegment(_pool.Lease());
             }
 
             lock (_sync)
@@ -177,8 +177,8 @@ namespace Channels
             ReadableBuffer consumed,
             ReadableBuffer examined)
         {
-            LinkedSegment returnStart = null;
-            LinkedSegment returnEnd = null;
+            MemoryBlockSegment returnStart = null;
+            MemoryBlockSegment returnEnd = null;
 
             lock (_sync)
             {

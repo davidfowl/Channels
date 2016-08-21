@@ -8,7 +8,7 @@ using System.Text;
 namespace Channels
 {
     // TODO: Pool segments?
-    internal class LinkedSegment : IDisposable
+    internal class MemoryBlockSegment : IDisposable
     {
         /// <summary>
         /// Block tracking object used by the byte buffer memory pool.
@@ -35,7 +35,7 @@ namespace Channels
         /// working memory. The "active" memory is grown when bytes are copied in, End is increased, and Next is assigned. The "active" 
         /// memory is shrunk when bytes are consumed, Start is increased, and blocks are returned to the pool.
         /// </summary>
-        public LinkedSegment Next;
+        public MemoryBlockSegment Next;
 
 
         /// <summary>
@@ -46,7 +46,7 @@ namespace Channels
 
 
         // Leasing ctor
-        public LinkedSegment(MemoryPoolBlock block)
+        public MemoryBlockSegment(MemoryPoolBlock block)
         {
             Block = block;
             Start = block.Data.Offset;
@@ -54,7 +54,7 @@ namespace Channels
         }
 
         // Cloning ctor
-        private LinkedSegment(MemoryPoolBlock block, int start, int end)
+        private MemoryBlockSegment(MemoryPoolBlock block, int start, int end)
         {
             Block = block;
             Start = start;
@@ -86,30 +86,30 @@ namespace Channels
             return builder.ToString();
         }
 
-        public static LinkedSegment Clone(ReadableBuffer beginBuffer, ReadableBuffer endBuffer)
+        public static MemoryBlockSegment Clone(ReadableBuffer beginBuffer, ReadableBuffer endBuffer)
         {
             var beginOrig = beginBuffer.Segment;
             var endOrig = endBuffer.Segment;
 
             if (beginOrig == endOrig)
             {
-                return new LinkedSegment(beginOrig.Block, beginBuffer.Index, endBuffer.Index);
+                return new MemoryBlockSegment(beginOrig.Block, beginBuffer.Index, endBuffer.Index);
             }
 
-            var beginClone = new LinkedSegment(beginOrig.Block, beginBuffer.Index, beginOrig.End);
+            var beginClone = new MemoryBlockSegment(beginOrig.Block, beginBuffer.Index, beginOrig.End);
             var endClone = beginClone;
 
             beginOrig = beginOrig.Next;
 
             while (beginOrig != endOrig)
             {
-                endClone.Next = new LinkedSegment(beginOrig.Block, beginOrig.Start, beginOrig.End);
+                endClone.Next = new MemoryBlockSegment(beginOrig.Block, beginOrig.Start, beginOrig.End);
 
                 endClone = endClone.Next;
                 beginOrig = beginOrig.Next;
             }
 
-            endClone.Next = new LinkedSegment(endOrig.Block, endOrig.Start, endBuffer.Index);
+            endClone.Next = new MemoryBlockSegment(endOrig.Block, endOrig.Start, endBuffer.Index);
 
             return beginClone;
         }

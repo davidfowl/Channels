@@ -11,16 +11,16 @@ namespace Channels
     {
         private static readonly int _vectorSpan = Vector<byte>.Count;
 
-        private LinkedSegment _segment;
+        private MemoryBlockSegment _segment;
         private int _index;
 
-        internal ReadableBuffer(LinkedSegment segment)
+        internal ReadableBuffer(MemoryBlockSegment segment)
         {
             _segment = segment;
             _index = segment?.Start ?? 0;
         }
 
-        internal LinkedSegment Segment => _segment;
+        internal MemoryBlockSegment Segment => _segment;
 
         internal int Index => _index;
 
