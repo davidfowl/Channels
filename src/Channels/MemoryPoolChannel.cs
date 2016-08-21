@@ -314,8 +314,6 @@ namespace Channels
 
         public void Dispose()
         {
-            GC.SuppressFinalize(this);
-
             Debug.Assert(_completedWriting, "Not completed writing");
             Debug.Assert(_completedReading, "Not completed reading");
 
