@@ -3,6 +3,7 @@
 
 using System;
 using System.Threading;
+using Channels;
 
 namespace ManagedRIOHttpServer.RegisteredIO
 {
@@ -25,6 +26,10 @@ namespace ManagedRIOHttpServer.RegisteredIO
         public const int IOCPOverflowEvents = 8;
         const int ReceiveMask = MaxPendingReceives - 1;
         const int SendMask = MaxPendingSends - 1;
+
+        public MemoryPoolChannel Input { get; set; }
+        public MemoryPoolChannel Output { get; set; }
+
 
         internal RIOTcpConnection(IntPtr socket, long connectionId, RIOWorkBundle wb, RIO rio)
         {
