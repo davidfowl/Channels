@@ -106,6 +106,12 @@ namespace Channels
                     throw new InvalidOperationException("No ongoing producing operation to complete.");
                 }
 
+                if (buffer.IsDefault)
+                {
+                    // REVIEW: Should we signal the completion?
+                    return _completedTask;
+                }
+
                 if (_head == null)
                 {
                     // Update the head to point to the head of the buffer. This

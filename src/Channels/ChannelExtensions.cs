@@ -12,9 +12,9 @@ namespace Channels
     {
         public static Task WriteAsync(this IWritableChannel channel, byte[] buffer, int offset, int count)
         {
-            var end = channel.Alloc();
-            end.Write(buffer, offset, count);
-            return channel.WriteAsync(end);
+            var writeBuffer = channel.Alloc();
+            writeBuffer.Write(buffer, offset, count);
+            return channel.WriteAsync(writeBuffer);
         }
 
         public static Task WriteAsync(this IWritableChannel channel, ArraySegment<byte> buffer)

@@ -12,11 +12,11 @@ namespace Channels
         {
             while (true)
             {
-                var end = channel.Alloc(2048);
+                var buffer = channel.Alloc(2048);
 
                 try
                 {
-                    int bytesRead = await stream.ReadAsync(end.Memory.Buffer.Array, end.Memory.Buffer.Offset, end.Memory.Buffer.Count);
+                    int bytesRead = await stream.ReadAsync(buffer.Memory.Buffer.Array, buffer.Memory.Buffer.Offset, buffer.Memory.Buffer.Count);
 
                     if (bytesRead == 0)
                     {
@@ -25,8 +25,8 @@ namespace Channels
                     }
                     else
                     {
-                        end.UpdateWritten(bytesRead);
-                        await channel.WriteAsync(end);
+                        buffer.UpdateWritten(bytesRead);
+                        await channel.WriteAsync(buffer);
                     }
                 }
                 catch (Exception error)
