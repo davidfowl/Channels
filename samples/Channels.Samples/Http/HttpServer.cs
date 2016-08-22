@@ -4,7 +4,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
-using ManagedRIOHttpServer.RegisteredIO;
+using IllyriadGames.River;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Http.Features;
@@ -16,7 +16,7 @@ namespace Channels.Samples.Http
         public IFeatureCollection Features { get; } = new FeatureCollection();
 
         private Socket _listenSocket;
-        private RIOTcpServer _rioTcpServer;
+        private TcpServer _tcpServer;
 
         public HttpServer()
         {
@@ -36,13 +36,13 @@ namespace Channels.Samples.Http
         private void StartAcceptingRIOConnections<TContext>(IHttpApplication<TContext> application, IPAddress ip, int port)
         {
             var addressBytes = ip.GetAddressBytes();
-            _rioTcpServer = new RIOTcpServer((ushort)port, addressBytes[0], addressBytes[1], addressBytes[2], addressBytes[3]);
+            _tcpServer = new TcpServer((ushort)port, addressBytes[0], addressBytes[1], addressBytes[2], addressBytes[3]);
 
             while (true)
             {
                 try
                 {
-                    var connection = _rioTcpServer.Accept();
+                    var connection = _tcpServer.Accept();
                     var task = Task.Factory.StartNew(() => ProcessRIOConnection(application, connection));
                 }
                 catch (ObjectDisposedException)
@@ -88,7 +88,7 @@ namespace Channels.Samples.Http
 
         public void Dispose()
         {
-            _rioTcpServer?.Stop();
+            _tcpServer?.Stop();
             _listenSocket?.Dispose();
         }
 
@@ -112,7 +112,7 @@ namespace Channels.Samples.Http
             port = address.Port;
         }
 
-        private static async Task ProcessRIOConnection<TContext>(IHttpApplication<TContext> application, RIOTcpConnection connection)
+        private static async Task ProcessRIOConnection<TContext>(IHttpApplication<TContext> application, TcpConnection connection)
         {
             using (connection)
             {
