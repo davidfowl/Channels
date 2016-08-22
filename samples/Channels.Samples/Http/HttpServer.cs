@@ -137,7 +137,7 @@ namespace Channels.Samples.Http
             // output = channelFactory.MakeWriteableChannel(output, Dump);
             // input = channelFactory.MakeReadableChannel(input, Dump);
 
-            var connection = new HttpConnection<TContext>(application, input, output, channelFactory);
+            var connection = new HttpConnection<TContext>(application, input, output);
 
             // Console.WriteLine($"[{id}]: Connection started");
 

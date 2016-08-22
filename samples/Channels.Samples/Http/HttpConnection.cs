@@ -19,7 +19,6 @@ namespace Channels.Samples.Http
 
         private readonly IReadableChannel _input;
         private readonly IWritableChannel _output;
-        private readonly ChannelFactory _channelFactory;
         private IHttpApplication<TContext> _application;
 
         public HeaderDictionary RequestHeaders { get; } = new HeaderDictionary();
@@ -39,12 +38,11 @@ namespace Channels.Samples.Http
 
         private bool _autoChunk;
 
-        public HttpConnection(IHttpApplication<TContext> application, IReadableChannel input, IWritableChannel output, ChannelFactory channelFactory)
+        public HttpConnection(IHttpApplication<TContext> application, IReadableChannel input, IWritableChannel output)
         {
             _application = application;
             _input = input;
             _output = output;
-            _channelFactory = channelFactory;
             _initialBody = new HttpBodyStream<TContext>(this);
         }
 
