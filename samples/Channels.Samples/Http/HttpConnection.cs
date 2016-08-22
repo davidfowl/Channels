@@ -21,14 +21,11 @@ namespace Channels.Samples.Http
         private readonly IWritableChannel _output;
         private readonly ChannelFactory _channelFactory;
         private IHttpApplication<TContext> _application;
-        private MemoryPoolChannel _responseBody;
-        private Task _responseBodyProcessing;
 
         public HeaderDictionary RequestHeaders { get; } = new HeaderDictionary();
         public HeaderDictionary ResponseHeaders { get; } = new HeaderDictionary();
 
         public IReadableChannel RequestBody => _input;
-        public IWritableChannel ResponseBody => _responseBody;
 
         private string HttpVersion { get; set; }
 
@@ -39,6 +36,8 @@ namespace Channels.Samples.Http
         private bool HasTransferEncoding => ResponseHeaders.ContainsKey("Transfer-Encoding");
 
         private HttpBodyStream<TContext> _initialBody;
+
+        private bool _autoChunk;
 
         public HttpConnection(IHttpApplication<TContext> application, IReadableChannel input, IWritableChannel output, ChannelFactory channelFactory)
         {
@@ -193,92 +192,62 @@ namespace Channels.Samples.Http
             try
             {
                 await _application.ProcessRequestAsync(context);
-                _responseBody.CompleteWriting();
             }
             catch (Exception ex)
             {
                 StatusCode = 500;
 
-                _responseBody.CompleteWriting(ex);
                 _application.DisposeContext(context, ex);
             }
             finally
             {
-                await _responseBodyProcessing;
+                await EndResponse();
             }
+        }
+
+        private Task EndResponse()
+        {
+            if (_autoChunk)
+            {
+                var buffer = _output.Alloc();
+                WriteEndResponse(ref buffer);
+                return _output.WriteAsync(buffer);
+            }
+
+            return Task.CompletedTask;
         }
 
         private void Reset()
         {
-            _responseBody = _channelFactory.CreateChannel();
             Body = _initialBody;
             RequestHeaders.Clear();
             ResponseHeaders.Clear();
             HasStarted = false;
             StatusCode = 200;
-            _responseBodyProcessing = ProcessResponse();
+            _autoChunk = false;
         }
 
-        private async Task ProcessResponse()
+        public Task WriteAsync(ArraySegment<byte> data)
         {
             var buffer = _output.Alloc();
 
-            try
+            if (!HasStarted)
             {
-                var autoChunk = false;
-
-                while (true)
-                {
-                    await _responseBody;
-
-                    var begin = _responseBody.BeginRead();
-                    var end = begin;
-
-                    if (begin.IsEnd && _responseBody.Completion.IsCompleted)
-                    {
-                        break;
-                    }
-
-                    WriteBeginResponseHeaders(ref buffer, ref autoChunk);
-
-                    try
-                    {
-                        BufferSpan span;
-                        while (end.TryGetBuffer(out span))
-                        {
-                            if (autoChunk)
-                            {
-                                ChunkWriter.WriteBeginChunkBytes(ref buffer, span.Length);
-                                buffer.Append(begin, end);
-                                ChunkWriter.WriteEndChunkBytes(ref buffer);
-                            }
-                            else
-                            {
-                                buffer.Append(begin, end);
-                            }
-
-                            begin = end;
-                        }
-                    }
-                    finally
-                    {
-                        _responseBody.EndRead(end);
-                    }
-                }
-
-                WriteBeginResponseHeaders(ref buffer, ref autoChunk);
-
-                if (autoChunk)
-                {
-                    WriteEndResponse(ref buffer);
-                }
+                WriteBeginResponseHeaders(ref buffer, ref _autoChunk);
             }
-            finally
+
+            if (_autoChunk)
             {
-                await _output.WriteAsync(buffer);
-
-                _responseBody.CompleteReading();
+                ChunkWriter.WriteBeginChunkBytes(ref buffer, data.Count);
+                buffer.Write(data.Array, data.Offset, data.Count);
+                ChunkWriter.WriteEndChunkBytes(ref buffer);
             }
+            else
+            {
+                buffer.Write(data.Array, data.Offset, data.Count);
+            }
+
+            return _output.WriteAsync(buffer);
         }
 
         private void WriteBeginResponseHeaders(ref WritableBuffer buffer, ref bool autoChunk)

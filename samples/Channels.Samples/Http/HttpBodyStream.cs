@@ -82,12 +82,12 @@ namespace Channels.Samples.Http
 
         public override void Write(byte[] buffer, int offset, int count)
         {
-            _connection.ResponseBody.WriteAsync(buffer, offset, count).GetAwaiter().GetResult();
+            WriteAsync(buffer, offset, count, CancellationToken.None).GetAwaiter().GetResult();
         }
 
         public override Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken token)
         {
-            return _connection.ResponseBody.WriteAsync(buffer, offset, count);
+            return _connection.WriteAsync(new ArraySegment<byte>(buffer, offset, count));
         }
 
         public override void Flush()
