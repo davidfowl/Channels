@@ -9,16 +9,14 @@ namespace Channels
     // TODO: Replace this with Span<byte>
     public struct BufferSpan
     {
-        private readonly MemoryBlockSegment _segment;
-
         internal BufferSpan(MemoryBlockSegment segment, int offset, int count)
         {
-            _segment = segment;
+            UserData = segment.Block.Slab.UserData;
             BufferPtr = segment.Block.DataArrayPtr + offset;
             Buffer = new ArraySegment<byte>(segment.Block.Array, offset, count);
         }
 
-        public object UserData => _segment.Block.Slab.UserData;
+        public object UserData { get; }
 
         public IntPtr BufferPtr { get; }
 
