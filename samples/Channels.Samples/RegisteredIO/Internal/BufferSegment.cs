@@ -1,15 +1,15 @@
-﻿// Copyright (c) Illyriad Games. All rights reserved.
+// Copyright (c) Illyriad Games. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
 using System.Runtime.InteropServices;
 
-namespace ManagedRIOHttpServer.RegisteredIO
+namespace IllyriadGames.River.Internal
 {
     [StructLayout(LayoutKind.Sequential)]
-    public struct RIO_BUFSEGMENT
+    public struct BufferSegment
     {
-        public RIO_BUFSEGMENT(IntPtr bufferId, uint offset, uint length)
+        public BufferSegment(IntPtr bufferId, uint offset, uint length)
         {
             BufferId = bufferId;
             Offset = offset;

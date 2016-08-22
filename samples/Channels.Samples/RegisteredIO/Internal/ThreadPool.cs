@@ -1,32 +1,31 @@
-﻿// Copyright (c) Illyriad Games. All rights reserved.
+// Copyright (c) Illyriad Games. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
-using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 using System.Threading;
-using Channels;
+using IllyriadGames.River.Internal.Winsock;
 
-namespace ManagedRIOHttpServer.RegisteredIO
+namespace IllyriadGames.River.Internal
 {
-    internal class RIOThreadPool
+    internal class ThreadPool
     {
         const string Kernel_32 = "Kernel32";
         const long INVALID_HANDLE_VALUE = -1;
 
-        private RIO _rio;
+        private Winsock.RegisteredIO _rio;
         private CancellationToken _token;
         private int _maxThreads;
 
         public const int PreAllocSocketsPerThread = 256;
-        private const int MaxOutsandingCompletions = (RIOTcpConnection.MaxPendingReceives + RIOTcpConnection.IOCPOverflowEvents
-                                                    + RIOTcpConnection.MaxPendingSends + RIOTcpConnection.IOCPOverflowEvents)
+        private const int MaxOutsandingCompletions = (TcpConnection.MaxPendingReceives + TcpConnection.IOCPOverflowEvents
+                                                    + TcpConnection.MaxPendingSends + TcpConnection.IOCPOverflowEvents)
                                                     * PreAllocSocketsPerThread;
 
         private IntPtr _socket;
-        private RIOThread[] _threads;
+        private Thread[] _threads;
 
-        public unsafe RIOThreadPool(RIO rio, IntPtr socket, CancellationToken token)
+        public unsafe ThreadPool(Winsock.RegisteredIO rio, IntPtr socket, CancellationToken token)
         {
             _socket = socket;
             _rio = rio;
@@ -34,7 +33,7 @@ namespace ManagedRIOHttpServer.RegisteredIO
 
             _maxThreads = Environment.ProcessorCount;
 
-            _threads = new RIOThread[_maxThreads];
+            _threads = new Thread[_maxThreads];
             for (var i = 0; i < _threads.Length; i++)
             {
                 IntPtr completionPort = CreateIoCompletionPort(INVALID_HANDLE_VALUE, IntPtr.Zero, 0, 0);
@@ -42,30 +41,30 @@ namespace ManagedRIOHttpServer.RegisteredIO
                 if (completionPort == IntPtr.Zero)
                 {
                     var error = GetLastError();
-                    RIOImports.WSACleanup();
+                    RioImports.WSACleanup();
                     throw new Exception(string.Format("ERROR: CreateIoCompletionPort returned {0}", error));
                 }
 
-                var completionMethod = new RIO_NOTIFICATION_COMPLETION()
+                var completionMethod = new NotificationCompletion()
                 {
-                    Type = RIO_NOTIFICATION_COMPLETION_TYPE.IOCP_COMPLETION,
-                    Iocp = new RIO_NOTIFICATION_COMPLETION_IOCP()
+                    Type = NotificationCompletionType.IocpCompletion,
+                    Iocp = new NotificationCompletionIocp()
                     {
                         IocpHandle = completionPort,
                         QueueCorrelation = (ulong)i,
                         Overlapped = (NativeOverlapped*)(-1)// nativeOverlapped
                     }
                 };
-                IntPtr completionQueue = _rio.CreateCompletionQueue(MaxOutsandingCompletions, completionMethod);
+                IntPtr completionQueue = _rio.RioCreateCompletionQueue(MaxOutsandingCompletions, completionMethod);
 
                 if (completionQueue == IntPtr.Zero)
                 {
-                    var error = RIOImports.WSAGetLastError();
-                    RIOImports.WSACleanup();
-                    throw new Exception(String.Format("ERROR: CreateCompletionQueue returned {0}", error));
+                    var error = RioImports.WSAGetLastError();
+                    RioImports.WSACleanup();
+                    throw new Exception(String.Format("ERROR: RioCreateCompletionQueue returned {0}", error));
                 }
 
-                var thread = new RIOThread(i, _token, completionPort, completionQueue, rio);
+                var thread = new Thread(i, _token, completionPort, completionQueue, rio);
                 _threads[i] = thread;
             }
 
@@ -91,7 +90,7 @@ namespace ManagedRIOHttpServer.RegisteredIO
             }
         }
 
-        internal RIOThread GetThread(long connetionId)
+        internal Thread GetThread(long connetionId)
         {
             return _threads[(connetionId % _maxThreads)];
         }
