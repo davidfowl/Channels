@@ -13,7 +13,7 @@ namespace ManagedRIOHttpServer.RegisteredIO
         IntPtr _socket;
         IntPtr _requestQueue;
         RIO _rio;
-        RIOWorkBundle _wb;
+        RIOThread _thread;
 
         long _sendCount = 0;
         long _receiveRequestCount = 0;
@@ -31,14 +31,14 @@ namespace ManagedRIOHttpServer.RegisteredIO
         public MemoryPoolChannel Output { get; set; }
 
 
-        internal RIOTcpConnection(IntPtr socket, long connectionId, RIOWorkBundle wb, RIO rio)
+        internal RIOTcpConnection(IntPtr socket, long connectionId, RIOThread thread, RIO rio)
         {
             _socket = socket;
             _connectionId = connectionId;
             _rio = rio;
-            _wb = wb;
+            _thread = thread;
 
-            _requestQueue = _rio.CreateRequestQueue(_socket, MaxPendingReceives + IOCPOverflowEvents, 1, MaxPendingSends + IOCPOverflowEvents, 1, wb.completionQueue, wb.completionQueue, connectionId);
+            _requestQueue = _rio.CreateRequestQueue(_socket, MaxPendingReceives + IOCPOverflowEvents, 1, MaxPendingSends + IOCPOverflowEvents, 1, thread.completionQueue, thread.completionQueue, connectionId);
             if (_requestQueue == IntPtr.Zero)
             {
                 var error = RIOImports.WSAGetLastError();
@@ -51,16 +51,16 @@ namespace ManagedRIOHttpServer.RegisteredIO
 
             for (var i = 0; i < _receiveTasks.Length; i++)
             {
-                _receiveTasks[i] = new RIOReceiveTask(this, wb.bufferPool.GetBuffer());
+                _receiveTasks[i] = new RIOReceiveTask(this, thread.bufferPool.GetBuffer());
             }
 
             _sendSegments = new RIOPooledSegment[MaxPendingSends];
             for (var i = 0; i < _sendSegments.Length; i++)
             {
-                _sendSegments[i] = wb.bufferPool.GetBuffer();
+                _sendSegments[i] = thread.bufferPool.GetBuffer();
             }
 
-            wb.connections.TryAdd(connectionId, this);
+            thread.connections.TryAdd(connectionId, this);
 
             for (var i = 0; i < _receiveTasks.Length; i++)
             {
@@ -176,14 +176,14 @@ namespace ManagedRIOHttpServer.RegisteredIO
 
         public void SendCachedBad()
         {
-            fixed (RIO_BUFSEGMENT* pSeg = &_wb.cachedBad)
+            fixed (RIO_BUFSEGMENT* pSeg = &_thread.cachedBad)
             {
                 _rio.Send(_requestQueue, pSeg, 1, MessageEnd, RIO.CachedValue);
             }
         }
         public void SendCachedBusy()
         {
-            fixed (RIO_BUFSEGMENT* pSeg = &_wb.cachedBusy)
+            fixed (RIO_BUFSEGMENT* pSeg = &_thread.cachedBusy)
             {
                 _rio.Send(_requestQueue, pSeg, 1, MessageEnd, RIO.CachedValue);
             }
@@ -232,7 +232,7 @@ namespace ManagedRIOHttpServer.RegisteredIO
                 }
 
                 RIOTcpConnection connection;
-                _wb.connections.TryRemove(_connectionId, out connection);
+                _thread.connections.TryRemove(_connectionId, out connection);
                 RIOImports.closesocket(_socket);
                 for (var i = 0; i < _receiveTasks.Length; i++)
                 {

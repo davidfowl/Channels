@@ -86,7 +86,7 @@ namespace ManagedRIOHttpServer.RegisteredIO
                 throw new Exception(string.Format("listen failed with {0}", error));
             }
             var connection = Interlocked.Increment(ref _connectionId);
-            return new RIOTcpConnection(accepted, connection, _pool.GetWorker(connection), _rio);
+            return new RIOTcpConnection(accepted, connection, _pool.GetThread(connection), _rio);
         }
 
         public void Stop()

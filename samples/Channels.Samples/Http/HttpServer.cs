@@ -23,16 +23,22 @@ namespace Channels.Samples.Http
             Features.Set<IServerAddressesFeature>(new ServerAddressesFeature());
         }
 
-        public async void Start<TContext>(IHttpApplication<TContext> application)
+        public void Start<TContext>(IHttpApplication<TContext> application)
         {
             var feature = Features.Get<IServerAddressesFeature>();
             var address = feature.Addresses.FirstOrDefault();
-            // _listenSocket = new Socket(SocketType.Stream, ProtocolType.Tcp);
             IPAddress ip;
             int port;
             GetIp(address, out ip, out port);
+
+            Task.Run(() => StartAcceptingConnections(application, ip, port));
+        }
+
+        private void StartAcceptingConnections<TContext>(IHttpApplication<TContext> application, IPAddress ip, int port)
+        {
             var addressBytes = ip.GetAddressBytes();
             _rioTcpServer = new RIOTcpServer((ushort)port, addressBytes[0], addressBytes[1], addressBytes[2], addressBytes[3]);
+            // _listenSocket = new Socket(SocketType.Stream, ProtocolType.Tcp);
             // _listenSocket.Bind(new IPEndPoint(ip, port));
             // _listenSocket.Listen(10);
 

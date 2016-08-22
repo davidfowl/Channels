@@ -7,7 +7,7 @@ using System.Threading;
 
 namespace ManagedRIOHttpServer.RegisteredIO
 {
-    internal unsafe class RIOWorkBundle
+    internal unsafe class RIOThread
     {
         public int id;
         public IntPtr completionPort;

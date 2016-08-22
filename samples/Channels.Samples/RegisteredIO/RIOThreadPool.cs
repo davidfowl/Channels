@@ -23,12 +23,12 @@ namespace ManagedRIOHttpServer.RegisteredIO
 
         private IntPtr _socket;
 
-        internal RIOWorkBundle GetWorker(long connetionId)
+        internal RIOThread GetThread(long connetionId)
         {
             return _workers[(connetionId % _maxThreads)];
         }
 
-        private RIOWorkBundle[] _workers;
+        private RIOThread[] _workers;
 
         public unsafe RIOThreadPool(RIO rio, IntPtr socket, CancellationToken token)
         {
@@ -38,10 +38,10 @@ namespace ManagedRIOHttpServer.RegisteredIO
 
             _maxThreads = Environment.ProcessorCount;
 
-            _workers = new RIOWorkBundle[_maxThreads];
+            _workers = new RIOThread[_maxThreads];
             for (var i = 0; i < _workers.Length; i++)
             {
-                var worker = new RIOWorkBundle()
+                var worker = new RIOThread()
                 {
                     id = i,
                     bufferPool = new RIOBufferPool(_rio)
