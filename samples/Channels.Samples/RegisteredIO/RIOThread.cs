@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Threading;
+using Channels;
 
 namespace ManagedRIOHttpServer.RegisteredIO
 {
@@ -17,6 +18,10 @@ namespace ManagedRIOHttpServer.RegisteredIO
         public Thread thread;
 
         public RIOBufferPool bufferPool;
+        public MemoryPool memoryPool;
+        public ChannelFactory channelFactory;
+
+
         public RIO_BUFSEGMENT cachedBad;
         public RIO_BUFSEGMENT cachedBusy;
     }

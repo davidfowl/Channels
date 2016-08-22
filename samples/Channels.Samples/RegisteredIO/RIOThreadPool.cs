@@ -7,6 +7,7 @@ using System.Runtime.InteropServices;
 using System.Security;
 using System.Text;
 using System.Threading;
+using Channels;
 
 namespace ManagedRIOHttpServer.RegisteredIO
 {
@@ -44,8 +45,10 @@ namespace ManagedRIOHttpServer.RegisteredIO
                 var worker = new RIOThread()
                 {
                     id = i,
-                    bufferPool = new RIOBufferPool(_rio)
+                    bufferPool = new RIOBufferPool(_rio),
+                    memoryPool = new MemoryPool()
                 };
+                worker.channelFactory = new ChannelFactory(worker.memoryPool);
                 worker.completionPort = CreateIoCompletionPort(INVALID_HANDLE_VALUE, IntPtr.Zero, 0, 0);
 
                 if (worker.completionPort == IntPtr.Zero)
@@ -153,11 +156,12 @@ namespace ManagedRIOHttpServer.RegisteredIO
 
             uint count;
             RIO_RESULT result;
+
             while (!_token.IsCancellationRequested)
             {
                 _rio.Notify(cq);
-                var sucess = GetQueuedCompletionStatus(completionPort, out bytes, out key, out overlapped, -1);
-                if (sucess)
+                var success = GetQueuedCompletionStatus(completionPort, out bytes, out key, out overlapped, -1);
+                if (success)
                 {
                     var activatedCompletionPort = false;
                     while ((count = _rio.DequeueCompletion(cq, (IntPtr)results, maxResults)) > 0)
@@ -171,7 +175,6 @@ namespace ManagedRIOHttpServer.RegisteredIO
                                 RIOTcpConnection connection;
                                 if (worker.connections.TryGetValue(result.ConnectionCorrelation, out connection))
                                 {
-
                                     connection.CompleteReceive(result.RequestCorrelation, result.BytesTransferred);
                                 }
                             }

@@ -7,15 +7,9 @@ using System.Threading;
 
 namespace ManagedRIOHttpServer.RegisteredIO
 {
-    public sealed class RIOReceiveTask : INotifyCompletion, ICriticalNotifyCompletion
+    public sealed class RIOReceiveTask
     {
-        private readonly static Action CALLBACK_RAN = () => { };
-        private bool _isCompleted;
-        private Action _continuation;
-
-        private uint _bytesTransferred;
         private uint _requestCorrelation;
-        private ArraySegment<byte> _buffer;
         internal RIOPooledSegment _segment;
         private RIOTcpConnection _connection;
 
@@ -25,65 +19,20 @@ namespace ManagedRIOHttpServer.RegisteredIO
             _connection = connection;
         }
 
-        internal void Reset()
-        {
-            _bytesTransferred = 0;
-            _isCompleted = false;
-            _continuation = null;
-        }
-        internal void SetBuffer(ArraySegment<byte> buffer)
-        {
-            _buffer = buffer;
-        }
         internal void Complete(uint bytesTransferred, uint requestCorrelation)
         {
-            _bytesTransferred = bytesTransferred;
             _requestCorrelation = requestCorrelation;
-            _isCompleted = true;
 
-            Action continuation = _continuation ?? Interlocked.CompareExchange(ref _continuation, CALLBACK_RAN, null);
-            if (continuation != null)
+            if (bytesTransferred > 0)
             {
-                CompleteCallback(continuation);
+                var buffer = _connection.Input.Alloc();
+
+                buffer.Write(_segment.Buffer, _segment.Offset, (int)bytesTransferred);
+
+                _connection.Input.WriteAsync(buffer);
+
+                _connection.PostReceive(_requestCorrelation);
             }
-        }
-
-        internal void CompleteCallback(Action continuation)
-        {
-            ThreadPool.QueueUserWorkItem(UnsafeCallback, continuation);
-        }
-
-        public RIOReceiveTask GetAwaiter() { return this; }
-
-        public bool IsCompleted { get { return _isCompleted; } }
-
-        private void UnsafeCallback(object state)
-        {
-            ((Action)state)();
-        }
-
-        public void OnCompleted(Action continuation)
-        {
-            throw new NotImplementedException();
-        }
-
-        [System.Security.SecurityCritical]
-        public void UnsafeOnCompleted(Action continuation)
-        {
-            if (_continuation == CALLBACK_RAN ||
-                    Interlocked.CompareExchange(
-                        ref _continuation, continuation, null) == CALLBACK_RAN)
-            {
-                CompleteCallback(continuation);
-            }
-        }
-        public uint GetResult()
-        {
-            var bytesTransferred = _bytesTransferred;
-            Buffer.BlockCopy(_segment.Buffer, _segment.Offset, _buffer.Array, _buffer.Offset, (int)bytesTransferred);
-            Reset();
-            _connection.PostReceive(_requestCorrelation);
-            return bytesTransferred;
         }
 
         #region IDisposable Support

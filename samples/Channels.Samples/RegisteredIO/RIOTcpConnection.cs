@@ -7,7 +7,7 @@ using Channels;
 
 namespace ManagedRIOHttpServer.RegisteredIO
 {
-    public unsafe sealed class RIOTcpConnection : IDisposable
+    public sealed class RIOTcpConnection : IDisposable
     {
         long _connectionId;
         IntPtr _socket;
@@ -20,16 +20,15 @@ namespace ManagedRIOHttpServer.RegisteredIO
 
         RIOReceiveTask[] _receiveTasks;
         RIOPooledSegment[] _sendSegments;
-        ArraySegment<byte>[] _receiveRequestBuffers;
         public const int MaxPendingReceives = 16;
         public const int MaxPendingSends = MaxPendingReceives * 2;
         public const int IOCPOverflowEvents = 8;
         const int ReceiveMask = MaxPendingReceives - 1;
         const int SendMask = MaxPendingSends - 1;
 
-        public MemoryPoolChannel Input { get; set; }
-        public MemoryPoolChannel Output { get; set; }
-
+        public MemoryPoolChannel Input { get; }
+        public MemoryPoolChannel Output { get; }
+        public ChannelFactory ChannelFactory => _thread.channelFactory;
 
         internal RIOTcpConnection(IntPtr socket, long connectionId, RIOThread thread, RIO rio)
         {
@@ -37,6 +36,9 @@ namespace ManagedRIOHttpServer.RegisteredIO
             _connectionId = connectionId;
             _rio = rio;
             _thread = thread;
+
+            Input = ChannelFactory.CreateChannel();
+            Output = ChannelFactory.CreateChannel();
 
             _requestQueue = _rio.CreateRequestQueue(_socket, MaxPendingReceives + IOCPOverflowEvents, 1, MaxPendingSends + IOCPOverflowEvents, 1, thread.completionQueue, thread.completionQueue, connectionId);
             if (_requestQueue == IntPtr.Zero)
@@ -47,7 +49,6 @@ namespace ManagedRIOHttpServer.RegisteredIO
             }
 
             _receiveTasks = new RIOReceiveTask[MaxPendingReceives];
-            _receiveRequestBuffers = new ArraySegment<byte>[MaxPendingReceives];
 
             for (var i = 0; i < _receiveTasks.Length; i++)
             {
@@ -66,13 +67,39 @@ namespace ManagedRIOHttpServer.RegisteredIO
             {
                 PostReceive(i);
             }
+
+            ProcessSends();
+        }
+
+        private async void ProcessSends()
+        {
+            while (true)
+            {
+                await Output;
+
+                var begin = Output.BeginRead();
+                var end = begin;
+
+                if (begin.IsEnd && Output.Completion.IsCompleted)
+                {
+                    break;
+                }
+
+                BufferSpan span;
+                while (begin.TryGetBuffer(out span))
+                {
+                    QueueSend(span.Buffer, true);
+                }
+
+                Output.EndRead(begin);
+            }
         }
 
         const RIO_SEND_FLAGS MessagePart = RIO_SEND_FLAGS.DEFER | RIO_SEND_FLAGS.DONT_NOTIFY;
         const RIO_SEND_FLAGS MessageEnd = RIO_SEND_FLAGS.NONE;
 
         int _currentOffset = 0;
-        public void FlushSends()
+        public unsafe void FlushSends()
         {
             var segment = _sendSegments[_sendCount & SendMask];
             if (_currentOffset > 0)
@@ -86,7 +113,8 @@ namespace ManagedRIOHttpServer.RegisteredIO
                 _sendCount++;
             }
         }
-        public void QueueSend(ArraySegment<byte> buffer, bool isEnd)
+
+        public unsafe void QueueSend(ArraySegment<byte> buffer, bool isEnd)
         {
             var segment = _sendSegments[_sendCount & SendMask];
             var count = buffer.Count;
@@ -174,14 +202,14 @@ namespace ManagedRIOHttpServer.RegisteredIO
 
         }
 
-        public void SendCachedBad()
+        public unsafe void SendCachedBad()
         {
             fixed (RIO_BUFSEGMENT* pSeg = &_thread.cachedBad)
             {
                 _rio.Send(_requestQueue, pSeg, 1, MessageEnd, RIO.CachedValue);
             }
         }
-        public void SendCachedBusy()
+        public unsafe void SendCachedBusy()
         {
             fixed (RIO_BUFSEGMENT* pSeg = &_thread.cachedBusy)
             {
@@ -204,14 +232,6 @@ namespace ManagedRIOHttpServer.RegisteredIO
                 ReportError("Receive");
                 return;
             }
-        }
-
-        public RIOReceiveTask ReceiveAsync(ArraySegment<byte> buffer, CancellationToken cancellationToken)
-        {
-            var receiveIndex = (Interlocked.Increment(ref _receiveRequestCount) - 1) & ReceiveMask;
-            var receiveTask = _receiveTasks[receiveIndex];
-            receiveTask.SetBuffer(buffer);
-            return receiveTask;
         }
 
         public void Close()

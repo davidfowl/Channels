@@ -30,17 +30,37 @@ namespace Channels.Samples.Http
             IPAddress ip;
             int port;
             GetIp(address, out ip, out port);
-
-            Task.Run(() => StartAcceptingConnections(application, ip, port));
+            Task.Run(() => StartAcceptingRIOConnections(application, ip, port));
         }
 
-        private void StartAcceptingConnections<TContext>(IHttpApplication<TContext> application, IPAddress ip, int port)
+        private void StartAcceptingRIOConnections<TContext>(IHttpApplication<TContext> application, IPAddress ip, int port)
         {
             var addressBytes = ip.GetAddressBytes();
             _rioTcpServer = new RIOTcpServer((ushort)port, addressBytes[0], addressBytes[1], addressBytes[2], addressBytes[3]);
-            // _listenSocket = new Socket(SocketType.Stream, ProtocolType.Tcp);
-            // _listenSocket.Bind(new IPEndPoint(ip, port));
-            // _listenSocket.Listen(10);
+
+            while (true)
+            {
+                try
+                {
+                    var connection = _rioTcpServer.Accept();
+                    var task = Task.Factory.StartNew(() => ProcessRIOConnection(application, connection));
+                }
+                catch (ObjectDisposedException)
+                {
+                    break;
+                }
+                catch (Exception ex)
+                {
+
+                }
+            }
+        }
+
+        private async void StartAcceptingConnections<TContext>(IHttpApplication<TContext> application, IPAddress ip, int port)
+        {
+            _listenSocket = new Socket(SocketType.Stream, ProtocolType.Tcp);
+            _listenSocket.Bind(new IPEndPoint(ip, port));
+            _listenSocket.Listen(10);
 
             using (var pool = new MemoryPool())
             {
@@ -50,11 +70,9 @@ namespace Channels.Samples.Http
                 {
                     try
                     {
-                        var connection = _rioTcpServer.Accept();
-                        // var clientSocket = await _listenSocket.AcceptAsync();
-                        // clientSocket.NoDelay = true;
-                        // var task = Task.Factory.StartNew(() => ProcessConnection(application, channelFactory, socket));
-                        var task = Task.Factory.StartNew(() => ProcessRIOConnection(application, channelFactory, connection));
+                        var clientSocket = await _listenSocket.AcceptAsync();
+                        clientSocket.NoDelay = true;
+                        var task = Task.Factory.StartNew(() => ProcessConnection(application, channelFactory, clientSocket));
                     }
                     catch (ObjectDisposedException)
                     {
@@ -94,11 +112,11 @@ namespace Channels.Samples.Http
             port = address.Port;
         }
 
-        private static async Task ProcessRIOConnection<TContext>(IHttpApplication<TContext> application, ChannelFactory channelFactory, RIOTcpConnection connection)
+        private static async Task ProcessRIOConnection<TContext>(IHttpApplication<TContext> application, RIOTcpConnection connection)
         {
             using (connection)
             {
-                await ProcessClient(application, channelFactory, connection.Input, connection.Output);
+                await ProcessClient(application, connection.ChannelFactory, connection.Input, connection.Output);
             }
         }
 
