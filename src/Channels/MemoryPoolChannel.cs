@@ -16,7 +16,6 @@ namespace Channels
         private static Task _completedTask = Task.FromResult(0);
 
         private readonly MemoryPool _pool;
-        private readonly ManualResetEventSlim _manualResetEvent = new ManualResetEventSlim(false, 0);
 
         private Action _awaitableState;
 
@@ -142,8 +141,6 @@ namespace Channels
                 ref _awaitableState,
                 _awaitableIsCompleted);
 
-            _manualResetEvent.Set();
-
             if (!ReferenceEquals(awaitableState, _awaitableIsCompleted) &&
                 !ReferenceEquals(awaitableState, _awaitableIsNotCompleted))
             {
@@ -194,8 +191,6 @@ namespace Channels
                     examined.IsEnd &&
                     Completion.Status == TaskStatus.WaitingForActivation)
                 {
-                    _manualResetEvent.Reset();
-
                     Interlocked.CompareExchange(
                         ref _awaitableState,
                         _awaitableIsNotCompleted,
@@ -286,8 +281,6 @@ namespace Channels
                     ref _awaitableState,
                     _awaitableIsCompleted);
 
-                _manualResetEvent.Set();
-
                 Task.Run(continuation);
                 Task.Run(awaitableState);
             }
@@ -302,7 +295,7 @@ namespace Channels
         {
             if (!IsCompleted)
             {
-                _manualResetEvent.Wait();
+                throw new InvalidOperationException("can't GetResult unless completed");
             }
 
             var error = _tcs.Task.Exception?.InnerException;
