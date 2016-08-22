@@ -31,7 +31,7 @@ namespace Channels.Samples
         public MemoryPoolChannel Output { get; }
         public ChannelFactory ChannelFactory => _rioThread.ChannelFactory;
 
-        internal RioTcpConnection(IntPtr socket, long connectionId, RioThread rioThread, RegisteredIO rio)
+        internal RioTcpConnection(IntPtr socket, long connectionId, IntPtr requestQueue, RioThread rioThread, RegisteredIO rio)
         {
             _socket = socket;
             _connectionId = connectionId;
@@ -41,13 +41,7 @@ namespace Channels.Samples
             Input = ChannelFactory.CreateChannel();
             Output = ChannelFactory.CreateChannel();
 
-            _requestQueue = _rio.RioCreateRequestQueue(_socket, MaxPendingReceives + IOCPOverflowEvents, 1, MaxPendingSends + IOCPOverflowEvents, 1, rioThread.CompletionQueue, rioThread.CompletionQueue, connectionId);
-            if (_requestQueue == IntPtr.Zero)
-            {
-                var error = RioImports.WSAGetLastError();
-                RioImports.WSACleanup();
-                throw new Exception(String.Format("ERROR: RioCreateRequestQueue returned {0}", error));
-            }
+            _requestQueue = requestQueue;
 
             _receiveTasks = new ReceiveTask[MaxPendingReceives];
 
@@ -89,8 +83,10 @@ namespace Channels.Samples
                 BufferSpan span;
                 while (begin.TryGetBuffer(out span))
                 {
-                    QueueSend(span.Buffer, true);
+                    QueueSend(span.Buffer, isEnd: false);
                 }
+
+                FlushSends();
 
                 Output.EndRead(begin);
             }

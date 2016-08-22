@@ -86,8 +86,18 @@ namespace Channels.Samples
                 RioImports.WSACleanup();
                 throw new Exception(string.Format("listen failed with {0}", error));
             }
-            var connection = Interlocked.Increment(ref _connectionId);
-            return new RioTcpConnection(accepted, connection, _pool.GetThread(connection), _rio);
+            var connectionId = Interlocked.Increment(ref _connectionId);
+            var thread = _pool.GetThread(connectionId);
+
+            var requestQueue = _rio.RioCreateRequestQueue(accepted, RioTcpConnection.MaxPendingReceives + RioTcpConnection.IOCPOverflowEvents, 1, RioTcpConnection.MaxPendingSends + RioTcpConnection.IOCPOverflowEvents, 1, thread.CompletionQueue, thread.CompletionQueue, connectionId);
+            if (requestQueue == IntPtr.Zero)
+            {
+                var error = RioImports.WSAGetLastError();
+                RioImports.WSACleanup();
+                throw new Exception(String.Format("ERROR: RioCreateRequestQueue returned {0}", error));
+            }
+
+            return new RioTcpConnection(accepted, connectionId, requestQueue, thread, _rio);
         }
 
         public void Stop()
