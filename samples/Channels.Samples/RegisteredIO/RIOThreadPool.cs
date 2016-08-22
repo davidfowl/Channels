@@ -4,8 +4,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
-using System.Security;
-using System.Text;
 using System.Threading;
 using Channels;
 
@@ -114,28 +112,10 @@ namespace ManagedRIOHttpServer.RegisteredIO
 
         }
 
-        static readonly string badResponseStr = "HTTP/1.1 400 Bad Request\r\n" +
-            "Content-Type:text/plain;charset=UTF-8\r\n" +
-            "Content-Length:0\r\n" +
-            "Connection:close\r\n" +
-            "Server:-RIO-\r\n" +
-            "\r\n";
-
-        private static byte[] _badResponseBytes = Encoding.UTF8.GetBytes(badResponseStr);
-
-        static readonly string busyResponseStr = "HTTP/1.1 503 Service Unavailable\r\n" +
-            "Content-Type:text/plain;charset=UTF-8\r\n" +
-            "Content-Length:4\r\n" +
-            "Connection:close\r\n" +
-            "Server:-RIO-\r\n" +
-            "\r\n" +
-            "Busy";
-
-        private static byte[] _busyResponseBytes = Encoding.UTF8.GetBytes(busyResponseStr);
-
-        const int maxResults = 1024;
         private unsafe void Process(int id)
         {
+            const int maxResults = 1024;
+
             RIO_RESULT* results = stackalloc RIO_RESULT[maxResults];
             uint bytes, key;
             NativeOverlapped* overlapped;
@@ -143,16 +123,6 @@ namespace ManagedRIOHttpServer.RegisteredIO
             var worker = _workers[id];
             var completionPort = worker.completionPort;
             var cq = worker.completionQueue;
-
-            RIOPooledSegment cachedBadBuffer = worker.bufferPool.GetBuffer();
-            Buffer.BlockCopy(_badResponseBytes, 0, cachedBadBuffer.Buffer, cachedBadBuffer.Offset, _badResponseBytes.Length);
-            cachedBadBuffer.RioBuffer.Length = (uint)_badResponseBytes.Length;
-            worker.cachedBad = cachedBadBuffer.RioBuffer;
-
-            RIOPooledSegment cachedBusyBuffer = worker.bufferPool.GetBuffer();
-            Buffer.BlockCopy(_busyResponseBytes, 0, cachedBusyBuffer.Buffer, cachedBusyBuffer.Offset, _busyResponseBytes.Length);
-            cachedBusyBuffer.RioBuffer.Length = (uint)_busyResponseBytes.Length;
-            worker.cachedBusy = cachedBusyBuffer.RioBuffer;
 
             uint count;
             RIO_RESULT result;
@@ -196,8 +166,6 @@ namespace ManagedRIOHttpServer.RegisteredIO
                     }
                 }
             }
-            cachedBadBuffer.Dispose();
-            cachedBusyBuffer.Dispose();
         }
 
         const string Kernel_32 = "Kernel32";

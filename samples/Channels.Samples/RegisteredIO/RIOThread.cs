@@ -20,9 +20,5 @@ namespace ManagedRIOHttpServer.RegisteredIO
         public RIOBufferPool bufferPool;
         public MemoryPool memoryPool;
         public ChannelFactory channelFactory;
-
-
-        public RIO_BUFSEGMENT cachedBad;
-        public RIO_BUFSEGMENT cachedBusy;
     }
 }

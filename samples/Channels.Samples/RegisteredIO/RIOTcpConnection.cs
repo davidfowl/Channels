@@ -99,6 +99,7 @@ namespace ManagedRIOHttpServer.RegisteredIO
         const RIO_SEND_FLAGS MessageEnd = RIO_SEND_FLAGS.NONE;
 
         int _currentOffset = 0;
+
         public unsafe void FlushSends()
         {
             var segment = _sendSegments[_sendCount & SendMask];
@@ -200,21 +201,6 @@ namespace ManagedRIOHttpServer.RegisteredIO
             }
             throw new InvalidOperationException(errorMessage);
 
-        }
-
-        public unsafe void SendCachedBad()
-        {
-            fixed (RIO_BUFSEGMENT* pSeg = &_thread.cachedBad)
-            {
-                _rio.Send(_requestQueue, pSeg, 1, MessageEnd, RIO.CachedValue);
-            }
-        }
-        public unsafe void SendCachedBusy()
-        {
-            fixed (RIO_BUFSEGMENT* pSeg = &_thread.cachedBusy)
-            {
-                _rio.Send(_requestQueue, pSeg, 1, MessageEnd, RIO.CachedValue);
-            }
         }
 
         public void CompleteReceive(long RequestCorrelation, uint BytesTransferred)
