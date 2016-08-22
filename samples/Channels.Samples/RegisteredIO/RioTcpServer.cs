@@ -10,11 +10,11 @@ namespace Channels.Samples
 {
     public sealed class RioTcpServer
     {
-        IntPtr _socket;
-        RegisteredIO _rio;
-        RioThreadPool _pool;
+        private readonly IntPtr _socket;
+        private readonly RegisteredIO _rio;
+        private readonly RioThreadPool _pool;
 
-        long _connectionId;
+        private long _connectionId;
 
         public RioTcpServer(ushort port, byte address1, byte address2, byte address3, byte address4)
         {
@@ -46,13 +46,13 @@ namespace Channels.Samples
         private void Start(ushort port, byte address1, byte address2, byte address3, byte address4)
         {
             // BIND
-            Ipv4InternetAddress inAddress = new Ipv4InternetAddress();
+            var inAddress = new Ipv4InternetAddress();
             inAddress.Byte1 = address1;
             inAddress.Byte2 = address2;
             inAddress.Byte3 = address3;
             inAddress.Byte4 = address4;
 
-            SocketAddress sa = new SocketAddress();
+            var sa = new SocketAddress();
             sa.Family = AddressFamilies.Internet;
             sa.Port = RioImports.htons(port);
             sa.IpAddress = inAddress;
@@ -79,7 +79,7 @@ namespace Channels.Samples
         }
         public RioTcpConnection Accept()
         {
-            IntPtr accepted = RioImports.accept(_socket, IntPtr.Zero, 0);
+            var accepted = RioImports.accept(_socket, IntPtr.Zero, 0);
             if (accepted == new IntPtr(-1))
             {
                 var error = RioImports.WSAGetLastError();

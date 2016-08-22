@@ -12,20 +12,21 @@ namespace Channels.Samples
         public const int MaxPendingReceives = 16;
         public const int MaxPendingSends = MaxPendingReceives * 2;
         public const int IOCPOverflowEvents = 8;
-        const int ReceiveMask = MaxPendingReceives - 1;
-        const int SendMask = MaxPendingSends - 1;
 
-        long _connectionId;
-        IntPtr _socket;
-        IntPtr _requestQueue;
-        RegisteredIO _rio;
-        RioThread _rioThread;
+        private const int ReceiveMask = MaxPendingReceives - 1;
+        private const int SendMask = MaxPendingSends - 1;
 
-        long _sendCount = 0;
-        long _receiveRequestCount = 0;
+        private readonly long _connectionId;
+        private readonly IntPtr _socket;
+        private readonly IntPtr _requestQueue;
+        private readonly RegisteredIO _rio;
+        private readonly RioThread _rioThread;
 
-        ReceiveTask[] _receiveTasks;
-        PooledSegment[] _sendSegments;
+        private long _sendCount = 0;
+        private long _receiveRequestCount = 0;
+
+        private ReceiveTask[] _receiveTasks;
+        private PooledSegment[] _sendSegments;
 
         public MemoryPoolChannel Input { get; }
         public MemoryPoolChannel Output { get; }
@@ -228,11 +229,6 @@ namespace Channels.Samples
         {
             if (!disposedValue)
             {
-                if (disposing)
-                {
-                    //_receiveTask.Dispose();
-                }
-
                 RioTcpConnection connection;
                 _rioThread.Connections.TryRemove(_connectionId, out connection);
                 RioImports.closesocket(_socket);
