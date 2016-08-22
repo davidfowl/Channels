@@ -28,7 +28,7 @@ namespace ManagedRIOHttpServer.RegisteredIO
 
         public MemoryPoolChannel Input { get; }
         public MemoryPoolChannel Output { get; }
-        public ChannelFactory ChannelFactory => _thread.channelFactory;
+        public ChannelFactory ChannelFactory => _thread.ChannelFactory;
 
         internal RIOTcpConnection(IntPtr socket, long connectionId, RIOThread thread, RIO rio)
         {
@@ -40,7 +40,7 @@ namespace ManagedRIOHttpServer.RegisteredIO
             Input = ChannelFactory.CreateChannel();
             Output = ChannelFactory.CreateChannel();
 
-            _requestQueue = _rio.CreateRequestQueue(_socket, MaxPendingReceives + IOCPOverflowEvents, 1, MaxPendingSends + IOCPOverflowEvents, 1, thread.completionQueue, thread.completionQueue, connectionId);
+            _requestQueue = _rio.CreateRequestQueue(_socket, MaxPendingReceives + IOCPOverflowEvents, 1, MaxPendingSends + IOCPOverflowEvents, 1, thread.CompletionQueue, thread.CompletionQueue, connectionId);
             if (_requestQueue == IntPtr.Zero)
             {
                 var error = RIOImports.WSAGetLastError();
@@ -52,16 +52,16 @@ namespace ManagedRIOHttpServer.RegisteredIO
 
             for (var i = 0; i < _receiveTasks.Length; i++)
             {
-                _receiveTasks[i] = new RIOReceiveTask(this, thread.bufferPool.GetBuffer());
+                _receiveTasks[i] = new RIOReceiveTask(this, thread.BufferPool.GetBuffer());
             }
 
             _sendSegments = new RIOPooledSegment[MaxPendingSends];
             for (var i = 0; i < _sendSegments.Length; i++)
             {
-                _sendSegments[i] = thread.bufferPool.GetBuffer();
+                _sendSegments[i] = thread.BufferPool.GetBuffer();
             }
 
-            thread.connections.TryAdd(connectionId, this);
+            thread.Connections.TryAdd(connectionId, this);
 
             for (var i = 0; i < _receiveTasks.Length; i++)
             {
@@ -238,7 +238,7 @@ namespace ManagedRIOHttpServer.RegisteredIO
                 }
 
                 RIOTcpConnection connection;
-                _thread.connections.TryRemove(_connectionId, out connection);
+                _thread.Connections.TryRemove(_connectionId, out connection);
                 RIOImports.closesocket(_socket);
                 for (var i = 0; i < _receiveTasks.Length; i++)
                 {

@@ -11,6 +11,9 @@ namespace ManagedRIOHttpServer.RegisteredIO
 {
     internal class RIOThreadPool
     {
+        const string Kernel_32 = "Kernel32";
+        const long INVALID_HANDLE_VALUE = -1;
+
         private RIO _rio;
         private CancellationToken _token;
         private int _maxThreads;
@@ -21,13 +24,7 @@ namespace ManagedRIOHttpServer.RegisteredIO
                                                     * PreAllocSocketsPerThread;
 
         private IntPtr _socket;
-
-        internal RIOThread GetThread(long connetionId)
-        {
-            return _workers[(connetionId % _maxThreads)];
-        }
-
-        private RIOThread[] _workers;
+        private RIOThread[] _threads;
 
         public unsafe RIOThreadPool(RIO rio, IntPtr socket, CancellationToken token)
         {
@@ -37,19 +34,12 @@ namespace ManagedRIOHttpServer.RegisteredIO
 
             _maxThreads = Environment.ProcessorCount;
 
-            _workers = new RIOThread[_maxThreads];
-            for (var i = 0; i < _workers.Length; i++)
+            _threads = new RIOThread[_maxThreads];
+            for (var i = 0; i < _threads.Length; i++)
             {
-                var worker = new RIOThread()
-                {
-                    id = i,
-                    bufferPool = new RIOBufferPool(_rio),
-                    memoryPool = new MemoryPool()
-                };
-                worker.channelFactory = new ChannelFactory(worker.memoryPool);
-                worker.completionPort = CreateIoCompletionPort(INVALID_HANDLE_VALUE, IntPtr.Zero, 0, 0);
+                IntPtr completionPort = CreateIoCompletionPort(INVALID_HANDLE_VALUE, IntPtr.Zero, 0, 0);
 
-                if (worker.completionPort == IntPtr.Zero)
+                if (completionPort == IntPtr.Zero)
                 {
                     var error = GetLastError();
                     RIOImports.WSACleanup();
@@ -61,25 +51,22 @@ namespace ManagedRIOHttpServer.RegisteredIO
                     Type = RIO_NOTIFICATION_COMPLETION_TYPE.IOCP_COMPLETION,
                     Iocp = new RIO_NOTIFICATION_COMPLETION_IOCP()
                     {
-                        IocpHandle = worker.completionPort,
+                        IocpHandle = completionPort,
                         QueueCorrelation = (ulong)i,
                         Overlapped = (NativeOverlapped*)(-1)// nativeOverlapped
                     }
                 };
-                worker.completionQueue = _rio.CreateCompletionQueue(MaxOutsandingCompletions, completionMethod);
+                IntPtr completionQueue = _rio.CreateCompletionQueue(MaxOutsandingCompletions, completionMethod);
 
-                if (worker.completionQueue == IntPtr.Zero)
+                if (completionQueue == IntPtr.Zero)
                 {
                     var error = RIOImports.WSAGetLastError();
                     RIOImports.WSACleanup();
                     throw new Exception(String.Format("ERROR: CreateCompletionQueue returned {0}", error));
                 }
 
-                worker.connections = new ConcurrentDictionary<long, RIOTcpConnection>();
-                worker.thread = new Thread(GetThreadStart(i));
-                worker.thread.Name = "RIOThread " + i.ToString();
-                worker.thread.IsBackground = true;
-                _workers[i] = worker;
+                var thread = new RIOThread(i, _token, completionPort, completionQueue, rio);
+                _threads[i] = thread;
             }
 
             // gc
@@ -91,94 +78,28 @@ namespace ManagedRIOHttpServer.RegisteredIO
             //GC.WaitForPendingFinalizers();
             //GC.Collect(2, GCCollectionMode.Forced, true);
 
-            for (var i = 0; i < _workers.Length; i++)
+            for (var i = 0; i < _threads.Length; i++)
             {
                 // pin buffers
-                _workers[i].bufferPool.Initalize();
+                _threads[i].BufferPool.Initalize();
             }
 
 
-            for (var i = 0; i < _workers.Length; i++)
+            for (var i = 0; i < _threads.Length; i++)
             {
-                _workers[i].thread.Start();
+                _threads[i].Start();
             }
         }
-        private ThreadStart GetThreadStart(int i)
+
+        internal RIOThread GetThread(long connetionId)
         {
-            return new ThreadStart(() =>
-            {
-                Process(i);
-            });
-
+            return _threads[(connetionId % _maxThreads)];
         }
-
-        private unsafe void Process(int id)
-        {
-            const int maxResults = 1024;
-
-            RIO_RESULT* results = stackalloc RIO_RESULT[maxResults];
-            uint bytes, key;
-            NativeOverlapped* overlapped;
-
-            var worker = _workers[id];
-            var completionPort = worker.completionPort;
-            var cq = worker.completionQueue;
-
-            uint count;
-            RIO_RESULT result;
-
-            while (!_token.IsCancellationRequested)
-            {
-                _rio.Notify(cq);
-                var success = GetQueuedCompletionStatus(completionPort, out bytes, out key, out overlapped, -1);
-                if (success)
-                {
-                    var activatedCompletionPort = false;
-                    while ((count = _rio.DequeueCompletion(cq, (IntPtr)results, maxResults)) > 0)
-                    {
-                        for (var i = 0; i < count; i++)
-                        {
-                            result = results[i];
-                            if (result.RequestCorrelation >= 0)
-                            {
-                                // receive
-                                RIOTcpConnection connection;
-                                if (worker.connections.TryGetValue(result.ConnectionCorrelation, out connection))
-                                {
-                                    connection.CompleteReceive(result.RequestCorrelation, result.BytesTransferred);
-                                }
-                            }
-                        }
-
-                        if (!activatedCompletionPort)
-                        {
-                            _rio.Notify(cq);
-                            activatedCompletionPort = true;
-                        }
-                    }
-                }
-                else
-                {
-                    var error = GetLastError();
-                    if (error != 258)
-                    {
-                        throw new Exception(string.Format("ERROR: GetQueuedCompletionStatusEx returned {0}", error));
-                    }
-                }
-            }
-        }
-
-        const string Kernel_32 = "Kernel32";
-        const long INVALID_HANDLE_VALUE = -1;
 
         [DllImport(Kernel_32, SetLastError = true)]
         private unsafe static extern IntPtr CreateIoCompletionPort(long handle, IntPtr hExistingCompletionPort, int puiCompletionKey, uint uiNumberOfConcurrentThreads);
 
         [DllImport(Kernel_32, SetLastError = true)]
-        private static extern unsafe bool GetQueuedCompletionStatus(IntPtr CompletionPort, out uint lpNumberOfBytes, out uint lpCompletionKey, out NativeOverlapped* lpOverlapped, int dwMilliseconds);
-
-        [DllImport(Kernel_32, SetLastError = true)]
         private static extern long GetLastError();
-
     }
 }
