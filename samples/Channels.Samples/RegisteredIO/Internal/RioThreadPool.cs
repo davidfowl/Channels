@@ -18,9 +18,7 @@ namespace Channels.Samples.Internal
         private int _maxThreads;
 
         public const int PreAllocSocketsPerThread = 256;
-        private const int MaxOutsandingCompletions = (RioTcpConnection.MaxPendingReceives + RioTcpConnection.IOCPOverflowEvents
-                                                    + RioTcpConnection.MaxPendingSends + RioTcpConnection.IOCPOverflowEvents)
-                                                    * PreAllocSocketsPerThread;
+        private const int MaxOutsandingCompletions = 2 * PreAllocSocketsPerThread;
 
         private IntPtr _socket;
         private RioThread[] _rioThreads;
@@ -77,16 +75,16 @@ namespace Channels.Samples.Internal
             //GC.WaitForPendingFinalizers();
             //GC.Collect(2, GCCollectionMode.Forced, true);
 
+            //for (var i = 0; i < _rioThreads.Length; i++)
+            //{
+            //    // pin buffers
+            //    _rioThreads[i].BufferPool.Initalize();
+            //}
+
             for (var i = 0; i < _rioThreads.Length; i++)
             {
-                // pin buffers
-                _rioThreads[i].BufferPool.Initalize();
-            }
-
-
-            for (var i = 0; i < _rioThreads.Length; i++)
-            {
-                _rioThreads[i].Start();
+                var thread = _rioThreads[i];
+                thread.Start();
             }
         }
 

@@ -36,6 +36,8 @@ namespace Channels
         /// </summary>
         public bool IsActive;
 
+        internal object UserData;
+
         /// <summary>
         /// Part of the IDisposable implementation
         /// </summary>

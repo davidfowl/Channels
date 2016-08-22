@@ -9,28 +9,21 @@ namespace Channels.Samples
 {
     public sealed class RioTcpConnection : IDisposable
     {
-        public const int MaxPendingReceives = 16;
-        public const int MaxPendingSends = MaxPendingReceives * 2;
-        public const int IOCPOverflowEvents = 8;
-
-        private const int ReceiveMask = MaxPendingReceives - 1;
-        private const int SendMask = MaxPendingSends - 1;
-
         private readonly long _connectionId;
         private readonly IntPtr _socket;
         private readonly IntPtr _requestQueue;
         private readonly RegisteredIO _rio;
         private readonly RioThread _rioThread;
 
-        private long _sendCount = 0;
-        private long _receiveRequestCount = 0;
-
-        private ReceiveTask[] _receiveTasks;
-        private PooledSegment[] _sendSegments;
+        private const RioSendFlags MessagePart = RioSendFlags.Defer | RioSendFlags.DontNotify;
+        private const RioSendFlags MessageEnd = RioSendFlags.None;
 
         public MemoryPoolChannel Input { get; }
         public MemoryPoolChannel Output { get; }
         public ChannelFactory ChannelFactory => _rioThread.ChannelFactory;
+
+        private WritableBuffer _buffer;
+        private BufferSegment _bufferSeg;
 
         internal RioTcpConnection(IntPtr socket, long connectionId, IntPtr requestQueue, RioThread rioThread, RegisteredIO rio)
         {
@@ -44,27 +37,51 @@ namespace Channels.Samples
 
             _requestQueue = requestQueue;
 
-            _receiveTasks = new ReceiveTask[MaxPendingReceives];
-
-            for (var i = 0; i < _receiveTasks.Length; i++)
-            {
-                _receiveTasks[i] = new ReceiveTask(this, rioThread.BufferPool.GetBuffer());
-            }
-
-            _sendSegments = new PooledSegment[MaxPendingSends];
-            for (var i = 0; i < _sendSegments.Length; i++)
-            {
-                _sendSegments[i] = rioThread.BufferPool.GetBuffer();
-            }
-
             rioThread.Connections.TryAdd(connectionId, this);
 
-            for (var i = 0; i < _receiveTasks.Length; i++)
-            {
-                PostReceive(i);
-            }
-
+            ProcessReceives();
             ProcessSends();
+        }
+
+        private void ProcessReceives()
+        {
+            _buffer = Input.Alloc(2048);
+            _bufferSeg = GetSegmentFromSpan(_buffer.Memory);
+
+            if (!_rio.RioReceive(_requestQueue, ref _bufferSeg, 1, RioReceiveFlags.None, 0))
+            {
+                ReportError("Receive");
+                return;
+            }
+        }
+
+        private static BufferSegment GetSegmentFromSpan(BufferSpan span)
+        {
+            var bufferId = (IntPtr)span.UserData;
+            return new BufferSegment(bufferId, (uint)span.Buffer.Offset, (uint)span.Length);
+        }
+
+        public void Complete(long requestCorrelation, uint bytesTransferred)
+        {
+            // Receives
+            if (requestCorrelation >= 0)
+            {
+                if (bytesTransferred > 0)
+                {
+                    _buffer.UpdateWritten((int)bytesTransferred);
+                    Input.WriteAsync(_buffer);
+
+                    ProcessReceives();
+                }
+            }
+            else
+            {
+                // Sends
+                if (bytesTransferred > 0)
+                {
+
+                }
+            }
         }
 
         private async void ProcessSends()
@@ -84,90 +101,21 @@ namespace Channels.Samples
                 BufferSpan span;
                 while (begin.TryGetBuffer(out span))
                 {
-                    QueueSend(span.Buffer, isEnd: false);
+                    Send(span);
                 }
-
-                FlushSends();
 
                 Output.EndRead(begin);
             }
         }
 
-        const RioSendFlags MessagePart = RioSendFlags.Defer | RioSendFlags.DontNotify;
-        const RioSendFlags MessageEnd = RioSendFlags.None;
-
-        int _currentOffset = 0;
-
-        public unsafe void FlushSends()
+        private unsafe void Send(BufferSpan span)
         {
-            var segment = _sendSegments[_sendCount & SendMask];
-            if (_currentOffset > 0)
+            var segment = GetSegmentFromSpan(span);
+
+            if (!_rio.Send(_requestQueue, &segment, 1, MessageEnd, -1))
             {
-                segment.RioBuffer.Length = (uint)_currentOffset;
-                if (!_rio.Send(_requestQueue, &segment.RioBuffer, 1, MessageEnd, -_sendCount - 1))
-                {
-                    ReportError("Flush");
-                }
-                _currentOffset = 0;
-                _sendCount++;
-            }
-        }
-
-        public unsafe void QueueSend(ArraySegment<byte> buffer, bool isEnd)
-        {
-            var segment = _sendSegments[_sendCount & SendMask];
-            var count = buffer.Count;
-            var offset = buffer.Offset;
-
-            do
-            {
-                var length = count >= BufferPool.PacketSize - _currentOffset ? BufferPool.PacketSize - _currentOffset : count;
-                Buffer.BlockCopy(buffer.Array, offset, segment.Buffer, segment.Offset + _currentOffset, length);
-                _currentOffset += length;
-
-                if (_currentOffset == BufferPool.PacketSize)
-                {
-                    segment.RioBuffer.Length = BufferPool.PacketSize;
-                    _sendCount++;
-                    if (!_rio.Send(_requestQueue, &segment.RioBuffer, 1, (((_sendCount & SendMask) == 0) ? MessageEnd : MessagePart), -_sendCount - 1))
-                    {
-                        ReportError("Send");
-                    }
-                    _currentOffset = 0;
-                    segment = _sendSegments[_sendCount & SendMask];
-                }
-                else if (_currentOffset > BufferPool.PacketSize)
-                {
-                    throw new Exception("Overflowed buffer");
-                }
-
-                offset += length;
-                count -= length;
-            } while (count > 0);
-
-            if (isEnd)
-            {
-                if (_currentOffset > 0)
-                {
-                    segment.RioBuffer.Length = (uint)_currentOffset;
-                    if (!_rio.Send(_requestQueue, &segment.RioBuffer, 1, MessageEnd, -_sendCount - 1))
-                    {
-                        ReportError("Send");
-                        return;
-                    }
-                    _currentOffset = 0;
-                    _sendCount++;
-                }
-                else
-                {
-                    if (!_rio.Send(_requestQueue, null, 0, RioSendFlags.CommitOnly, 0))
-                    {
-                        ReportError("Commit");
-                        return;
-                    }
-                    _currentOffset = 0;
-                    _sendCount++;
-                }
+                ReportError("Send");
+                return;
             }
         }
 
@@ -201,23 +149,6 @@ namespace Channels.Samples
 
         }
 
-        public void CompleteReceive(long requestCorrelation, uint bytesTransferred)
-        {
-            var receiveIndex = requestCorrelation & ReceiveMask;
-            var receiveTask = _receiveTasks[receiveIndex];
-            receiveTask.Complete(bytesTransferred, (uint)receiveIndex);
-        }
-
-        internal void PostReceive(long receiveIndex)
-        {
-            var receiveTask = _receiveTasks[receiveIndex];
-            if (!_rio.RioReceive(_requestQueue, ref receiveTask._segment.RioBuffer, 1, RioReceiveFlags.None, receiveIndex))
-            {
-                ReportError("Receive");
-                return;
-            }
-        }
-
         public void Close()
         {
             Dispose(true);
@@ -232,15 +163,8 @@ namespace Channels.Samples
                 RioTcpConnection connection;
                 _rioThread.Connections.TryRemove(_connectionId, out connection);
                 RioImports.closesocket(_socket);
-                for (var i = 0; i < _receiveTasks.Length; i++)
-                {
-                    _receiveTasks[i].Dispose();
-                }
 
-                for (var i = 0; i < _sendSegments.Length; i++)
-                {
-                    _sendSegments[i].Dispose();
-                }
+                // _receiveSegment.Dispose();
 
                 disposedValue = true;
             }

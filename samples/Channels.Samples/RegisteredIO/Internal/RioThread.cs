@@ -5,6 +5,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 using System.Threading;
+using Channels.Samples.Internal.Winsock;
 
 namespace Channels.Samples.Internal
 {
@@ -40,6 +41,8 @@ namespace Channels.Samples.Internal
             _rio = rio;
             _token = token;
             _bufferPool = new BufferPool(rio);
+            _memoryPool = new MemoryPool();
+            _memoryPool.RegisterSlabAllocationCallback(OnSlabAllocated);
             _channelFactory = new ChannelFactory(_memoryPool);
             _connections = new ConcurrentDictionary<long, RioTcpConnection>();
             _thread = new Thread(OnThreadStart);
@@ -47,6 +50,12 @@ namespace Channels.Samples.Internal
             _thread.IsBackground = true;
             _completionPort = completionPort;
             _completionQueue = completionQueue;
+        }
+
+        private object OnSlabAllocated(MemoryPoolSlab slab)
+        {
+            var bufferId = _rio.RioRegisterBuffer(slab.ArrayPtr, (uint)slab.Array.Length);
+            return bufferId;
         }
 
         public void Start()
@@ -84,14 +93,11 @@ namespace Channels.Samples.Internal
                         for (var i = 0; i < count; i++)
                         {
                             result = results[i];
-                            if (result.RequestCorrelation >= 0)
+
+                            RioTcpConnection connection;
+                            if (thread._connections.TryGetValue(result.ConnectionCorrelation, out connection))
                             {
-                                // receive
-                                RioTcpConnection connection;
-                                if (thread._connections.TryGetValue(result.ConnectionCorrelation, out connection))
-                                {
-                                    connection.CompleteReceive(result.RequestCorrelation, result.BytesTransferred);
-                                }
+                                connection.Complete(result.RequestCorrelation, result.BytesTransferred);
                             }
                         }
 

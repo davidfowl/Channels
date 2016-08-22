@@ -760,7 +760,7 @@ namespace Channels
                 }
             }
 
-            span = new BufferSpan(segment.Block.DataArrayPtr, segment.Block.Array, index, following);
+            span = new BufferSpan(segment, index, following);
 
             _segment = segment;
             _index = index + following;

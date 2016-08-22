@@ -61,6 +61,8 @@ namespace Channels
         /// </summary>
         private bool _disposedValue = false; // To detect redundant calls
 
+        private Func<MemoryPoolSlab, object> _slabAlloactionCallback;
+
         /// <summary>
         /// Called to take a block from the pool.
         /// </summary>
@@ -95,6 +97,11 @@ namespace Channels
             return block;
         }
 
+        public void RegisterSlabAllocationCallback(Func<MemoryPoolSlab, object> callback)
+        {
+            _slabAlloactionCallback = callback;
+        }
+
         /// <summary>
         /// Internal method called when a block is requested and the pool is empty. It allocates one additional slab, creates all of the 
         /// block tracking objects, and adds them all to the pool.
@@ -103,6 +110,8 @@ namespace Channels
         {
             var slab = MemoryPoolSlab.Create(_slabLength);
             _slabs.Push(slab);
+
+            slab.UserData = _slabAlloactionCallback?.Invoke(slab);
 
             var basePtr = slab.ArrayPtr;
             var firstOffset = (int)((_blockStride - 1) - ((ulong)(basePtr + _blockStride - 1) % _blockStride));
