@@ -62,6 +62,8 @@ namespace Channels.Samples
             }
         }
 
+        private static readonly byte[] _helloWorldPayload = Encoding.UTF8.GetBytes("Hello, World!");
+
         private static void RunHttpServer()
         {
             var host = new WebHostBuilder()
@@ -74,10 +76,14 @@ namespace Channels.Samples
                             // .UseKestrel()
                             .Configure(app =>
                             {
-                                app.Run(async context =>
+                                app.Run(context =>
                                 {
-                                    context.Response.ContentLength = 11;
-                                    await context.Response.WriteAsync("Hello World");
+                                    context.Response.StatusCode = 200;
+                                    context.Response.ContentType = "text/plain";
+                                    // HACK: Setting the Content-Length header manually avoids the cost of serializing the int to a string.
+                                    //       This is instead of: httpContext.Response.ContentLength = _helloWorldPayload.Length;
+                                    context.Response.Headers["Content-Length"] = "13";
+                                    return context.Response.Body.WriteAsync(_helloWorldPayload, 0, _helloWorldPayload.Length);
                                 });
                             })
                             .Build();
