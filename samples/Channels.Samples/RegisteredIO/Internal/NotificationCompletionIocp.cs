@@ -1,14 +1,14 @@
-﻿// Copyright (c) Illyriad Games. All rights reserved.
+// Copyright (c) Illyriad Games. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
 using System.Runtime.InteropServices;
 using System.Threading;
 
-namespace ManagedRIOHttpServer.RegisteredIO
+namespace Channels.Samples
 {
     [StructLayout(LayoutKind.Sequential)]
-    public unsafe struct RIO_NOTIFICATION_COMPLETION_IOCP
+    public unsafe struct NotificationCompletionIocp
     {
         public IntPtr IocpHandle;
         public ulong QueueCorrelation;

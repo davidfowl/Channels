@@ -1,17 +1,17 @@
-﻿// Copyright (c) Illyriad Games. All rights reserved.
+// Copyright (c) Illyriad Games. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
 
-namespace ManagedRIOHttpServer.RegisteredIO
+namespace Channels.Samples.Internal
 {
-    public struct RIOPooledSegment : IDisposable
+    public struct PooledSegment : IDisposable
     {
         public readonly byte[] Buffer;
-        internal RIO_BUFSEGMENT RioBuffer;
+        internal BufferSegment RioBuffer;
         public readonly int PoolIndex;
-        private RIOBufferPool _owningPool;
-        internal RIOPooledSegment(int index, RIOBufferPool owningPool, RIO_BUFSEGMENT segment, byte[] buffer)
+        private BufferPool _owningPool;
+        internal PooledSegment(int index, BufferPool owningPool, BufferSegment segment, byte[] buffer)
         {
             PoolIndex = index;
             _owningPool = owningPool;
@@ -27,11 +27,9 @@ namespace ManagedRIOHttpServer.RegisteredIO
             }
         }
 
-        #region IDisposable Support
         public void Dispose()
         {
             _owningPool.ReleaseBuffer(PoolIndex);
         }
-        #endregion
     }
 }

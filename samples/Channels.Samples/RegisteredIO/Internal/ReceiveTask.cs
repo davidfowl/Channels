@@ -1,19 +1,15 @@
-﻿// Copyright (c) Illyriad Games. All rights reserved.
+// Copyright (c) Illyriad Games. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
-using System;
-using System.Runtime.CompilerServices;
-using System.Threading;
-
-namespace ManagedRIOHttpServer.RegisteredIO
+namespace Channels.Samples.Internal
 {
-    public sealed class RIOReceiveTask
+    public sealed class ReceiveTask
     {
         private uint _requestCorrelation;
-        internal RIOPooledSegment _segment;
-        private RIOTcpConnection _connection;
+        internal PooledSegment _segment;
+        private RioTcpConnection _connection;
 
-        public RIOReceiveTask(RIOTcpConnection connection, RIOPooledSegment segment)
+        public ReceiveTask(RioTcpConnection connection, PooledSegment segment)
         {
             _segment = segment;
             _connection = connection;
@@ -35,7 +31,6 @@ namespace ManagedRIOHttpServer.RegisteredIO
             }
         }
 
-        #region IDisposable Support
         private bool disposedValue = false; // To detect redundant calls
 
         internal void Dispose()
@@ -46,8 +41,6 @@ namespace ManagedRIOHttpServer.RegisteredIO
                 _segment.Dispose();
             }
         }
-
-        #endregion
 
     }
 }

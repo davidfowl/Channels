@@ -2,42 +2,43 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
-using System.Net.Sockets;
 using System.Threading;
+using Channels.Samples.Internal;
+using Channels.Samples.Internal.Winsock;
 
-namespace ManagedRIOHttpServer.RegisteredIO
+namespace Channels.Samples
 {
-    public sealed class RIOTcpServer
+    public sealed class RioTcpServer
     {
         IntPtr _socket;
-        RIO _rio;
-        RIOThreadPool _pool;
+        RegisteredIO _rio;
+        RioThreadPool _pool;
 
         long _connectionId;
 
-        public RIOTcpServer(ushort port, byte address1, byte address2, byte address3, byte address4)
+        public RioTcpServer(ushort port, byte address1, byte address2, byte address3, byte address4)
         {
             var version = new Version(2, 2);
-            WSAData data;
-            SocketError result = RIOImports.WSAStartup((short)version.Raw, out data);
-            if (result != SocketError.Success)
+            WindowsSocketsData wsaData;
+            System.Net.Sockets.SocketError result = RioImports.WSAStartup((short)version.Raw, out wsaData);
+            if (result != System.Net.Sockets.SocketError.Success)
             {
-                var error = RIOImports.WSAGetLastError();
+                var error = RioImports.WSAGetLastError();
                 throw new Exception(string.Format("ERROR: WSAStartup returned {0}", error));
             }
 
-            _socket = RIOImports.WSASocket(ADDRESS_FAMILIES.AF_INET, SOCKET_TYPE.SOCK_STREAM, PROTOCOL.IPPROTO_TCP, IntPtr.Zero, 0, SOCKET_FLAGS.REGISTERED_IO);
+            _socket = RioImports.WSASocket(AddressFamilies.Internet, SocketType.Stream, Protocol.IpProtocolTcp, IntPtr.Zero, 0, SocketFlags.RegisteredIO);
             if (_socket == IntPtr.Zero)
             {
-                var error = RIOImports.WSAGetLastError();
-                RIOImports.WSACleanup();
+                var error = RioImports.WSAGetLastError();
+                RioImports.WSACleanup();
                 throw new Exception(string.Format("ERROR: WSASocket returned {0}", error));
             }
 
-            _rio = RIOImports.Initalize(_socket);
+            _rio = RioImports.Initalize(_socket);
 
 
-            _pool = new RIOThreadPool(_rio, _socket, CancellationToken.None);
+            _pool = new RioThreadPool(_rio, _socket, CancellationToken.None);
             _connectionId = 0;
             Start(port, address1, address2, address3, address4);
         }
@@ -45,53 +46,53 @@ namespace ManagedRIOHttpServer.RegisteredIO
         private void Start(ushort port, byte address1, byte address2, byte address3, byte address4)
         {
             // BIND
-            in_addr inAddress = new in_addr();
-            inAddress.s_b1 = address1;
-            inAddress.s_b2 = address2;
-            inAddress.s_b3 = address3;
-            inAddress.s_b4 = address4;
+            Ipv4InternetAddress inAddress = new Ipv4InternetAddress();
+            inAddress.Byte1 = address1;
+            inAddress.Byte2 = address2;
+            inAddress.Byte3 = address3;
+            inAddress.Byte4 = address4;
 
-            sockaddr_in sa = new sockaddr_in();
-            sa.sin_family = ADDRESS_FAMILIES.AF_INET;
-            sa.sin_port = RIOImports.htons(port);
-            sa.sin_addr = inAddress;
+            SocketAddress sa = new SocketAddress();
+            sa.Family = AddressFamilies.Internet;
+            sa.Port = RioImports.htons(port);
+            sa.IpAddress = inAddress;
 
             int result;
             unsafe
             {
-                var size = sizeof(sockaddr_in);
-                result = RIOImports.bind(_socket, ref sa, size);
+                var size = sizeof(SocketAddress);
+                result = RioImports.bind(_socket, ref sa, size);
             }
-            if (result == RIOImports.SOCKET_ERROR)
+            if (result == RioImports.SocketError)
             {
-                RIOImports.WSACleanup();
+                RioImports.WSACleanup();
                 throw new Exception("bind failed");
             }
 
             // LISTEN
-            result = RIOImports.listen(_socket, 2048);
-            if (result == RIOImports.SOCKET_ERROR)
+            result = RioImports.listen(_socket, 2048);
+            if (result == RioImports.SocketError)
             {
-                RIOImports.WSACleanup();
+                RioImports.WSACleanup();
                 throw new Exception("listen failed");
             }
         }
-        public RIOTcpConnection Accept()
+        public RioTcpConnection Accept()
         {
-            IntPtr accepted = RIOImports.accept(_socket, IntPtr.Zero, 0);
+            IntPtr accepted = RioImports.accept(_socket, IntPtr.Zero, 0);
             if (accepted == new IntPtr(-1))
             {
-                var error = RIOImports.WSAGetLastError();
-                RIOImports.WSACleanup();
+                var error = RioImports.WSAGetLastError();
+                RioImports.WSACleanup();
                 throw new Exception(string.Format("listen failed with {0}", error));
             }
             var connection = Interlocked.Increment(ref _connectionId);
-            return new RIOTcpConnection(accepted, connection, _pool.GetThread(connection), _rio);
+            return new RioTcpConnection(accepted, connection, _pool.GetThread(connection), _rio);
         }
 
         public void Stop()
         {
-            RIOImports.WSACleanup();
+            RioImports.WSACleanup();
         }
 
         public struct Version
