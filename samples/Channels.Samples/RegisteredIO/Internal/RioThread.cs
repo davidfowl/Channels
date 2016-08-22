@@ -1,26 +1,25 @@
-﻿// Copyright (c) Illyriad Games. All rights reserved.
+// Copyright (c) Illyriad Games. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
 using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 using System.Threading;
-using Channels;
 
-namespace ManagedRIOHttpServer.RegisteredIO
+namespace Channels.Samples.Internal
 {
-    internal unsafe class RIOThread
+    internal unsafe class RioThread
     {
         const string Kernel_32 = "Kernel32";
         const long INVALID_HANDLE_VALUE = -1;
 
-        private readonly RIO _rio;
+        private readonly Winsock.RegisteredIO _rio;
         private readonly int _id;
         private readonly IntPtr _completionPort;
         private readonly IntPtr _completionQueue;
-        private readonly ConcurrentDictionary<long, RIOTcpConnection> _connections = new ConcurrentDictionary<long, RIOTcpConnection>();
+        private readonly ConcurrentDictionary<long, RioTcpConnection> _connections = new ConcurrentDictionary<long, RioTcpConnection>();
         private readonly Thread _thread;
-        private readonly RIOBufferPool _bufferPool;
+        private readonly BufferPool _bufferPool;
         private readonly MemoryPool _memoryPool = new MemoryPool();
         private readonly ChannelFactory _channelFactory;
         private readonly CancellationToken _token;
@@ -31,18 +30,18 @@ namespace ManagedRIOHttpServer.RegisteredIO
 
         public ChannelFactory ChannelFactory => _channelFactory;
 
-        public RIOBufferPool BufferPool => _bufferPool;
+        public BufferPool BufferPool => _bufferPool;
 
-        public ConcurrentDictionary<long, RIOTcpConnection> Connections => _connections;
+        public ConcurrentDictionary<long, RioTcpConnection> Connections => _connections;
 
-        public RIOThread(int id, CancellationToken token, IntPtr completionPort, IntPtr completionQueue, RIO rio)
+        public RioThread(int id, CancellationToken token, IntPtr completionPort, IntPtr completionQueue, Winsock.RegisteredIO rio)
         {
             _id = id;
             _rio = rio;
             _token = token;
-            _bufferPool = new RIOBufferPool(rio);
+            _bufferPool = new BufferPool(rio);
             _channelFactory = new ChannelFactory(_memoryPool);
-            _connections = new ConcurrentDictionary<long, RIOTcpConnection>();
+            _connections = new ConcurrentDictionary<long, RioTcpConnection>();
             _thread = new Thread(OnThreadStart);
             _thread.Name = "RIOThread " + id;
             _thread.IsBackground = true;
@@ -59,11 +58,11 @@ namespace ManagedRIOHttpServer.RegisteredIO
         {
             const int maxResults = 1024;
 
-            var thread = ((RIOThread)state);
+            var thread = ((RioThread)state);
             var rio = thread._rio;
             var token = thread._token;
 
-            RIO_RESULT* results = stackalloc RIO_RESULT[maxResults];
+            RequestResult* results = stackalloc RequestResult[maxResults];
             uint bytes, key;
             NativeOverlapped* overlapped;
 
@@ -71,7 +70,7 @@ namespace ManagedRIOHttpServer.RegisteredIO
             var completionQueue = thread.CompletionQueue;
 
             uint count;
-            RIO_RESULT result;
+            RequestResult result;
 
             while (!token.IsCancellationRequested)
             {
@@ -88,7 +87,7 @@ namespace ManagedRIOHttpServer.RegisteredIO
                             if (result.RequestCorrelation >= 0)
                             {
                                 // receive
-                                RIOTcpConnection connection;
+                                RioTcpConnection connection;
                                 if (thread._connections.TryGetValue(result.ConnectionCorrelation, out connection))
                                 {
                                     connection.CompleteReceive(result.RequestCorrelation, result.BytesTransferred);

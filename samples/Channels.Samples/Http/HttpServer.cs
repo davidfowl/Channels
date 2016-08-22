@@ -4,7 +4,6 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
-using ManagedRIOHttpServer.RegisteredIO;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Http.Features;
@@ -16,7 +15,7 @@ namespace Channels.Samples.Http
         public IFeatureCollection Features { get; } = new FeatureCollection();
 
         private Socket _listenSocket;
-        private RIOTcpServer _rioTcpServer;
+        private RioTcpServer _rioTcpServer;
 
         public HttpServer()
         {
@@ -36,7 +35,7 @@ namespace Channels.Samples.Http
         private void StartAcceptingRIOConnections<TContext>(IHttpApplication<TContext> application, IPAddress ip, int port)
         {
             var addressBytes = ip.GetAddressBytes();
-            _rioTcpServer = new RIOTcpServer((ushort)port, addressBytes[0], addressBytes[1], addressBytes[2], addressBytes[3]);
+            _rioTcpServer = new RioTcpServer((ushort)port, addressBytes[0], addressBytes[1], addressBytes[2], addressBytes[3]);
 
             while (true)
             {
@@ -112,7 +111,7 @@ namespace Channels.Samples.Http
             port = address.Port;
         }
 
-        private static async Task ProcessRIOConnection<TContext>(IHttpApplication<TContext> application, RIOTcpConnection connection)
+        private static async Task ProcessRIOConnection<TContext>(IHttpApplication<TContext> application, RioTcpConnection connection)
         {
             using (connection)
             {

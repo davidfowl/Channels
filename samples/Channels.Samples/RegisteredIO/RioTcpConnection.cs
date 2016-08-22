@@ -2,66 +2,67 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
-using System.Threading;
-using Channels;
+using Channels.Samples.Internal;
+using Channels.Samples.Internal.Winsock;
 
-namespace ManagedRIOHttpServer.RegisteredIO
+namespace Channels.Samples
 {
-    public sealed class RIOTcpConnection : IDisposable
+    public sealed class RioTcpConnection : IDisposable
     {
-        long _connectionId;
-        IntPtr _socket;
-        IntPtr _requestQueue;
-        RIO _rio;
-        RIOThread _thread;
-
-        long _sendCount = 0;
-        long _receiveRequestCount = 0;
-
-        RIOReceiveTask[] _receiveTasks;
-        RIOPooledSegment[] _sendSegments;
         public const int MaxPendingReceives = 16;
         public const int MaxPendingSends = MaxPendingReceives * 2;
         public const int IOCPOverflowEvents = 8;
         const int ReceiveMask = MaxPendingReceives - 1;
         const int SendMask = MaxPendingSends - 1;
 
+        long _connectionId;
+        IntPtr _socket;
+        IntPtr _requestQueue;
+        RegisteredIO _rio;
+        RioThread _rioThread;
+
+        long _sendCount = 0;
+        long _receiveRequestCount = 0;
+
+        ReceiveTask[] _receiveTasks;
+        PooledSegment[] _sendSegments;
+
         public MemoryPoolChannel Input { get; }
         public MemoryPoolChannel Output { get; }
-        public ChannelFactory ChannelFactory => _thread.ChannelFactory;
+        public ChannelFactory ChannelFactory => _rioThread.ChannelFactory;
 
-        internal RIOTcpConnection(IntPtr socket, long connectionId, RIOThread thread, RIO rio)
+        internal RioTcpConnection(IntPtr socket, long connectionId, RioThread rioThread, RegisteredIO rio)
         {
             _socket = socket;
             _connectionId = connectionId;
             _rio = rio;
-            _thread = thread;
+            _rioThread = rioThread;
 
             Input = ChannelFactory.CreateChannel();
             Output = ChannelFactory.CreateChannel();
 
-            _requestQueue = _rio.CreateRequestQueue(_socket, MaxPendingReceives + IOCPOverflowEvents, 1, MaxPendingSends + IOCPOverflowEvents, 1, thread.CompletionQueue, thread.CompletionQueue, connectionId);
+            _requestQueue = _rio.RioCreateRequestQueue(_socket, MaxPendingReceives + IOCPOverflowEvents, 1, MaxPendingSends + IOCPOverflowEvents, 1, rioThread.CompletionQueue, rioThread.CompletionQueue, connectionId);
             if (_requestQueue == IntPtr.Zero)
             {
-                var error = RIOImports.WSAGetLastError();
-                RIOImports.WSACleanup();
-                throw new Exception(String.Format("ERROR: CreateRequestQueue returned {0}", error));
+                var error = RioImports.WSAGetLastError();
+                RioImports.WSACleanup();
+                throw new Exception(String.Format("ERROR: RioCreateRequestQueue returned {0}", error));
             }
 
-            _receiveTasks = new RIOReceiveTask[MaxPendingReceives];
+            _receiveTasks = new ReceiveTask[MaxPendingReceives];
 
             for (var i = 0; i < _receiveTasks.Length; i++)
             {
-                _receiveTasks[i] = new RIOReceiveTask(this, thread.BufferPool.GetBuffer());
+                _receiveTasks[i] = new ReceiveTask(this, rioThread.BufferPool.GetBuffer());
             }
 
-            _sendSegments = new RIOPooledSegment[MaxPendingSends];
+            _sendSegments = new PooledSegment[MaxPendingSends];
             for (var i = 0; i < _sendSegments.Length; i++)
             {
-                _sendSegments[i] = thread.BufferPool.GetBuffer();
+                _sendSegments[i] = rioThread.BufferPool.GetBuffer();
             }
 
-            thread.Connections.TryAdd(connectionId, this);
+            rioThread.Connections.TryAdd(connectionId, this);
 
             for (var i = 0; i < _receiveTasks.Length; i++)
             {
@@ -95,8 +96,8 @@ namespace ManagedRIOHttpServer.RegisteredIO
             }
         }
 
-        const RIO_SEND_FLAGS MessagePart = RIO_SEND_FLAGS.DEFER | RIO_SEND_FLAGS.DONT_NOTIFY;
-        const RIO_SEND_FLAGS MessageEnd = RIO_SEND_FLAGS.NONE;
+        const RioSendFlags MessagePart = RioSendFlags.Defer | RioSendFlags.DontNotify;
+        const RioSendFlags MessageEnd = RioSendFlags.None;
 
         int _currentOffset = 0;
 
@@ -123,13 +124,13 @@ namespace ManagedRIOHttpServer.RegisteredIO
 
             do
             {
-                var length = count >= RIOBufferPool.PacketSize - _currentOffset ? RIOBufferPool.PacketSize - _currentOffset : count;
+                var length = count >= BufferPool.PacketSize - _currentOffset ? BufferPool.PacketSize - _currentOffset : count;
                 Buffer.BlockCopy(buffer.Array, offset, segment.Buffer, segment.Offset + _currentOffset, length);
                 _currentOffset += length;
 
-                if (_currentOffset == RIOBufferPool.PacketSize)
+                if (_currentOffset == BufferPool.PacketSize)
                 {
-                    segment.RioBuffer.Length = RIOBufferPool.PacketSize;
+                    segment.RioBuffer.Length = BufferPool.PacketSize;
                     _sendCount++;
                     if (!_rio.Send(_requestQueue, &segment.RioBuffer, 1, (((_sendCount & SendMask) == 0) ? MessageEnd : MessagePart), -_sendCount - 1))
                     {
@@ -138,7 +139,7 @@ namespace ManagedRIOHttpServer.RegisteredIO
                     _currentOffset = 0;
                     segment = _sendSegments[_sendCount & SendMask];
                 }
-                else if (_currentOffset > RIOBufferPool.PacketSize)
+                else if (_currentOffset > BufferPool.PacketSize)
                 {
                     throw new Exception("Overflowed buffer");
                 }
@@ -162,7 +163,7 @@ namespace ManagedRIOHttpServer.RegisteredIO
                 }
                 else
                 {
-                    if (!_rio.Send(_requestQueue, null, 0, RIO_SEND_FLAGS.COMMIT_ONLY, 0))
+                    if (!_rio.Send(_requestQueue, null, 0, RioSendFlags.CommitOnly, 0))
                     {
                         ReportError("Commit");
                         return;
@@ -175,7 +176,7 @@ namespace ManagedRIOHttpServer.RegisteredIO
 
         private static void ReportError(string type)
         {
-            var errorNo = RIOImports.WSAGetLastError();
+            var errorNo = RioImports.WSAGetLastError();
 
             string errorMessage;
             switch (errorNo)
@@ -203,17 +204,17 @@ namespace ManagedRIOHttpServer.RegisteredIO
 
         }
 
-        public void CompleteReceive(long RequestCorrelation, uint BytesTransferred)
+        public void CompleteReceive(long requestCorrelation, uint bytesTransferred)
         {
-            var receiveIndex = RequestCorrelation & ReceiveMask;
+            var receiveIndex = requestCorrelation & ReceiveMask;
             var receiveTask = _receiveTasks[receiveIndex];
-            receiveTask.Complete(BytesTransferred, (uint)receiveIndex);
+            receiveTask.Complete(bytesTransferred, (uint)receiveIndex);
         }
 
         internal void PostReceive(long receiveIndex)
         {
             var receiveTask = _receiveTasks[receiveIndex];
-            if (!_rio.Receive(_requestQueue, ref receiveTask._segment.RioBuffer, 1, RIO_RECEIVE_FLAGS.NONE, receiveIndex))
+            if (!_rio.RioReceive(_requestQueue, ref receiveTask._segment.RioBuffer, 1, RioReceiveFlags.None, receiveIndex))
             {
                 ReportError("Receive");
                 return;
@@ -225,7 +226,6 @@ namespace ManagedRIOHttpServer.RegisteredIO
             Dispose(true);
         }
 
-        #region IDisposable Support
         private bool disposedValue = false; // To detect redundant calls
 
         private void Dispose(bool disposing)
@@ -237,9 +237,9 @@ namespace ManagedRIOHttpServer.RegisteredIO
                     //_receiveTask.Dispose();
                 }
 
-                RIOTcpConnection connection;
-                _thread.Connections.TryRemove(_connectionId, out connection);
-                RIOImports.closesocket(_socket);
+                RioTcpConnection connection;
+                _rioThread.Connections.TryRemove(_connectionId, out connection);
+                RioImports.closesocket(_socket);
                 for (var i = 0; i < _receiveTasks.Length; i++)
                 {
                     _receiveTasks[i].Dispose();
@@ -254,7 +254,7 @@ namespace ManagedRIOHttpServer.RegisteredIO
             }
         }
 
-        ~RIOTcpConnection()
+        ~RioTcpConnection()
         {
             // Do not change this code. Put cleanup code in Dispose(bool disposing) above.
             Dispose(false);
@@ -266,8 +266,6 @@ namespace ManagedRIOHttpServer.RegisteredIO
             Dispose(true);
             GC.SuppressFinalize(this);
         }
-        #endregion
-
     }
 
 }
