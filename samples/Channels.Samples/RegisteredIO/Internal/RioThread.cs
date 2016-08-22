@@ -14,13 +14,12 @@ namespace Channels.Samples.Internal
         const string Kernel_32 = "Kernel32";
         const long INVALID_HANDLE_VALUE = -1;
 
-        private readonly Winsock.RegisteredIO _rio;
+        private readonly RegisteredIO _rio;
         private readonly int _id;
         private readonly IntPtr _completionPort;
         private readonly IntPtr _completionQueue;
         private readonly ConcurrentDictionary<long, RioTcpConnection> _connections = new ConcurrentDictionary<long, RioTcpConnection>();
         private readonly Thread _thread;
-        private readonly BufferPool _bufferPool;
         private readonly MemoryPool _memoryPool = new MemoryPool();
         private readonly ChannelFactory _channelFactory;
         private readonly CancellationToken _token;
@@ -31,8 +30,6 @@ namespace Channels.Samples.Internal
 
         public ChannelFactory ChannelFactory => _channelFactory;
 
-        public BufferPool BufferPool => _bufferPool;
-
         public ConcurrentDictionary<long, RioTcpConnection> Connections => _connections;
 
         public RioThread(int id, CancellationToken token, IntPtr completionPort, IntPtr completionQueue, Winsock.RegisteredIO rio)
@@ -40,7 +37,6 @@ namespace Channels.Samples.Internal
             _id = id;
             _rio = rio;
             _token = token;
-            _bufferPool = new BufferPool(rio);
             _memoryPool = new MemoryPool();
             _memoryPool.RegisterSlabAllocationCallback(OnSlabAllocated);
             _channelFactory = new ChannelFactory(_memoryPool);
@@ -87,7 +83,6 @@ namespace Channels.Samples.Internal
                 var success = GetQueuedCompletionStatus(completionPort, out bytes, out key, out overlapped, -1);
                 if (success)
                 {
-                    var activatedCompletionPort = false;
                     while ((count = rio.DequeueCompletion(completionQueue, (IntPtr)results, maxResults)) > 0)
                     {
                         for (var i = 0; i < count; i++)
@@ -99,12 +94,6 @@ namespace Channels.Samples.Internal
                             {
                                 connection.Complete(result.RequestCorrelation, result.BytesTransferred);
                             }
-                        }
-
-                        if (!activatedCompletionPort)
-                        {
-                            rio.Notify(completionQueue);
-                            activatedCompletionPort = true;
                         }
                     }
                 }

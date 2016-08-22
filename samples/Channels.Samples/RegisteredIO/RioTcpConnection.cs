@@ -2,6 +2,9 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
+using System.Runtime.CompilerServices;
+using System.Threading;
+using System.Threading.Tasks;
 using Channels.Samples.Internal;
 using Channels.Samples.Internal.Winsock;
 
@@ -14,6 +17,7 @@ namespace Channels.Samples
         private readonly IntPtr _requestQueue;
         private readonly RegisteredIO _rio;
         private readonly RioThread _rioThread;
+        private bool _disposedValue;
 
         private const RioSendFlags MessagePart = RioSendFlags.Defer | RioSendFlags.DontNotify;
         private const RioSendFlags MessageEnd = RioSendFlags.None;
@@ -23,7 +27,10 @@ namespace Channels.Samples
         public ChannelFactory ChannelFactory => _rioThread.ChannelFactory;
 
         private WritableBuffer _buffer;
-        private BufferSegment _bufferSeg;
+        private BufferSegment _receiveBufferSeg;
+        private BufferSegment _sendBufferSeg;
+
+        private SemaphoreSlim _outgoingSends = new SemaphoreSlim(1);
 
         internal RioTcpConnection(IntPtr socket, long connectionId, IntPtr requestQueue, RioThread rioThread, RegisteredIO rio)
         {
@@ -46,11 +53,47 @@ namespace Channels.Samples
         private void ProcessReceives()
         {
             _buffer = Input.Alloc(2048);
-            _bufferSeg = GetSegmentFromSpan(_buffer.Memory);
+            _receiveBufferSeg = GetSegmentFromSpan(_buffer.Memory);
 
-            if (!_rio.RioReceive(_requestQueue, ref _bufferSeg, 1, RioReceiveFlags.None, 0))
+            if (!_rio.RioReceive(_requestQueue, ref _receiveBufferSeg, 1, RioReceiveFlags.None, 0))
             {
                 ReportError("Receive");
+                return;
+            }
+        }
+
+        private async void ProcessSends()
+        {
+            while (true)
+            {
+                await Output;
+
+                var begin = Output.BeginRead();
+                var end = begin;
+
+                if (begin.IsEnd && Output.Completion.IsCompleted)
+                {
+                    break;
+                }
+
+                BufferSpan span;
+                while (begin.TryGetBuffer(out span))
+                {
+                    await _outgoingSends.WaitAsync();
+                    Send(span);
+                }
+
+                Output.EndRead(begin);
+            }
+        }
+
+        private unsafe void Send(BufferSpan span)
+        {
+            _sendBufferSeg = GetSegmentFromSpan(span);
+
+            if (!_rio.Send(_requestQueue, ref _sendBufferSeg, 1, MessageEnd, -1))
+            {
+                ReportError("Send");
                 return;
             }
         }
@@ -73,49 +116,18 @@ namespace Channels.Samples
 
                     ProcessReceives();
                 }
+                else
+                {
+                    Input.CompleteWriting();
+                }
             }
             else
             {
                 // Sends
                 if (bytesTransferred > 0)
                 {
-
+                    _outgoingSends.Release();
                 }
-            }
-        }
-
-        private async void ProcessSends()
-        {
-            while (true)
-            {
-                await Output;
-
-                var begin = Output.BeginRead();
-                var end = begin;
-
-                if (begin.IsEnd && Output.Completion.IsCompleted)
-                {
-                    break;
-                }
-
-                BufferSpan span;
-                while (begin.TryGetBuffer(out span))
-                {
-                    Send(span);
-                }
-
-                Output.EndRead(begin);
-            }
-        }
-
-        private unsafe void Send(BufferSpan span)
-        {
-            var segment = GetSegmentFromSpan(span);
-
-            if (!_rio.Send(_requestQueue, &segment, 1, MessageEnd, -1))
-            {
-                ReportError("Send");
-                return;
             }
         }
 
@@ -145,28 +157,19 @@ namespace Channels.Samples
                     errorMessage = string.Format(type + " failed:  WSA error code {0}", errorNo);
                     break;
             }
+
             throw new InvalidOperationException(errorMessage);
-
         }
-
-        public void Close()
-        {
-            Dispose(true);
-        }
-
-        private bool disposedValue = false; // To detect redundant calls
 
         private void Dispose(bool disposing)
         {
-            if (!disposedValue)
+            if (!_disposedValue)
             {
                 RioTcpConnection connection;
                 _rioThread.Connections.TryRemove(_connectionId, out connection);
                 RioImports.closesocket(_socket);
 
-                // _receiveSegment.Dispose();
-
-                disposedValue = true;
+                _disposedValue = true;
             }
         }
 
@@ -183,5 +186,4 @@ namespace Channels.Samples
             GC.SuppressFinalize(this);
         }
     }
-
 }

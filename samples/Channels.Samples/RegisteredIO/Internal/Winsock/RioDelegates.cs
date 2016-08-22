@@ -13,7 +13,7 @@ namespace Channels.Samples.Internal.Winsock
     public delegate void RioDeregisterBuffer([In] IntPtr bufferId);
 
     [UnmanagedFunctionPointer(CallingConvention.StdCall, SetLastError = true)]
-    public unsafe delegate bool RioSend([In] IntPtr socketQueue, [In] BufferSegment* rioBuffer, [In] UInt32 dataBufferCount, [In] RioSendFlags flags, [In] long requestCorrelation);
+    public unsafe delegate bool RioSend([In] IntPtr socketQueue, [In] ref BufferSegment rioBuffer, [In] UInt32 dataBufferCount, [In] RioSendFlags flags, [In] long requestCorrelation);
 
     [UnmanagedFunctionPointer(CallingConvention.StdCall, SetLastError = true)]
     public delegate bool RioReceive([In] IntPtr socketQueue, [In] ref BufferSegment rioBuffer, [In] UInt32 dataBufferCount, [In] RioReceiveFlags flags, [In] long requestCorrelation);

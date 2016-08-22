@@ -13,7 +13,7 @@ namespace Channels.Samples.Internal
         const string Kernel_32 = "Kernel32";
         const long INVALID_HANDLE_VALUE = -1;
 
-        private Winsock.RegisteredIO _rio;
+        private RegisteredIO _rio;
         private CancellationToken _token;
         private int _maxThreads;
 
@@ -23,7 +23,7 @@ namespace Channels.Samples.Internal
         private IntPtr _socket;
         private RioThread[] _rioThreads;
 
-        public unsafe RioThreadPool(Winsock.RegisteredIO rio, IntPtr socket, CancellationToken token)
+        public unsafe RioThreadPool(RegisteredIO rio, IntPtr socket, CancellationToken token)
         {
             _socket = socket;
             _rio = rio;
@@ -53,6 +53,7 @@ namespace Channels.Samples.Internal
                         Overlapped = (NativeOverlapped*)(-1)// nativeOverlapped
                     }
                 };
+
                 IntPtr completionQueue = _rio.RioCreateCompletionQueue(MaxOutsandingCompletions, completionMethod);
 
                 if (completionQueue == IntPtr.Zero)
@@ -65,21 +66,6 @@ namespace Channels.Samples.Internal
                 var thread = new RioThread(i, _token, completionPort, completionQueue, rio);
                 _rioThreads[i] = thread;
             }
-
-            // gc
-            //GC.Collect(2, GCCollectionMode.Forced, true, true);
-            //GC.WaitForPendingFinalizers();
-            //GC.Collect(2, GCCollectionMode.Forced, true, true);
-
-            //GC.Collect(2, GCCollectionMode.Forced, true);
-            //GC.WaitForPendingFinalizers();
-            //GC.Collect(2, GCCollectionMode.Forced, true);
-
-            //for (var i = 0; i < _rioThreads.Length; i++)
-            //{
-            //    // pin buffers
-            //    _rioThreads[i].BufferPool.Initalize();
-            //}
 
             for (var i = 0; i < _rioThreads.Length; i++)
             {

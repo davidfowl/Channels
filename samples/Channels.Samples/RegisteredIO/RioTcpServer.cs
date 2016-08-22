@@ -77,6 +77,7 @@ namespace Channels.Samples
                 throw new Exception("listen failed");
             }
         }
+
         public RioTcpConnection Accept()
         {
             var accepted = RioImports.accept(_socket, IntPtr.Zero, 0);
@@ -94,7 +95,7 @@ namespace Channels.Samples
             {
                 var error = RioImports.WSAGetLastError();
                 RioImports.WSACleanup();
-                throw new Exception(String.Format("ERROR: RioCreateRequestQueue returned {0}", error));
+                throw new Exception(string.Format("ERROR: RioCreateRequestQueue returned {0}", error));
             }
 
             return new RioTcpConnection(accepted, connectionId, requestQueue, thread, _rio);
@@ -142,5 +143,5 @@ namespace Channels.Samples
             }
         }
     }
-    
+
 }
