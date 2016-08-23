@@ -29,6 +29,8 @@ namespace Channels.Samples
         private RioBufferSegment _receiveBufferSeg;
         private RioBufferSegment _sendBufferSeg;
 
+        private long _lastSendCorrelation = -1;
+        private readonly SemaphoreSlim _sendsComplete = new SemaphoreSlim(0);
         private readonly SemaphoreSlim _outgoingSends = new SemaphoreSlim(RioTcpServer.MaxWritesPerSocket);
 
         private Task _sendTask;
@@ -82,13 +84,16 @@ namespace Channels.Samples
                     while (current.TryGetBuffer(out span))
                     {
                         await _outgoingSends.WaitAsync();
-                        Send(last, MessagePart);
+                        Send(last, MessagePart, _lastSendCorrelation);
                         last = span;
                     }
 
                     await _outgoingSends.WaitAsync();
-                    Send(last, MessageEnd);
+
+                    Send(last, MessageEnd, (_lastSendCorrelation = _lastSendCorrelation == int.MinValue ? -1 : _lastSendCorrelation - 1));
                 }
+
+                await _sendsComplete.WaitAsync();
 
                 Output.EndRead(current);
             }
@@ -96,11 +101,11 @@ namespace Channels.Samples
             Output.CompleteReading();
         }
 
-        private void Send(BufferSpan span, RioSendFlags type)
+        private void Send(BufferSpan span, RioSendFlags type, long correlation)
         {
             _sendBufferSeg = GetSegmentFromSpan(span);
 
-            if (!_rio.Send(_requestQueue, ref _sendBufferSeg, 1, type, -1))
+            if (!_rio.Send(_requestQueue, ref _sendBufferSeg, 1, type, correlation))
             {
                 ThrowError(ErrorType.Send);
             }
@@ -133,6 +138,11 @@ namespace Channels.Samples
             {
                 // Sends
                 _outgoingSends.Release();
+
+                if (requestCorrelation == _lastSendCorrelation)
+                {
+                    _sendsComplete.Release();
+                }
             }
         }
 
