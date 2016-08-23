@@ -134,7 +134,7 @@ namespace Channels.Samples.Http
         private static async Task ProcessClient<TContext>(IHttpApplication<TContext> application, ChannelFactory channelFactory, IReadableChannel input, IWritableChannel output)
         {
             // var id = Guid.NewGuid();
-            output = channelFactory.MakeWriteableChannel(output, Dump);
+            // output = channelFactory.MakeWriteableChannel(output, Dump);
             // input = channelFactory.MakeReadableChannel(input, Dump);
 
             var connection = new HttpConnection<TContext>(application, input, output);
