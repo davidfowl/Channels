@@ -2,7 +2,6 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
-using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Channels.Samples.Internal;
@@ -27,10 +26,12 @@ namespace Channels.Samples
         public ChannelFactory ChannelFactory => _rioThread.ChannelFactory;
 
         private WritableBuffer _buffer;
-        private BufferSegment _receiveBufferSeg;
-        private BufferSegment _sendBufferSeg;
+        private RioBufferSegment _receiveBufferSeg;
+        private RioBufferSegment _sendBufferSeg;
 
         private SemaphoreSlim _outgoingSends = new SemaphoreSlim(1);
+
+        private Task _sendTask;
 
         internal RioTcpConnection(IntPtr socket, long connectionId, IntPtr requestQueue, RioThread rioThread, RegisteredIO rio)
         {
@@ -47,7 +48,7 @@ namespace Channels.Samples
             rioThread.Connections.TryAdd(connectionId, this);
 
             ProcessReceives();
-            ProcessSends();
+            _sendTask = ProcessSends();
         }
 
         private void ProcessReceives()
@@ -57,12 +58,11 @@ namespace Channels.Samples
 
             if (!_rio.RioReceive(_requestQueue, ref _receiveBufferSeg, 1, RioReceiveFlags.None, 0))
             {
-                ReportError("Receive");
-                return;
+                ThrowError(ErrorType.Receive);
             }
         }
 
-        private async void ProcessSends()
+        private async Task ProcessSends()
         {
             while (true)
             {
@@ -87,21 +87,20 @@ namespace Channels.Samples
             }
         }
 
-        private unsafe void Send(BufferSpan span)
+        private void Send(BufferSpan span)
         {
             _sendBufferSeg = GetSegmentFromSpan(span);
 
             if (!_rio.Send(_requestQueue, ref _sendBufferSeg, 1, MessageEnd, -1))
             {
-                ReportError("Send");
-                return;
+                ThrowError(ErrorType.Send);
             }
         }
 
-        private static BufferSegment GetSegmentFromSpan(BufferSpan span)
+        private static RioBufferSegment GetSegmentFromSpan(BufferSpan span)
         {
             var bufferId = (IntPtr)span.UserData;
-            return new BufferSegment(bufferId, (uint)span.Buffer.Offset, (uint)span.Length);
+            return new RioBufferSegment(bufferId, (uint)span.Buffer.Offset, (uint)span.Length);
         }
 
         public void Complete(long requestCorrelation, uint bytesTransferred)
@@ -131,7 +130,7 @@ namespace Channels.Samples
             }
         }
 
-        private static void ReportError(string type)
+        private static void ThrowError(ErrorType type)
         {
             var errorNo = RioImports.WSAGetLastError();
 
@@ -139,22 +138,22 @@ namespace Channels.Samples
             switch (errorNo)
             {
                 case 10014: // WSAEFAULT
-                    errorMessage = type + " failed: WSAEFAULT - The system detected an invalid pointer address in attempting to use a pointer argument in a call.";
+                    errorMessage = $"{type} failed: WSAEFAULT - The system detected an invalid pointer address in attempting to use a pointer argument in a call.";
                     break;
                 case 10022: // WSAEINVAL
-                    errorMessage = type + " failed: WSAEINVAL -  the SocketQueue parameter is not valid, the Flags parameter contains an value not valid for a send operation, or the integrity of the completion queue has been compromised.";
+                    errorMessage = $"{type} failed: WSAEINVAL -  the SocketQueue parameter is not valid, the Flags parameter contains an value not valid for a send operation, or the integrity of the completion queue has been compromised.";
                     break;
                 case 10055: // WSAENOBUFS
-                    errorMessage = type + " failed: WSAENOBUFS - Sufficient memory could not be allocated, the I/O completion queue associated with the SocketQueue parameter is full.";
+                    errorMessage = $"{type} failed: WSAENOBUFS - Sufficient memory could not be allocated, the I/O completion queue associated with the SocketQueue parameter is full.";
                     break;
                 case 997: // WSA_IO_PENDING
-                    errorMessage = type + " failed? WSA_IO_PENDING - The operation has been successfully initiated and the completion will be queued at a later time.";
+                    errorMessage = $"{type} failed? WSA_IO_PENDING - The operation has been successfully initiated and the completion will be queued at a later time.";
                     break;
                 case 995: // WSA_OPERATION_ABORTED
-                    errorMessage = type + " failed. WSA_OPERATION_ABORTED - The operation has been canceled while the receive operation was pending. .";
+                    errorMessage = $"{type} failed. WSA_OPERATION_ABORTED - The operation has been canceled while the receive operation was pending.";
                     break;
                 default:
-                    errorMessage = string.Format(type + " failed:  WSA error code {0}", errorNo);
+                    errorMessage = $"{type} failed:  WSA error code {errorNo}";
                     break;
             }
 
@@ -184,6 +183,12 @@ namespace Channels.Samples
             // Do not change this code. Put cleanup code in Dispose(bool disposing) above.
             Dispose(true);
             GC.SuppressFinalize(this);
+        }
+
+        private enum ErrorType
+        {
+            Send,
+            Receive
         }
     }
 }

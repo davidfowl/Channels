@@ -39,9 +39,9 @@ namespace Channels.Samples.Internal.Winsock
             int result = setsockopt(socket, IPPROTO_TCP, TcpNodelay, (char*)&True, 4);
             if (result != 0)
             {
-                var error = RioImports.WSAGetLastError();
-                RioImports.WSACleanup();
-                throw new Exception(String.Format("ERROR: setsockopt TCP_NODELAY returned {0}", error));
+                var error = WSAGetLastError();
+                WSACleanup();
+                throw new Exception($"ERROR: setsockopt TCP_NODELAY returned {error}");
             }
 
             result = WSAIoctlGeneral(socket, SioLoopbackFastPath, 
@@ -50,9 +50,9 @@ namespace Channels.Samples.Internal.Winsock
 
             if (result != 0)
             {
-                var error = RioImports.WSAGetLastError();
-                RioImports.WSACleanup();
-                throw new Exception(String.Format("ERROR: WSAIoctl SIO_LOOPBACK_FAST_PATH returned {0}", error));
+                var error = WSAGetLastError();
+                WSACleanup();
+                throw new Exception($"ERROR: WSAIoctl SIO_LOOPBACK_FAST_PATH returned {error}");
             }
 
             result = WSAIoctl(socket, SioGetMultipleExtensionFunctionPointer,
@@ -62,33 +62,31 @@ namespace Channels.Samples.Internal.Winsock
             
             if (result != 0)
             {
-                var error = RioImports.WSAGetLastError();
-                RioImports.WSACleanup();
-                throw new Exception(String.Format("ERROR: RIOInitalize returned {0}", error));
+                var error = WSAGetLastError();
+                WSACleanup();
+                throw new Exception($"ERROR: RIOInitalize returned {error}");
             }
-            else
-            {
-                RegisteredIO rioFunctions = new RegisteredIO();
 
-                rioFunctions.RioRegisterBuffer = Marshal.GetDelegateForFunctionPointer<RioRegisterBuffer>(rio.RIORegisterBuffer);
+            var rioFunctions = new RegisteredIO();
 
-                rioFunctions.RioCreateCompletionQueue = Marshal.GetDelegateForFunctionPointer<RioCreateCompletionQueue>(rio.RIOCreateCompletionQueue);
+            rioFunctions.RioRegisterBuffer = Marshal.GetDelegateForFunctionPointer<RioRegisterBuffer>(rio.RIORegisterBuffer);
 
-                rioFunctions.RioCreateRequestQueue = Marshal.GetDelegateForFunctionPointer<RioCreateRequestQueue>(rio.RIOCreateRequestQueue);
+            rioFunctions.RioCreateCompletionQueue = Marshal.GetDelegateForFunctionPointer<RioCreateCompletionQueue>(rio.RIOCreateCompletionQueue);
+
+            rioFunctions.RioCreateRequestQueue = Marshal.GetDelegateForFunctionPointer<RioCreateRequestQueue>(rio.RIOCreateRequestQueue);
                 
-                rioFunctions.Notify = Marshal.GetDelegateForFunctionPointer<RioNotify>(rio.RIONotify);
-                rioFunctions.DequeueCompletion = Marshal.GetDelegateForFunctionPointer<RioDequeueCompletion>(rio.RIODequeueCompletion);
+            rioFunctions.Notify = Marshal.GetDelegateForFunctionPointer<RioNotify>(rio.RIONotify);
+            rioFunctions.DequeueCompletion = Marshal.GetDelegateForFunctionPointer<RioDequeueCompletion>(rio.RIODequeueCompletion);
 
-                rioFunctions.RioReceive = Marshal.GetDelegateForFunctionPointer<RioReceive>(rio.RIOReceive);
-                rioFunctions.Send = Marshal.GetDelegateForFunctionPointer<RioSend>(rio.RIOSend);
+            rioFunctions.RioReceive = Marshal.GetDelegateForFunctionPointer<RioReceive>(rio.RIOReceive);
+            rioFunctions.Send = Marshal.GetDelegateForFunctionPointer<RioSend>(rio.RIOSend);
 
-                rioFunctions.CloseCompletionQueue = Marshal.GetDelegateForFunctionPointer<RioCloseCompletionQueue>(rio.RIOCloseCompletionQueue);
-                rioFunctions.DeregisterBuffer = Marshal.GetDelegateForFunctionPointer<RioDeregisterBuffer>(rio.RIODeregisterBuffer);
-                rioFunctions.ResizeCompletionQueue = Marshal.GetDelegateForFunctionPointer<RioResizeCompletionQueue>(rio.RIOResizeCompletionQueue);
-                rioFunctions.ResizeRequestQueue = Marshal.GetDelegateForFunctionPointer<RioResizeRequestQueue>(rio.RIOResizeRequestQueue);
+            rioFunctions.CloseCompletionQueue = Marshal.GetDelegateForFunctionPointer<RioCloseCompletionQueue>(rio.RIOCloseCompletionQueue);
+            rioFunctions.DeregisterBuffer = Marshal.GetDelegateForFunctionPointer<RioDeregisterBuffer>(rio.RIODeregisterBuffer);
+            rioFunctions.ResizeCompletionQueue = Marshal.GetDelegateForFunctionPointer<RioResizeCompletionQueue>(rio.RIOResizeCompletionQueue);
+            rioFunctions.ResizeRequestQueue = Marshal.GetDelegateForFunctionPointer<RioResizeRequestQueue>(rio.RIOResizeRequestQueue);
 
-                return rioFunctions;
-            }
+            return rioFunctions;
         }
         
         [DllImport(Ws232, SetLastError = true)]

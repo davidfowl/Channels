@@ -67,7 +67,7 @@ namespace Channels.Samples.Internal
             var rio = thread._rio;
             var token = thread._token;
 
-            RequestResult* results = stackalloc RequestResult[maxResults];
+            RioRequestResult* results = stackalloc RioRequestResult[maxResults];
             uint bytes, key;
             NativeOverlapped* overlapped;
 
@@ -75,7 +75,7 @@ namespace Channels.Samples.Internal
             var completionQueue = thread.CompletionQueue;
 
             uint count;
-            RequestResult result;
+            RioRequestResult result;
 
             while (!token.IsCancellationRequested)
             {
@@ -109,7 +109,7 @@ namespace Channels.Samples.Internal
         }
 
         [DllImport(Kernel_32, SetLastError = true)]
-        private static extern unsafe bool GetQueuedCompletionStatus(IntPtr CompletionPort, out uint lpNumberOfBytes, out uint lpCompletionKey, out NativeOverlapped* lpOverlapped, int dwMilliseconds);
+        private static extern bool GetQueuedCompletionStatus(IntPtr CompletionPort, out uint lpNumberOfBytes, out uint lpCompletionKey, out NativeOverlapped* lpOverlapped, int dwMilliseconds);
 
         [DllImport(Kernel_32, SetLastError = true)]
         private static extern long GetLastError();

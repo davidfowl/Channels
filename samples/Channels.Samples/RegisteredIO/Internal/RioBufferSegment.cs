@@ -7,9 +7,9 @@ using System.Runtime.InteropServices;
 namespace Channels.Samples.Internal
 {
     [StructLayout(LayoutKind.Sequential)]
-    public struct BufferSegment
+    public struct RioBufferSegment
     {
-        public BufferSegment(IntPtr bufferId, uint offset, uint length)
+        public RioBufferSegment(IntPtr bufferId, uint offset, uint length)
         {
             BufferId = bufferId;
             Offset = offset;
