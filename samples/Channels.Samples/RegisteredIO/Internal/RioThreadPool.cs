@@ -17,8 +17,8 @@ namespace Channels.Samples.Internal
         private CancellationToken _token;
         private int _maxThreads;
 
-        public const int PreAllocSocketsPerThread = 256;
-        private const int MaxOutsandingCompletions = 2 * PreAllocSocketsPerThread;
+        private const int SocketsPerThread = 256;
+        private const int MaxOutsandingCompletions = 2 * SocketsPerThread;
 
         private IntPtr _socket;
         private RioThread[] _rioThreads;

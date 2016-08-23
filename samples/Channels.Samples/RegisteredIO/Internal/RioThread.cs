@@ -24,7 +24,9 @@ namespace Channels.Samples.Internal
         private readonly ChannelFactory _channelFactory;
         private readonly CancellationToken _token;
 
-        public IntPtr CompletionQueue => _completionQueue;
+        public IntPtr ReceiveCompletionQueue => _completionQueue;
+
+        public IntPtr SendCompletionQueue => _completionQueue;
 
         public IntPtr CompletionPort => _completionPort;
 
@@ -77,7 +79,7 @@ namespace Channels.Samples.Internal
             NativeOverlapped* overlapped;
 
             var completionPort = thread.CompletionPort;
-            var completionQueue = thread.CompletionQueue;
+            var completionQueue = thread.ReceiveCompletionQueue;
 
             uint count;
             RioRequestResult result;

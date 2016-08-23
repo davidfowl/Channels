@@ -90,7 +90,16 @@ namespace Channels.Samples
             var connectionId = Interlocked.Increment(ref _connectionId);
             var thread = _pool.GetThread(connectionId);
 
-            var requestQueue = _rio.RioCreateRequestQueue(accepted, maxOutstandingReceive: 1, maxReceiveDataBuffers: 1, maxOutstandingSend: 1, maxSendDataBuffers: 1, receiveCq: thread.CompletionQueue, sendCq: thread.CompletionQueue, connectionCorrelation: connectionId);
+            var requestQueue = _rio.RioCreateRequestQueue(
+                                        accepted,
+                                        maxOutstandingReceive: 1,
+                                        maxReceiveDataBuffers: 1,
+                                        maxOutstandingSend: 1,
+                                        maxSendDataBuffers: 1,
+                                        receiveCq: thread.ReceiveCompletionQueue,
+                                        sendCq: thread.SendCompletionQueue,
+                                        connectionCorrelation: connectionId);
+
             if (requestQueue == IntPtr.Zero)
             {
                 var error = RioImports.WSAGetLastError();
