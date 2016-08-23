@@ -29,7 +29,7 @@ namespace Channels.Samples
         private RioBufferSegment _receiveBufferSeg;
         private RioBufferSegment _sendBufferSeg;
 
-        private SemaphoreSlim _outgoingSends = new SemaphoreSlim(1);
+        private readonly SemaphoreSlim _outgoingSends = new SemaphoreSlim(RioTcpServer.MaxWritesPerSocket);
 
         private Task _sendTask;
 
@@ -68,32 +68,39 @@ namespace Channels.Samples
             {
                 await Output;
 
-                var begin = Output.BeginRead();
-                var end = begin;
+                var current = Output.BeginRead();
 
-                if (begin.IsEnd && Output.Completion.IsCompleted)
+                if (current.IsEnd && Output.Completion.IsCompleted)
                 {
                     break;
                 }
 
-                BufferSpan span;
-                while (begin.TryGetBuffer(out span))
+                BufferSpan last;
+                if (current.TryGetBuffer(out last))
                 {
+                    BufferSpan span;
+                    while (current.TryGetBuffer(out span))
+                    {
+                        await _outgoingSends.WaitAsync();
+                        Send(last, MessagePart);
+                        last = span;
+                    }
+
                     await _outgoingSends.WaitAsync();
-                    Send(span);
+                    Send(last, MessageEnd);
                 }
 
-                Output.EndRead(begin);
+                Output.EndRead(current);
             }
 
             Output.CompleteReading();
         }
 
-        private void Send(BufferSpan span)
+        private void Send(BufferSpan span, RioSendFlags type)
         {
             _sendBufferSeg = GetSegmentFromSpan(span);
 
-            if (!_rio.Send(_requestQueue, ref _sendBufferSeg, 1, MessageEnd, -1))
+            if (!_rio.Send(_requestQueue, ref _sendBufferSeg, 1, type, -1))
             {
                 ThrowError(ErrorType.Send);
             }

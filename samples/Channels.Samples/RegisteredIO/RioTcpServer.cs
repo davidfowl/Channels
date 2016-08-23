@@ -14,6 +14,11 @@ namespace Channels.Samples
         private readonly RegisteredIO _rio;
         private readonly RioThreadPool _pool;
 
+        private const int MaxSocketsPerThread = 25600;
+        private const int MaxReadsPerSocket = 1;
+        public const int MaxWritesPerSocket = 16;
+        public const int MaxOutsandingCompletionsPerThread = (MaxReadsPerSocket + MaxWritesPerSocket) * MaxSocketsPerThread;
+
         private long _connectionId;
 
         public RioTcpServer(ushort port, byte address1, byte address2, byte address3, byte address4)
@@ -92,9 +97,9 @@ namespace Channels.Samples
 
             var requestQueue = _rio.RioCreateRequestQueue(
                                         accepted,
-                                        maxOutstandingReceive: 1,
+                                        maxOutstandingReceive: MaxReadsPerSocket,
                                         maxReceiveDataBuffers: 1,
-                                        maxOutstandingSend: 1,
+                                        maxOutstandingSend: MaxWritesPerSocket,
                                         maxSendDataBuffers: 1,
                                         receiveCq: thread.ReceiveCompletionQueue,
                                         sendCq: thread.SendCompletionQueue,

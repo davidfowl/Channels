@@ -17,9 +17,6 @@ namespace Channels.Samples.Internal
         private CancellationToken _token;
         private int _maxThreads;
 
-        private const int SocketsPerThread = 256;
-        private const int MaxOutsandingCompletions = 2 * SocketsPerThread;
-
         private IntPtr _socket;
         private RioThread[] _rioThreads;
 
@@ -54,7 +51,7 @@ namespace Channels.Samples.Internal
                     }
                 };
 
-                IntPtr completionQueue = _rio.RioCreateCompletionQueue(MaxOutsandingCompletions, completionMethod);
+                IntPtr completionQueue = _rio.RioCreateCompletionQueue(RioTcpServer.MaxOutsandingCompletionsPerThread, completionMethod);
 
                 if (completionQueue == IntPtr.Zero)
                 {
