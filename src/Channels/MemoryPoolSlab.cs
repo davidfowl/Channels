@@ -38,6 +38,8 @@ namespace Channels
 
         internal object UserData;
 
+        internal Action<MemoryPoolSlab, object> DeallocationCallback;
+
         /// <summary>
         /// Part of the IDisposable implementation
         /// </summary>
@@ -70,6 +72,8 @@ namespace Channels
 
                 // free unmanaged resources (unmanaged objects) and override a finalizer below.
                 IsActive = false;
+
+                DeallocationCallback?.Invoke(this, UserData);
                 _gcHandle.Free();
 
                 // set large fields to null.
