@@ -33,8 +33,7 @@ namespace Channels.Samples
         private long _sendCorrelation = RestartSendCorrelations;
 
         private readonly SingleConsumerSemaphore _outgoingSends = new SingleConsumerSemaphore(RioTcpServer.MaxWritesPerSocket);
-
-        private ReadableBuffer _sendingBuffer;
+        private readonly SingleConsumerSemaphore _sendsComplete = new SingleConsumerSemaphore(0);
 
         private Task _sendTask;
 
@@ -75,7 +74,7 @@ namespace Channels.Samples
 
             if (correlation == _sendCorrelation)
             {
-                _sendingBuffer.Dispose();
+                _sendsComplete.Release();
             }
         }
 
@@ -120,7 +119,8 @@ namespace Channels.Samples
                     await SendAsync(current, true);
                 }
 
-                _sendingBuffer = buffer.Clone();
+                await _sendsComplete;
+
                 Output.EndRead(buffer);
             }
 
