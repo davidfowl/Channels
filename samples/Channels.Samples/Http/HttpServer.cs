@@ -184,7 +184,7 @@ namespace Channels.Samples.Http
 
                     foreach (var span in inputBuffer.GetSpans())
                     {
-                        Console.Write(Encoding.UTF8.GetString(span.Buffer.Array, span.Buffer.Offset, span.Length));
+                        Console.Write(Encoding.UTF8.GetString(span.Array, span.Offset, span.Length));
                     }
 
                     var buffer = output.Alloc();

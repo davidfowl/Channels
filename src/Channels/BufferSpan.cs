@@ -13,16 +13,19 @@ namespace Channels
         {
             UserData = segment.Block.Slab.UserData;
             BufferPtr = segment.Block.DataArrayPtr + offset;
-            Buffer = new ArraySegment<byte>(segment.Block.Array, offset, count);
+            Length = count;
+            Offset = offset;
+            Array = segment.Block.Array;
         }
+
+        public byte[] Array { get; }
 
         public object UserData { get; }
 
         public IntPtr BufferPtr { get; }
 
-        public int Length => Buffer.Count;
-
-        public ArraySegment<byte> Buffer { get; }
+        public int Length { get; }
+        public int Offset { get; }
 
         public override string ToString()
         {
@@ -33,14 +36,14 @@ namespace Channels
                 {
                     builder.Append(" ");
                 }
-                builder.Append(Buffer.Array[i + Buffer.Offset].ToString("X2"));
+                builder.Append(Array[i + Offset].ToString("X2"));
             }
             return builder.ToString();
         }
 
         public void CopyTo(ref WritableBuffer buffer)
         {
-            buffer.Write(Buffer.Array, Buffer.Offset, Buffer.Count);
+            buffer.Write(Array, Offset, Length);
         }
     }
 }

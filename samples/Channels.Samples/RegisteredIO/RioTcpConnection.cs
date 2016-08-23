@@ -180,7 +180,7 @@ namespace Channels.Samples
         private static RioBufferSegment GetSegmentFromSpan(BufferSpan span)
         {
             var bufferId = (IntPtr)span.UserData;
-            return new RioBufferSegment(bufferId, (uint)span.Buffer.Offset, (uint)span.Length);
+            return new RioBufferSegment(bufferId, (uint)span.Offset, (uint)span.Length);
         }
 
         public void Complete(long requestCorrelation, uint bytesTransferred)

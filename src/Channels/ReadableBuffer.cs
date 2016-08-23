@@ -161,7 +161,7 @@ namespace Channels
 
         public override string ToString()
         {
-            return Encoding.UTF8.GetString(FirstSpan.Buffer.Array, FirstSpan.Buffer.Offset, FirstSpan.Buffer.Count);
+            return Encoding.UTF8.GetString(FirstSpan.Array, FirstSpan.Offset, FirstSpan.Length);
         }
     }
 }
