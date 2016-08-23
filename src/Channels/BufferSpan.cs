@@ -9,20 +9,26 @@ namespace Channels
     // TODO: Replace this with Span<byte>
     public struct BufferSpan
     {
+        private readonly MemoryBlockSegment _segment;
+        private readonly int _length;
+        private readonly int _offset;
+
         internal BufferSpan(MemoryBlockSegment segment, int offset, int count)
         {
-            UserData = segment.Block.Slab.UserData;
-            BufferPtr = segment.Block.DataArrayPtr + offset;
-            Buffer = new ArraySegment<byte>(segment.Block.Array, offset, count);
+            _segment = segment;
+            _length = count;
+            _offset = offset;
         }
 
-        public object UserData { get; }
+        public byte[] Array => _segment.Block.Array;
 
-        public IntPtr BufferPtr { get; }
+        public object UserData => _segment.Block.Slab.UserData;
 
-        public int Length => Buffer.Count;
+        public IntPtr BufferPtr => _segment.Block.DataArrayPtr + _offset;
 
-        public ArraySegment<byte> Buffer { get; }
+        public int Length => _length;
+
+        public int Offset => _offset;
 
         public override string ToString()
         {
@@ -33,14 +39,14 @@ namespace Channels
                 {
                     builder.Append(" ");
                 }
-                builder.Append(Buffer.Array[i + Buffer.Offset].ToString("X2"));
+                builder.Append(Array[i + Offset].ToString("X2"));
             }
             return builder.ToString();
         }
 
         public void CopyTo(ref WritableBuffer buffer)
         {
-            buffer.Write(Buffer.Array, Buffer.Offset, Buffer.Count);
+            buffer.Write(Array, Offset, Length);
         }
     }
 }

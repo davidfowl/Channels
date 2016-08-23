@@ -16,7 +16,7 @@ namespace Channels
 
                 try
                 {
-                    int bytesRead = await stream.ReadAsync(buffer.Memory.Buffer.Array, buffer.Memory.Buffer.Offset, buffer.Memory.Buffer.Count);
+                    int bytesRead = await stream.ReadAsync(buffer.Memory.Array, buffer.Memory.Offset, buffer.Memory.Length);
 
                     if (bytesRead == 0)
                     {

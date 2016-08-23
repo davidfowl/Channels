@@ -29,7 +29,7 @@ namespace Channels.Samples.Http
             IPAddress ip;
             int port;
             GetIp(address, out ip, out port);
-            Task.Run(() => StartAcceptingConnections(application, ip, port));
+            Task.Run(() => StartAcceptingRIOConnections(application, ip, port));
         }
 
         private void StartAcceptingRIOConnections<TContext>(IHttpApplication<TContext> application, IPAddress ip, int port)
@@ -184,7 +184,7 @@ namespace Channels.Samples.Http
 
                     foreach (var span in inputBuffer.GetSpans())
                     {
-                        Console.Write(Encoding.UTF8.GetString(span.Buffer.Array, span.Buffer.Offset, span.Length));
+                        Console.Write(Encoding.UTF8.GetString(span.Array, span.Offset, span.Length));
                     }
 
                     var buffer = output.Alloc();

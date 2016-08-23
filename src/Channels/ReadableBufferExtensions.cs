@@ -47,8 +47,8 @@ namespace Channels
             foreach (var span in buffer.GetSpans())
             {
                 decoder.Convert(
-                    span.Buffer.Array,
-                    span.Buffer.Offset,
+                    span.Array,
+                    span.Offset,
                     span.Length,
                     chars,
                     charIndex,
