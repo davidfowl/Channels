@@ -34,7 +34,7 @@ namespace Channels.Samples.Internal
 
         public ConcurrentDictionary<long, RioTcpConnection> Connections => _connections;
 
-        public RioThread(int id, CancellationToken token, IntPtr completionPort, IntPtr completionQueue, Winsock.RegisteredIO rio)
+        public RioThread(int id, CancellationToken token, IntPtr completionPort, IntPtr completionQueue, RegisteredIO rio)
         {
             _id = id;
             _rio = rio;
