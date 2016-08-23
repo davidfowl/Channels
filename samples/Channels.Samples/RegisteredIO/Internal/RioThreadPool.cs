@@ -80,7 +80,7 @@ namespace Channels.Samples.Internal
         }
 
         [DllImport(Kernel_32, SetLastError = true)]
-        private unsafe static extern IntPtr CreateIoCompletionPort(long handle, IntPtr hExistingCompletionPort, int puiCompletionKey, uint uiNumberOfConcurrentThreads);
+        private static extern IntPtr CreateIoCompletionPort(long handle, IntPtr hExistingCompletionPort, int puiCompletionKey, uint uiNumberOfConcurrentThreads);
 
         [DllImport(Kernel_32, SetLastError = true)]
         private static extern long GetLastError();

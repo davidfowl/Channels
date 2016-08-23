@@ -6,9 +6,11 @@ using System.Runtime.InteropServices;
 namespace Channels.Samples
 {
     [StructLayout(LayoutKind.Sequential)]
-    public struct NotificationCompletion
+    public struct RioRequestResult
     {
-        public NotificationCompletionType Type;
-        public NotificationCompletionIocp Iocp;
+        public int Status;
+        public uint BytesTransferred;
+        public long ConnectionCorrelation;
+        public long RequestCorrelation;
     }
 }

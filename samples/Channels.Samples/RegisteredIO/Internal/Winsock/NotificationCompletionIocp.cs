@@ -3,13 +3,15 @@
 
 using System;
 using System.Runtime.InteropServices;
+using System.Threading;
 
-namespace Channels.Samples
+namespace Channels.Samples.Internal.Winsock
 {
     [StructLayout(LayoutKind.Sequential)]
-    public struct NotificationCompletionEvent
+    public unsafe struct NotificationCompletionIocp
     {
-        public IntPtr EventHandle;
-        public bool NotifyReset;
+        public IntPtr IocpHandle;
+        public ulong QueueCorrelation;
+        public NativeOverlapped* Overlapped;
     }
 }

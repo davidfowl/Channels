@@ -18,7 +18,7 @@ namespace Channels.Samples
 
         public RioTcpServer(ushort port, byte address1, byte address2, byte address3, byte address4)
         {
-            var version = new Version(2, 2);
+            var version = new Internal.Winsock.Version(2, 2);
             WindowsSocketsData wsaData;
             System.Net.Sockets.SocketError result = RioImports.WSAStartup((short)version.Raw, out wsaData);
             if (result != System.Net.Sockets.SocketError.Success)
@@ -85,7 +85,7 @@ namespace Channels.Samples
             {
                 var error = RioImports.WSAGetLastError();
                 RioImports.WSACleanup();
-                throw new Exception(string.Format("listen failed with {0}", error));
+                throw new Exception($"listen failed with {error}");
             }
             var connectionId = Interlocked.Increment(ref _connectionId);
             var thread = _pool.GetThread(connectionId);
@@ -95,7 +95,7 @@ namespace Channels.Samples
             {
                 var error = RioImports.WSAGetLastError();
                 RioImports.WSACleanup();
-                throw new Exception(string.Format("ERROR: RioCreateRequestQueue returned {0}", error));
+                throw new Exception($"ERROR: RioCreateRequestQueue returned {error}");
             }
 
             return new RioTcpConnection(accepted, connectionId, requestQueue, thread, _rio);
@@ -104,43 +104,6 @@ namespace Channels.Samples
         public void Stop()
         {
             RioImports.WSACleanup();
-        }
-
-        public struct Version
-        {
-            public ushort Raw;
-
-            public Version(byte major, byte minor)
-            {
-                Raw = major;
-                Raw <<= 8;
-                Raw += minor;
-            }
-
-            public byte Major
-            {
-                get
-                {
-                    ushort result = Raw;
-                    result >>= 8;
-                    return (byte)result;
-                }
-            }
-
-            public byte Minor
-            {
-                get
-                {
-                    ushort result = Raw;
-                    result &= 0x00FF;
-                    return (byte)result;
-                }
-            }
-
-            public override string ToString()
-            {
-                return string.Format("{0}.{1}", Major, Minor);
-            }
         }
     }
 
