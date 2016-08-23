@@ -29,7 +29,7 @@ namespace Channels.Samples.Http
             IPAddress ip;
             int port;
             GetIp(address, out ip, out port);
-            Task.Run(() => StartAcceptingRIOConnections(application, ip, port));
+            Task.Run(() => StartAcceptingConnections(application, ip, port));
         }
 
         private void StartAcceptingRIOConnections<TContext>(IHttpApplication<TContext> application, IPAddress ip, int port)
@@ -134,7 +134,7 @@ namespace Channels.Samples.Http
         private static async Task ProcessClient<TContext>(IHttpApplication<TContext> application, ChannelFactory channelFactory, IReadableChannel input, IWritableChannel output)
         {
             // var id = Guid.NewGuid();
-            // output = channelFactory.MakeWriteableChannel(output, Dump);
+            output = channelFactory.MakeWriteableChannel(output, Dump);
             // input = channelFactory.MakeReadableChannel(input, Dump);
 
             var connection = new HttpConnection<TContext>(application, input, output);
@@ -167,10 +167,37 @@ namespace Channels.Samples.Http
 
         private static async Task Dump(IReadableChannel input, IWritableChannel output)
         {
-            await input.CopyToAsync(output, span =>
+            while (true)
             {
-                Console.Write(Encoding.UTF8.GetString(span.Buffer.Array, span.Buffer.Offset, span.Length));
-            });
+                await input;
+
+                var fin = input.Completion.IsCompleted;
+
+                var inputBuffer = input.BeginRead();
+
+                try
+                {
+                    if (inputBuffer.Length == 0 && fin)
+                    {
+                        break;
+                    }
+
+                    foreach (var span in inputBuffer.GetSpans())
+                    {
+                        Console.Write(Encoding.UTF8.GetString(span.Buffer.Array, span.Buffer.Offset, span.Length));
+                    }
+
+                    var buffer = output.Alloc();
+
+                    buffer.Append(inputBuffer);
+
+                    await output.WriteAsync(buffer);
+                }
+                finally
+                {
+                    input.EndRead(inputBuffer);
+                }
+            }
 
             input.CompleteReading();
             output.CompleteWriting();

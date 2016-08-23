@@ -162,17 +162,17 @@ namespace Channels
                 throw new InvalidOperationException("Already consuming.");
             }
 
-            return new ReadableBuffer(_head);
+            return new ReadableBuffer(new ReadIterator(_head), new ReadIterator(_tail, _tail?.End ?? 0));
         }
 
-        public void EndRead(ReadableBuffer end)
+        public void EndRead(ReadIterator end)
         {
             EndRead(end, end);
         }
 
         public void EndRead(
-            ReadableBuffer consumed,
-            ReadableBuffer examined)
+            ReadIterator consumed,
+            ReadIterator examined)
         {
             MemoryBlockSegment returnStart = null;
             MemoryBlockSegment returnEnd = null;

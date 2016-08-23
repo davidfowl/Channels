@@ -93,7 +93,12 @@ namespace Channels
             _tailIndex = blockIndex;
         }
 
-        public void Append(ReadableBuffer begin, ReadableBuffer end)
+        public void Append(ReadableBuffer buffer)
+        {
+            Append(buffer.Start, buffer.End);
+        }
+
+        public void Append(ReadIterator begin, ReadIterator end)
         {
             var clonedBegin = MemoryBlockSegment.Clone(begin, end);
             var clonedEnd = clonedBegin;

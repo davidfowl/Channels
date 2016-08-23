@@ -86,7 +86,7 @@ namespace Channels
             return builder.ToString();
         }
 
-        public static MemoryBlockSegment Clone(ReadableBuffer beginBuffer, ReadableBuffer endBuffer)
+        public static MemoryBlockSegment Clone(ReadIterator beginBuffer, ReadIterator endBuffer)
         {
             var beginOrig = beginBuffer.Segment;
             var endOrig = endBuffer.Segment;

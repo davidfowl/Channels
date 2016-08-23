@@ -88,19 +88,23 @@ namespace Channels.Samples
             {
                 await Output;
 
-                var current = Output.BeginRead();
+                var buffer = Output.BeginRead();
 
-                if (current.IsEnd && Output.Completion.IsCompleted)
+                if (buffer.Length == 0 && Output.Completion.IsCompleted)
                 {
                     break;
                 }
 
-                BufferSpan last;
-                if (current.TryGetBuffer(out last))
+                var enumerator = buffer.GetSpans().GetEnumerator();
+
+                if (enumerator.MoveNext())
                 {
-                    BufferSpan span;
-                    while (current.TryGetBuffer(out span))
+                    var last = enumerator.Current;
+
+                    while (enumerator.MoveNext())
                     {
+                        var span = enumerator.Current;
+
                         await ReadyToSend;
 
                         Send(last, MessagePart, PartialSendCorrelation());
@@ -114,7 +118,7 @@ namespace Channels.Samples
 
                 await SendingComplete;
 
-                Output.EndRead(current);
+                Output.EndRead(buffer);
             }
 
             Output.CompleteReading();

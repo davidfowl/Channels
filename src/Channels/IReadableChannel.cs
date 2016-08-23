@@ -13,7 +13,8 @@ namespace Channels
         Task Completion { get; }
 
         ReadableBuffer BeginRead();
-        void EndRead(ReadableBuffer consumed, ReadableBuffer examined);
+
+        void EndRead(ReadIterator consumed, ReadIterator examined);
 
         void CompleteReading();
     }

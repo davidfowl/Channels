@@ -54,12 +54,11 @@ namespace Channels.Samples.Http
             {
                 await _input;
 
-                var begin = _input.BeginRead();
-                var end = begin;
+                var buffer = _input.BeginRead();
 
                 bool needMoreData = true;
 
-                if (begin.IsEnd && _input.Completion.IsCompleted)
+                if (buffer.Length == 0 && _input.Completion.IsCompleted)
                 {
                     // We're done with this connection
                     return;
@@ -67,55 +66,47 @@ namespace Channels.Samples.Http
 
                 try
                 {
-
-                    if (end.Seek(ref _vectorSpaces) == -1)
+                    var delim = buffer.Seek(ref _vectorSpaces);
+                    if (delim.IsEnd)
                     {
                         continue;
                     }
 
-                    // Assume it'll be in a single block
-                    BufferSpan span;
-                    if (begin.TryGetBuffer(end, out span))
-                    {
-                        Method = Encoding.UTF8.GetString(span.Buffer.Array, span.Buffer.Offset, span.Length);
-                    }
+                    var method = buffer.Slice(0, delim);
+                    Method = method.GetUtf8String();
 
                     // Skip ' '
-                    begin.Take();
-                    end.Take();
+                    buffer = buffer.Slice(delim).Slice(1);
 
-                    if (end.Seek(ref _vectorSpaces) == -1)
+                    delim = buffer.Seek(ref _vectorSpaces);
+                    if (delim.IsEnd)
                     {
                         continue;
                     }
 
-                    if (begin.TryGetBuffer(end, out span))
-                    {
-                        Path = Encoding.UTF8.GetString(span.Buffer.Array, span.Buffer.Offset, span.Length);
-                    }
+                    var path = buffer.Slice(0, delim);
+                    Path = path.GetUtf8String();
 
-                    begin.Take();
-                    end.Take();
+                    // Skip ' '
+                    buffer = buffer.Slice(delim).Slice(1);
 
-                    if (end.Seek(ref _vectorLFs) == -1)
+                    delim = buffer.Seek(ref _vectorLFs);
+                    if (delim.IsEnd)
                     {
                         continue;
                     }
 
-                    if (begin.TryGetBuffer(end, out span))
-                    {
-                        HttpVersion = Encoding.UTF8.GetString(span.Buffer.Array, span.Buffer.Offset, span.Length).Trim();
-                    }
-                    // Skip '\n'
-                    begin.Take();
-                    end.Take();
+                    var httpVersion = buffer.Slice(0, delim);
+                    HttpVersion = httpVersion.GetUtf8String().Trim();
+
+                    buffer = buffer.Slice(delim).Slice(1);
 
                     // Parse headers
                     // key: value\r\n
 
-                    while (!end.IsEnd)
+                    while (buffer.Length > 0)
                     {
-                        var ch = end.Peek();
+                        var ch = buffer.Peek();
 
                         if (ch == -1)
                         {
@@ -125,8 +116,9 @@ namespace Channels.Samples.Http
                         if (ch == '\r')
                         {
                             // Check for final CRLF.
-                            end.Take();
-                            ch = end.Take();
+                            buffer = buffer.Slice(1);
+                            ch = buffer.Peek();
+                            buffer = buffer.Slice(1);
 
                             if (ch == -1)
                             {
@@ -141,42 +133,35 @@ namespace Channels.Samples.Http
                             // Headers don't end in CRLF line.
                         }
 
-                        string headerName = null;
-                        string headerValue = null;
+                        var headerName = default(ReadableBuffer);
+                        var headerValue = default(ReadableBuffer);
 
                         // :
-                        if (end.Seek(ref _vectorColons) == -1)
+                        delim = buffer.Seek(ref _vectorColons);
+                        if (delim.IsEnd)
                         {
                             break;
                         }
 
-                        if (begin.TryGetBuffer(end, out span))
-                        {
-                            headerName = Encoding.UTF8.GetString(span.Buffer.Array, span.Buffer.Offset, span.Length);
-                        }
-
-                        begin.Take();
-                        end.Take();
+                        headerName = buffer.Slice(0, delim);
+                        buffer = buffer.Slice(delim).Slice(1);
 
                         // \n
-                        if (end.Seek(ref _vectorLFs) == -1)
+                        delim = buffer.Seek(ref _vectorLFs);
+                        if (delim.IsEnd)
                         {
                             break;
                         }
 
-                        if (begin.TryGetBuffer(end, out span))
-                        {
-                            headerValue = Encoding.UTF8.GetString(span.Buffer.Array, span.Buffer.Offset, span.Length).Trim();
-                        }
+                        headerValue = buffer.Slice(0, delim);
+                        buffer = buffer.Slice(delim).Slice(1);
 
-                        RequestHeaders[headerName] = headerValue;
-                        begin.Take();
-                        end.Take();
+                        RequestHeaders[headerName.GetUtf8String().Trim()] = headerValue.GetUtf8String().Trim();
                     }
                 }
                 finally
                 {
-                    _input.EndRead(end);
+                    _input.EndRead(buffer);
                 }
 
                 if (!needMoreData)

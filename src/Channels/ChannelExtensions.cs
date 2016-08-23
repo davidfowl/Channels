@@ -25,9 +25,14 @@ namespace Channels
 
     public static class ReadableChannelExtensions
     {
-        public static void EndRead(this IReadableChannel input, ReadableBuffer consumed)
+        public static void EndRead(this IReadableChannel input, ReadIterator consumed)
         {
             input.EndRead(consumed, consumed);
+        }
+
+        public static void EndRead(this IReadableChannel input, ReadableBuffer consumed)
+        {
+            input.EndRead(consumed.End, consumed.End);
         }
 
         public static ValueTask<int> ReadAsync(this IReadableChannel input, byte[] buffer, int offset, int count)
@@ -36,10 +41,11 @@ namespace Channels
             {
                 var fin = input.Completion.IsCompleted;
 
-                var begin = input.BeginRead();
-                var end = begin;
-                int actual = end.CopyTo(buffer, offset, count);
-                input.EndRead(end);
+                var inputBuffer = input.BeginRead();
+                var sliced = inputBuffer.Slice(0, count);
+                sliced.CopyTo(buffer, offset);
+                int actual = sliced.Length;
+                input.EndRead(sliced);
 
                 if (actual != 0)
                 {
@@ -62,30 +68,28 @@ namespace Channels
 
                 var fin = input.Completion.IsCompleted;
 
-                var begin = input.BeginRead();
-                var end = begin;
+                var inputBuffer = input.BeginRead();
 
                 try
                 {
-                    if (begin.IsEnd && fin)
+                    if (inputBuffer.Length == 0 && fin)
                     {
                         return;
                     }
 
-                    BufferSpan span;
-                    while (end.TryGetBuffer(out span))
+                    foreach (var span in inputBuffer.GetSpans())
                     {
                         await stream.WriteAsync(span.Buffer.Array, span.Buffer.Offset, span.Buffer.Count);
                     }
                 }
                 finally
                 {
-                    input.EndRead(end);
+                    input.EndRead(inputBuffer);
                 }
             }
         }
 
-        public static async Task CopyToAsync(this IReadableChannel input, IWritableChannel channel, Action<BufferSpan> onData = null)
+        public static async Task CopyToAsync(this IReadableChannel input, IWritableChannel channel)
         {
             while (true)
             {
@@ -93,31 +97,24 @@ namespace Channels
 
                 var fin = input.Completion.IsCompleted;
 
-                var begin = input.BeginRead();
-                var end = begin;
+                var inputBuffer = input.BeginRead();
 
                 try
                 {
-                    if (begin.IsEnd && fin)
+                    if (inputBuffer.Length == 0 && fin)
                     {
                         return;
                     }
 
                     var buffer = channel.Alloc();
 
-                    BufferSpan span;
-                    while (end.TryGetBuffer(out span))
-                    {
-                        onData?.Invoke(span);
-                        buffer.Append(begin, end);
-                        begin = end;
-                    }
+                    buffer.Append(inputBuffer);
 
                     await channel.WriteAsync(buffer);
                 }
                 finally
                 {
-                    input.EndRead(end);
+                    input.EndRead(inputBuffer);
                 }
             }
         }
@@ -130,10 +127,11 @@ namespace Channels
 
                 var fin = input.Completion.IsCompleted;
 
-                var begin = input.BeginRead();
-                var end = begin;
-                int actual = begin.CopyTo(buffer, offset, count);
-                input.EndRead(end);
+                var inputBuffer = input.BeginRead();
+                var sliced = inputBuffer.Slice(0, count);
+                sliced.CopyTo(buffer, offset);
+                int actual = sliced.Length;
+                input.EndRead(sliced);
 
                 if (actual != 0)
                 {

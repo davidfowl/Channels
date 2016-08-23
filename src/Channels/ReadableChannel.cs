@@ -22,7 +22,7 @@ namespace Channels
 
         public void CompleteReading() => _channel.CompleteReading();
 
-        public void EndRead(ReadableBuffer consumed, ReadableBuffer examined) => _channel.EndRead(consumed, examined);
+        public void EndRead(ReadIterator consumed, ReadIterator examined) => _channel.EndRead(consumed, examined);
 
         public IReadableChannel GetAwaiter() => _channel.GetAwaiter();
 

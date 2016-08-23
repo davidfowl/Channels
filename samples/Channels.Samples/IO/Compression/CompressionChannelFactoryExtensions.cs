@@ -56,13 +56,13 @@ namespace Channels.Samples.IO.Compression
                     var readBuffer = input.BeginRead();
                     var end = readBuffer;
 
-                    BufferSpan span;
-                    if (!end.TryGetBuffer(out span) && input.Completion.IsCompleted)
+                    if (readBuffer.Start.IsEnd && input.Completion.IsCompleted)
                     {
                         break;
                     }
 
                     var writerBuffer = output.Alloc(2048);
+                    var span = readBuffer.Span;
 
                     _deflater.SetInput(span.BufferPtr, span.Length);
 
@@ -74,8 +74,7 @@ namespace Channels.Samples.IO.Compression
 
                     var consumed = span.Length - _deflater.AvailableInput;
 
-                    // Move the read iterator
-                    readBuffer.Seek(consumed);
+                    readBuffer = readBuffer.Slice(0, consumed);
 
                     input.EndRead(readBuffer);
 
@@ -134,16 +133,14 @@ namespace Channels.Samples.IO.Compression
                     await input;
 
                     var readBuffer = input.BeginRead();
-                    var end = readBuffer;
 
-                    BufferSpan span;
-                    if (!end.TryGetBuffer(out span) && input.Completion.IsCompleted)
+                    if (readBuffer.Start.IsEnd && input.Completion.IsCompleted)
                     {
                         break;
                     }
 
                     var writerBuffer = output.Alloc(2048);
-
+                    var span = readBuffer.Span;
                     if (span.Length > 0)
                     {
                         _inflater.SetInput(span.BufferPtr, span.Length);
@@ -154,8 +151,7 @@ namespace Channels.Samples.IO.Compression
 
                         var consumed = span.Length - _inflater.AvailableInput;
 
-                        // Move the read iterator
-                        readBuffer.Seek(consumed);
+                        readBuffer = readBuffer.Slice(0, consumed);
                     }
 
                     input.EndRead(readBuffer);

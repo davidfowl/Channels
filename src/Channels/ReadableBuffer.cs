@@ -2,22 +2,189 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Numerics;
 using System.Text;
 
 namespace Channels
 {
-    public struct ReadableBuffer
+    public static class ReadableBufferExtensions
+    {
+        public static string GetUtf8String(this ReadableBuffer buffer)
+        {
+            return Encoding.UTF8.GetString(buffer.Span.Buffer.Array, buffer.Span.Buffer.Offset, buffer.Span.Buffer.Count);
+        }
+    }
+
+    public struct ReadableBuffer : IDisposable
+    {
+        public int Length => Span.Length;
+
+        public BufferSpan Span => _span;
+
+        private readonly BufferSpan _span;
+        private readonly ReadIterator _head;
+        private readonly ReadIterator _tail;
+        private readonly bool _isOwner;
+
+        public ReadIterator Start => _head;
+        public ReadIterator End => _tail;
+
+        public ReadableBuffer(ReadIterator head, ReadIterator tail) :
+            this(head, tail, isOwner: false)
+        {
+
+        }
+
+        public ReadableBuffer(ReadIterator head, ReadIterator tail, bool isOwner)
+        {
+            _head = head;
+            _tail = tail;
+            _isOwner = isOwner;
+
+            head.TryGetBuffer(tail, out _span);
+        }
+
+        public ReadIterator Seek(ref Vector<byte> data)
+        {
+            var iter = _head;
+            iter.Seek(ref data);
+            return iter;
+        }
+
+        public ReadableBuffer Slice(int start, int length)
+        {
+            var begin = _head;
+            if (start != 0)
+            {
+                begin.Seek(start);
+            }
+            var end = begin;
+            end.Seek(length);
+            return Slice(begin, end);
+        }
+
+        public ReadableBuffer Slice(int start, ReadIterator end)
+        {
+            var begin = _head;
+            if (start != 0)
+            {
+                begin.Seek(start);
+            }
+            return Slice(begin, end);
+        }
+
+        public ReadableBuffer Slice(ReadIterator start, ReadIterator end)
+        {
+            return new ReadableBuffer(start, end);
+        }
+
+        public ReadableBuffer Slice(ReadIterator start, int length)
+        {
+            var end = start.Seek(length);
+            return Slice(start, end);
+        }
+
+        public ReadableBuffer Slice(ReadIterator start)
+        {
+            return new ReadableBuffer(start, _tail);
+        }
+
+        public ReadableBuffer Slice(int start)
+        {
+            var begin = _head;
+            begin.Seek(start);
+            return new ReadableBuffer(begin, _tail);
+        }
+
+        public IEnumerable<BufferSpan> GetSpans()
+        {
+            var head = Start;
+
+            BufferSpan span;
+            while (head.TryGetBuffer(out span))
+            {
+                yield return span;
+            }
+        }
+
+        public int Peek()
+        {
+            return _head.Peek();
+        }
+
+        public ReadableBuffer Clone()
+        {
+            var head = _head;
+            var tail = _tail;
+
+            var segmentHead = MemoryBlockSegment.Clone(head, tail);
+            var segmentTail = segmentHead;
+
+            while (segmentTail.Next != null)
+            {
+                segmentTail = segmentTail.Next;
+            }
+
+            head = new ReadIterator(segmentHead);
+            tail = new ReadIterator(segmentTail);
+
+            return new ReadableBuffer(head, tail, isOwner: true);
+        }
+
+        public void CopyTo(byte[] data, int offset)
+        {
+            if (data.Length < Length)
+            {
+                throw new ArgumentOutOfRangeException();
+            }
+
+            var iter = _head;
+            iter.CopyTo(data, offset, Length);
+        }
+
+        public void Dispose()
+        {
+            if (!_isOwner)
+            {
+                return;
+            }
+
+            var returnStart = Start.Segment;
+            var returnEnd = End.Segment;
+
+            if (returnStart != returnEnd)
+            {
+                var ret = returnStart;
+                ret.Dispose();
+                returnStart = returnStart.Next;
+            }
+        }
+
+        public override string ToString()
+        {
+            return this.GetUtf8String();
+        }
+    }
+
+    public struct ReadIterator
     {
         private static readonly int _vectorSpan = Vector<byte>.Count;
 
         private MemoryBlockSegment _segment;
         private int _index;
 
-        internal ReadableBuffer(MemoryBlockSegment segment)
+        internal ReadIterator(MemoryBlockSegment segment)
         {
             _segment = segment;
             _index = segment?.Start ?? 0;
+        }
+
+        internal ReadIterator(MemoryBlockSegment segment, int index)
+        {
+            _segment = segment;
+            _index = index;
         }
 
         internal MemoryBlockSegment Segment => _segment;
@@ -54,7 +221,7 @@ namespace Channels
             }
         }
 
-        public int Take()
+        internal int Take()
         {
             var segment = _segment;
             if (segment == null)
@@ -94,7 +261,7 @@ namespace Channels
             } while (true);
         }
 
-        public void Skip(int bytesToSkip)
+        internal void Skip(int bytesToSkip)
         {
             if (_segment == null)
             {
@@ -137,12 +304,12 @@ namespace Channels
             }
         }
 
-        public int Seek()
+        internal int Seek()
         {
             return Seek(1);
         }
 
-        public int Seek(int bytes)
+        internal int Seek(int bytes)
         {
             if (_segment == null || IsEnd)
             {
@@ -187,7 +354,7 @@ namespace Channels
             }
         }
 
-        public int Peek()
+        internal int Peek()
         {
             var segment = _segment;
             if (segment == null)
@@ -224,7 +391,7 @@ namespace Channels
             } while (true);
         }
 
-        public unsafe long PeekLong()
+        internal unsafe long PeekLong()
         {
             if (_segment == null)
             {
@@ -259,7 +426,7 @@ namespace Channels
             }
         }
 
-        public unsafe int Seek(ref Vector<byte> byte0Vector)
+        internal unsafe int Seek(ref Vector<byte> byte0Vector)
         {
             if (IsDefault)
             {
@@ -297,22 +464,22 @@ namespace Channels
                     if (Vector.IsHardwareAccelerated)
                     {
 #endif
-                    if (following >= _vectorSpan)
-                    {
-                        var byte0Equals = Vector.Equals(new Vector<byte>(array, index), byte0Vector);
-
-                        if (byte0Equals.Equals(Vector<byte>.Zero))
+                        if (following >= _vectorSpan)
                         {
-                            following -= _vectorSpan;
-                            index += _vectorSpan;
-                            continue;
-                        }
+                            var byte0Equals = Vector.Equals(new Vector<byte>(array, index), byte0Vector);
 
-                        _segment = segment;
-                        _index = index + FindFirstEqualByte(ref byte0Equals);
-                        return byte0;
-                    }
-                    // Need unit tests to test Vector path
+                            if (byte0Equals.Equals(Vector<byte>.Zero))
+                            {
+                                following -= _vectorSpan;
+                                index += _vectorSpan;
+                                continue;
+                            }
+
+                            _segment = segment;
+                            _index = index + FindFirstEqualByte(ref byte0Equals);
+                            return byte0;
+                        }
+                        // Need unit tests to test Vector path
 #if !DEBUG
                     }
 #endif
@@ -337,7 +504,7 @@ namespace Channels
             }
         }
 
-        public unsafe int Seek(ref Vector<byte> byte0Vector, ref Vector<byte> byte1Vector)
+        internal unsafe int Seek(ref Vector<byte> byte0Vector, ref Vector<byte> byte1Vector)
         {
             if (IsDefault)
             {
@@ -379,40 +546,40 @@ namespace Channels
                     if (Vector.IsHardwareAccelerated)
                     {
 #endif
-                    if (following >= _vectorSpan)
-                    {
-                        var data = new Vector<byte>(array, index);
-                        var byte0Equals = Vector.Equals(data, byte0Vector);
-                        var byte1Equals = Vector.Equals(data, byte1Vector);
-
-                        if (!byte0Equals.Equals(Vector<byte>.Zero))
+                        if (following >= _vectorSpan)
                         {
-                            byte0Index = FindFirstEqualByte(ref byte0Equals);
-                        }
-                        if (!byte1Equals.Equals(Vector<byte>.Zero))
-                        {
-                            byte1Index = FindFirstEqualByte(ref byte1Equals);
-                        }
+                            var data = new Vector<byte>(array, index);
+                            var byte0Equals = Vector.Equals(data, byte0Vector);
+                            var byte1Equals = Vector.Equals(data, byte1Vector);
 
-                        if (byte0Index == int.MaxValue && byte1Index == int.MaxValue)
-                        {
-                            following -= _vectorSpan;
-                            index += _vectorSpan;
-                            continue;
+                            if (!byte0Equals.Equals(Vector<byte>.Zero))
+                            {
+                                byte0Index = FindFirstEqualByte(ref byte0Equals);
+                            }
+                            if (!byte1Equals.Equals(Vector<byte>.Zero))
+                            {
+                                byte1Index = FindFirstEqualByte(ref byte1Equals);
+                            }
+
+                            if (byte0Index == int.MaxValue && byte1Index == int.MaxValue)
+                            {
+                                following -= _vectorSpan;
+                                index += _vectorSpan;
+                                continue;
+                            }
+
+                            _segment = segment;
+
+                            if (byte0Index < byte1Index)
+                            {
+                                _index = index + byte0Index;
+                                return byte0;
+                            }
+
+                            _index = index + byte1Index;
+                            return byte1;
                         }
-
-                        _segment = segment;
-
-                        if (byte0Index < byte1Index)
-                        {
-                            _index = index + byte0Index;
-                            return byte0;
-                        }
-
-                        _index = index + byte1Index;
-                        return byte1;
-                    }
-                    // Need unit tests to test Vector path
+                        // Need unit tests to test Vector path
 #if !DEBUG
                     }
 #endif
@@ -442,7 +609,7 @@ namespace Channels
             }
         }
 
-        public unsafe int Seek(ref Vector<byte> byte0Vector, ref Vector<byte> byte1Vector, ref Vector<byte> byte2Vector)
+        internal unsafe int Seek(ref Vector<byte> byte0Vector, ref Vector<byte> byte1Vector, ref Vector<byte> byte2Vector)
         {
             if (IsDefault)
             {
@@ -485,67 +652,67 @@ namespace Channels
                     if (Vector.IsHardwareAccelerated)
                     {
 #endif
-                    if (following >= _vectorSpan)
-                    {
-                        var data = new Vector<byte>(array, index);
-                        var byte0Equals = Vector.Equals(data, byte0Vector);
-                        var byte1Equals = Vector.Equals(data, byte1Vector);
-                        var byte2Equals = Vector.Equals(data, byte2Vector);
+                        if (following >= _vectorSpan)
+                        {
+                            var data = new Vector<byte>(array, index);
+                            var byte0Equals = Vector.Equals(data, byte0Vector);
+                            var byte1Equals = Vector.Equals(data, byte1Vector);
+                            var byte2Equals = Vector.Equals(data, byte2Vector);
 
-                        if (!byte0Equals.Equals(Vector<byte>.Zero))
-                        {
-                            byte0Index = FindFirstEqualByte(ref byte0Equals);
-                        }
-                        if (!byte1Equals.Equals(Vector<byte>.Zero))
-                        {
-                            byte1Index = FindFirstEqualByte(ref byte1Equals);
-                        }
-                        if (!byte2Equals.Equals(Vector<byte>.Zero))
-                        {
-                            byte2Index = FindFirstEqualByte(ref byte2Equals);
-                        }
-
-                        if (byte0Index == int.MaxValue && byte1Index == int.MaxValue && byte2Index == int.MaxValue)
-                        {
-                            following -= _vectorSpan;
-                            index += _vectorSpan;
-                            continue;
-                        }
-
-                        _segment = segment;
-
-                        int toReturn, toMove;
-                        if (byte0Index < byte1Index)
-                        {
-                            if (byte0Index < byte2Index)
+                            if (!byte0Equals.Equals(Vector<byte>.Zero))
                             {
-                                toReturn = byte0;
-                                toMove = byte0Index;
+                                byte0Index = FindFirstEqualByte(ref byte0Equals);
+                            }
+                            if (!byte1Equals.Equals(Vector<byte>.Zero))
+                            {
+                                byte1Index = FindFirstEqualByte(ref byte1Equals);
+                            }
+                            if (!byte2Equals.Equals(Vector<byte>.Zero))
+                            {
+                                byte2Index = FindFirstEqualByte(ref byte2Equals);
+                            }
+
+                            if (byte0Index == int.MaxValue && byte1Index == int.MaxValue && byte2Index == int.MaxValue)
+                            {
+                                following -= _vectorSpan;
+                                index += _vectorSpan;
+                                continue;
+                            }
+
+                            _segment = segment;
+
+                            int toReturn, toMove;
+                            if (byte0Index < byte1Index)
+                            {
+                                if (byte0Index < byte2Index)
+                                {
+                                    toReturn = byte0;
+                                    toMove = byte0Index;
+                                }
+                                else
+                                {
+                                    toReturn = byte2;
+                                    toMove = byte2Index;
+                                }
                             }
                             else
                             {
-                                toReturn = byte2;
-                                toMove = byte2Index;
+                                if (byte1Index < byte2Index)
+                                {
+                                    toReturn = byte1;
+                                    toMove = byte1Index;
+                                }
+                                else
+                                {
+                                    toReturn = byte2;
+                                    toMove = byte2Index;
+                                }
                             }
-                        }
-                        else
-                        {
-                            if (byte1Index < byte2Index)
-                            {
-                                toReturn = byte1;
-                                toMove = byte1Index;
-                            }
-                            else
-                            {
-                                toReturn = byte2;
-                                toMove = byte2Index;
-                            }
-                        }
 
-                        _index = index + toMove;
-                        return toReturn;
-                    }
-                    // Need unit tests to test Vector path
+                            _index = index + toMove;
+                            return toReturn;
+                        }
+                        // Need unit tests to test Vector path
 #if !DEBUG
                     }
 #endif
@@ -643,7 +810,7 @@ namespace Channels
         /// </summary>
         /// <param name="data">The byte to be saved.</param>
         /// <returns>true if the operation successes. false if can't find available space.</returns>
-        public bool Put(byte data)
+        internal bool Put(byte data)
         {
             if (_segment == null)
             {
@@ -675,7 +842,7 @@ namespace Channels
             }
         }
 
-        public int GetLength(ReadableBuffer end)
+        internal int GetLength(ReadIterator end)
         {
             if (IsDefault || end.IsDefault)
             {
@@ -707,12 +874,12 @@ namespace Channels
             }
         }
 
-        public bool TryGetBuffer(out BufferSpan span)
+        internal bool TryGetBuffer(out BufferSpan span)
         {
-            return TryGetBuffer(end: default(ReadableBuffer), span: out span);
+            return TryGetBuffer(end: default(ReadIterator), span: out span);
         }
 
-        public bool TryGetBuffer(ReadableBuffer end, out BufferSpan span)
+        internal bool TryGetBuffer(ReadIterator end, out BufferSpan span)
         {
             span = default(BufferSpan);
 
@@ -767,7 +934,7 @@ namespace Channels
             return true;
         }
 
-        public int CopyTo(byte[] array, int offset, int count)
+        internal int CopyTo(byte[] array, int offset, int count)
         {
             if (IsDefault)
             {
@@ -825,16 +992,7 @@ namespace Channels
 
         public override string ToString()
         {
-            var builder = new StringBuilder();
-            for (int i = 0; i < (Segment.End - Index); i++)
-            {
-                if (i > 0)
-                {
-                    builder.Append(" ");
-                }
-                builder.Append(Segment.Block.Array[i + Index].ToString("X2"));
-            }
-            return builder.ToString();
+            return Encoding.UTF8.GetString(Segment.Block.Array, Index, Segment.End - Index);
         }
     }
 }
