@@ -14,9 +14,9 @@ namespace Channels.Samples
         private readonly RegisteredIO _rio;
         private readonly RioThreadPool _pool;
 
-        private const int MaxSocketsPerThread = 256000;
+        private const int MaxSocketsPerThread = 25600;
         private const int MaxReadsPerSocket = 1;
-        public const int MaxWritesPerSocket = 1;
+        public const int MaxWritesPerSocket = 16;
         public const int MaxOutsandingCompletionsPerThread = (MaxReadsPerSocket + MaxWritesPerSocket) * MaxSocketsPerThread;
 
         private long _connectionId;
