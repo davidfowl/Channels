@@ -16,7 +16,7 @@ namespace Channels.Samples
 
         private const int MaxSocketsPerThread = 256000;
         private const int MaxReadsPerSocket = 1;
-        public const int MaxWritesPerSocket = 1;
+        public const int MaxWritesPerSocket = 2;
         public const int MaxOutsandingCompletionsPerThread = (MaxReadsPerSocket + MaxWritesPerSocket) * MaxSocketsPerThread;
 
         private long _connectionId;
