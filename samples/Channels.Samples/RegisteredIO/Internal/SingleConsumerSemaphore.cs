@@ -36,8 +36,7 @@ namespace Channels.Samples.Internal
             }
             else if (ReferenceEquals(awaitableState, _awaitableIsCompleted))
             {
-                // Dispatch here to avoid stack diving
-                Task.Run(continuation);
+                continuation();
             }
             else
             {
@@ -85,7 +84,7 @@ namespace Channels.Samples.Internal
             if (!ReferenceEquals(awaitableState, _awaitableIsCompleted) &&
                 !ReferenceEquals(awaitableState, _awaitableIsNotCompleted))
             {
-                Task.Run(awaitableState);
+                ThreadPool.QueueUserWorkItem((state) => ((Action)state).Invoke(), awaitableState);
             }
         }
 
