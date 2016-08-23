@@ -29,7 +29,9 @@ namespace Channels.Samples
         private RioBufferSegment _receiveBufferSeg;
         private RioBufferSegment _sendBufferSeg;
 
-        private SemaphoreSlim _outgoingSends = new SemaphoreSlim(1);
+        private long _lastSendCorrelation = -1;
+        private readonly SemaphoreSlim _sendsComplete = new SemaphoreSlim(0);
+        private readonly SemaphoreSlim _outgoingSends = new SemaphoreSlim(RioTcpServer.MaxWritesPerSocket);
 
         private Task _sendTask;
 
@@ -51,6 +53,24 @@ namespace Channels.Samples
             _sendTask = ProcessSends();
         }
 
+        private Task SendingComplete => _sendsComplete.WaitAsync();
+
+        private Task ReadyToSend => _outgoingSends.WaitAsync();
+
+        private long PartialSendCorrelation => _lastSendCorrelation;
+
+        private long FinalSendCorrelation => (_lastSendCorrelation = _lastSendCorrelation == int.MinValue ? -1 : _lastSendCorrelation - 1);
+
+        private void MarkReadyToSend(long correlation)
+        {
+            _outgoingSends.Release();
+
+            if (correlation == _lastSendCorrelation)
+            {
+                _sendsComplete.Release();
+            }
+        }
+
         private void ProcessReceives()
         {
             _buffer = Input.Alloc(2048);
@@ -68,32 +88,43 @@ namespace Channels.Samples
             {
                 await Output;
 
-                var begin = Output.BeginRead();
-                var end = begin;
+                var current = Output.BeginRead();
 
-                if (begin.IsEnd && Output.Completion.IsCompleted)
+                if (current.IsEnd && Output.Completion.IsCompleted)
                 {
                     break;
                 }
 
-                BufferSpan span;
-                while (begin.TryGetBuffer(out span))
+                BufferSpan last;
+                if (current.TryGetBuffer(out last))
                 {
-                    await _outgoingSends.WaitAsync();
-                    Send(span);
+                    BufferSpan span;
+                    while (current.TryGetBuffer(out span))
+                    {
+                        await ReadyToSend;
+
+                        Send(last, MessagePart, PartialSendCorrelation);
+                        last = span;
+                    }
+
+                    await ReadyToSend;
+
+                    Send(last, MessageEnd, FinalSendCorrelation);
                 }
 
-                Output.EndRead(begin);
+                await SendingComplete;
+
+                Output.EndRead(current);
             }
 
             Output.CompleteReading();
         }
 
-        private void Send(BufferSpan span)
+        private void Send(BufferSpan span, RioSendFlags type, long correlation)
         {
             _sendBufferSeg = GetSegmentFromSpan(span);
 
-            if (!_rio.Send(_requestQueue, ref _sendBufferSeg, 1, MessageEnd, -1))
+            if (!_rio.Send(_requestQueue, ref _sendBufferSeg, 1, type, correlation))
             {
                 ThrowError(ErrorType.Send);
             }
@@ -125,7 +156,7 @@ namespace Channels.Samples
             else
             {
                 // Sends
-                _outgoingSends.Release();
+                MarkReadyToSend(requestCorrelation);
             }
         }
 
