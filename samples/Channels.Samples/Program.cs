@@ -22,8 +22,15 @@ namespace Channels.Samples
     {
         public static void Main(string[] args)
         {
+            TaskScheduler.UnobservedTaskException += TaskScheduler_UnobservedTaskException;
+
             RunHttpServer();
             // RunCompressionSample();
+        }
+
+        private static void TaskScheduler_UnobservedTaskException(object sender, UnobservedTaskExceptionEventArgs e)
+        {
+            Console.WriteLine(e.Exception);
         }
 
         private static void RunCompressionSample()
