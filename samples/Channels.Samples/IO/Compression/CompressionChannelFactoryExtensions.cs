@@ -62,7 +62,7 @@ namespace Channels.Samples.IO.Compression
                     }
 
                     var writerBuffer = output.Alloc(2048);
-                    var span = readBuffer.Span;
+                    var span = readBuffer.FirstSpan;
 
                     _deflater.SetInput(span.BufferPtr, span.Length);
 
@@ -140,7 +140,7 @@ namespace Channels.Samples.IO.Compression
                     }
 
                     var writerBuffer = output.Alloc(2048);
-                    var span = readBuffer.Span;
+                    var span = readBuffer.FirstSpan;
                     if (span.Length > 0)
                     {
                         _inflater.SetInput(span.BufferPtr, span.Length);

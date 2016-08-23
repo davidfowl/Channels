@@ -96,8 +96,8 @@ namespace Channels.Samples.Http
                         continue;
                     }
 
-                    var httpVersion = buffer.Slice(0, delim);
-                    HttpVersion = httpVersion.GetUtf8String().Trim();
+                    var httpVersion = buffer.Slice(0, delim).Trim();
+                    HttpVersion = httpVersion.GetUtf8String();
 
                     buffer = buffer.Slice(delim).Slice(1);
 
@@ -143,7 +143,7 @@ namespace Channels.Samples.Http
                             break;
                         }
 
-                        headerName = buffer.Slice(0, delim);
+                        headerName = buffer.Slice(0, delim).Trim();
                         buffer = buffer.Slice(delim).Slice(1);
 
                         // \n
@@ -153,10 +153,11 @@ namespace Channels.Samples.Http
                             break;
                         }
 
-                        headerValue = buffer.Slice(0, delim);
+                        // Skip \r
+                        headerValue = buffer.Slice(0, delim).Trim();
                         buffer = buffer.Slice(delim).Slice(1);
 
-                        RequestHeaders[headerName.GetUtf8String().Trim()] = headerValue.GetUtf8String().Trim();
+                        RequestHeaders[headerName.GetUtf8String()] = headerValue.GetUtf8String();
                     }
                 }
                 finally
