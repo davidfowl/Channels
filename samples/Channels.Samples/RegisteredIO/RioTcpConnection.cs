@@ -2,7 +2,6 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
-using System.Threading;
 using System.Threading.Tasks;
 using Channels.Samples.Internal;
 using Channels.Samples.Internal.Winsock;
@@ -11,6 +10,8 @@ namespace Channels.Samples
 {
     public sealed class RioTcpConnection : IDisposable
     {
+        private readonly static Task _completedTask = Task.FromResult(0);
+
         private readonly long _connectionId;
         private readonly IntPtr _socket;
         private readonly IntPtr _requestQueue;
@@ -30,8 +31,8 @@ namespace Channels.Samples
         private const long PartialSendCorrelation = -1;
         private const long RestartSendCorrelations = -2;
         private long _sendCorrelation = RestartSendCorrelations;
-        private readonly SemaphoreSlim _sendsComplete = new SemaphoreSlim(0);
-        private readonly SemaphoreSlim _outgoingSends = new SemaphoreSlim(RioTcpServer.MaxWritesPerSocket);
+        private readonly SingleConsumerSemaphore _sendsComplete = new SingleConsumerSemaphore(0);
+        private readonly SingleConsumerSemaphore _outgoingSends = new SingleConsumerSemaphore(RioTcpServer.MaxWritesPerSocket);
 
         private Task _sendTask;
 
@@ -52,6 +53,8 @@ namespace Channels.Samples
             ProcessReceives();
             _sendTask = ProcessSends();
         }
+
+        private SingleConsumerSemaphore SendingComplete => _sendsComplete;
 
         private long CompleteSendCorrelation()
         {
@@ -111,6 +114,8 @@ namespace Channels.Samples
                     }
 
                     await SendAsync(current, true);
+
+                    await SendingComplete;
                 }
 
                 Output.EndRead(reader);
@@ -119,18 +124,43 @@ namespace Channels.Samples
             Output.CompleteReading();
         }
 
-        private async Task SendAsync(BufferSpan span, bool endOfMessage)
+        private Task SendAsync(BufferSpan span, bool endOfMessage)
         {
-            await _outgoingSends.WaitAsync();
+            int remaining;
+            if (!_outgoingSends.TryAcquire(out remaining))
+            {
+                return SendAsyncAwaited(span, endOfMessage);
+            }
 
-            var flushSends = endOfMessage || _outgoingSends.CurrentCount == 0;
+            var flushSends = endOfMessage || remaining == 0;
 
             Send(GetSegmentFromSpan(span), flushSends);
 
-            if (flushSends)
+            if (flushSends && !endOfMessage)
             {
-               await _sendsComplete.WaitAsync();
+               return AwaitSendComplete();
             }
+
+            return _completedTask;
+        }
+
+        private async Task SendAsyncAwaited(BufferSpan span, bool endOfMessage)
+        {
+            var remaining = await _outgoingSends;
+
+            var flushSends = endOfMessage || remaining == 0;
+
+            Send(GetSegmentFromSpan(span), flushSends);
+
+            if (flushSends && !endOfMessage)
+            {
+                await _outgoingSends;
+            }
+        }
+
+        private async Task AwaitSendComplete()
+        {
+            await _outgoingSends;
         }
 
         private void Send(RioBufferSegment segment, bool flushSends)
