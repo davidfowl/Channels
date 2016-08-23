@@ -57,9 +57,9 @@ namespace Channels.Samples
 
         private Task ReadyToSend => _outgoingSends.WaitAsync();
 
-        private long PartialSendCorrelation => _lastSendCorrelation;
+        private long PartialSendCorrelation() => _lastSendCorrelation;
 
-        private long FinalSendCorrelation => (_lastSendCorrelation = _lastSendCorrelation == int.MinValue ? -1 : _lastSendCorrelation - 1);
+        private long FinalSendCorrelation() => (_lastSendCorrelation = _lastSendCorrelation == int.MinValue ? -1 : _lastSendCorrelation - 1);
 
         private void MarkReadyToSend(long correlation)
         {
@@ -103,13 +103,13 @@ namespace Channels.Samples
                     {
                         await ReadyToSend;
 
-                        Send(last, MessagePart, PartialSendCorrelation);
+                        Send(last, MessagePart, PartialSendCorrelation());
                         last = span;
                     }
 
                     await ReadyToSend;
 
-                    Send(last, MessageEnd, FinalSendCorrelation);
+                    Send(last, MessageEnd, FinalSendCorrelation());
                 }
 
                 await SendingComplete;
