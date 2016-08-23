@@ -125,10 +125,7 @@ namespace Channels.Samples
             else
             {
                 // Sends
-                if (bytesTransferred > 0)
-                {
-                    _outgoingSends.Release();
-                }
+                _outgoingSends.Release();
             }
         }
 

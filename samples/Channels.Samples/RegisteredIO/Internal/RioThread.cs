@@ -58,7 +58,7 @@ namespace Channels.Samples.Internal
 
         private void OnSlabDeallocated(MemoryPoolSlab slab, object state)
         {
-            _rio.DeregisterBuffer((IntPtr) state);
+            _rio.DeregisterBuffer((IntPtr)state);
         }
 
         public void Start()
