@@ -53,6 +53,24 @@ namespace Channels.Samples
             _sendTask = ProcessSends();
         }
 
+        private Task SendingComplete => _sendsComplete.WaitAsync();
+
+        private Task ReadyToSend => _outgoingSends.WaitAsync();
+
+        private long PartialSendCorrelation => _lastSendCorrelation;
+
+        private long FinalSendCorrelation => (_lastSendCorrelation = _lastSendCorrelation == int.MinValue ? -1 : _lastSendCorrelation - 1);
+
+        private void MarkReadyToSend(long correlation)
+        {
+            _outgoingSends.Release();
+
+            if (correlation == _lastSendCorrelation)
+            {
+                _sendsComplete.Release();
+            }
+        }
+
         private void ProcessReceives()
         {
             _buffer = Input.Alloc(2048);
@@ -83,17 +101,18 @@ namespace Channels.Samples
                     BufferSpan span;
                     while (current.TryGetBuffer(out span))
                     {
-                        await _outgoingSends.WaitAsync();
-                        Send(last, MessagePart, _lastSendCorrelation);
+                        await ReadyToSend;
+
+                        Send(last, MessagePart, PartialSendCorrelation);
                         last = span;
                     }
 
-                    await _outgoingSends.WaitAsync();
+                    await ReadyToSend;
 
-                    Send(last, MessageEnd, (_lastSendCorrelation = _lastSendCorrelation == int.MinValue ? -1 : _lastSendCorrelation - 1));
+                    Send(last, MessageEnd, FinalSendCorrelation);
                 }
 
-                await _sendsComplete.WaitAsync();
+                await SendingComplete;
 
                 Output.EndRead(current);
             }
@@ -137,12 +156,7 @@ namespace Channels.Samples
             else
             {
                 // Sends
-                _outgoingSends.Release();
-
-                if (requestCorrelation == _lastSendCorrelation)
-                {
-                    _sendsComplete.Release();
-                }
+                MarkReadyToSend(requestCorrelation);
             }
         }
 
