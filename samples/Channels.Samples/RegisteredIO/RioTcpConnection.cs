@@ -85,6 +85,8 @@ namespace Channels.Samples
 
                 Output.EndRead(begin);
             }
+
+            Output.CompleteReading();
         }
 
         private void Send(BufferSpan span)
