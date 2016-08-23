@@ -87,8 +87,11 @@ namespace Channels.Samples
                 RioImports.WSACleanup();
                 throw new Exception($"listen failed with {error}");
             }
+
             var connectionId = Interlocked.Increment(ref _connectionId);
             var thread = _pool.GetThread(connectionId);
+
+            thread.TryResize();
 
             var requestQueue = _rio.RioCreateRequestQueue(
                                         accepted,
@@ -102,6 +105,7 @@ namespace Channels.Samples
 
             if (requestQueue == IntPtr.Zero)
             {
+                RioImports.closesocket(accepted);
                 var error = RioImports.WSAGetLastError();
                 RioImports.WSACleanup();
                 throw new Exception($"ERROR: RioCreateRequestQueue returned {error}");

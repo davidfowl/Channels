@@ -16,13 +16,17 @@ namespace Channels.Samples.Internal
 
         private readonly RegisteredIO _rio;
         private readonly int _id;
-        private readonly IntPtr _completionPort;
-        private readonly IntPtr _completionQueue;
+        private IntPtr _completionPort;
+        private IntPtr _completionQueue;
         private readonly ConcurrentDictionary<long, RioTcpConnection> _connections = new ConcurrentDictionary<long, RioTcpConnection>();
         private readonly Thread _thread;
         private readonly MemoryPool _memoryPool = new MemoryPool();
         private readonly ChannelFactory _channelFactory;
         private readonly CancellationToken _token;
+
+        private uint _socketsPerThread = 256;
+
+        private uint MaxOutsandingCompletions => 2 * _socketsPerThread;
 
         public IntPtr ReceiveCompletionQueue => _completionQueue;
 
@@ -30,11 +34,15 @@ namespace Channels.Samples.Internal
 
         public IntPtr CompletionPort => _completionPort;
 
+        public int Id => _id;
+
         public ChannelFactory ChannelFactory => _channelFactory;
 
         public ConcurrentDictionary<long, RioTcpConnection> Connections => _connections;
 
-        public RioThread(int id, CancellationToken token, IntPtr completionPort, IntPtr completionQueue, Winsock.RegisteredIO rio)
+        private int _connectionCount;
+
+        public RioThread(int id, CancellationToken token, RegisteredIO rio)
         {
             _id = id;
             _rio = rio;
@@ -46,6 +54,52 @@ namespace Channels.Samples.Internal
             _thread = new Thread(OnThreadStart);
             _thread.Name = "RIOThread " + id;
             _thread.IsBackground = true;
+        }
+
+        public void AddConnection(RioTcpConnection connection)
+        {
+            Interlocked.Increment(ref _connectionCount);
+            _connections.TryAdd(connection.Id, connection);
+        }
+
+        public void RemoveConnection(RioTcpConnection connection)
+        {
+            Interlocked.Decrement(ref _connectionCount);
+            RioTcpConnection dummy;
+            _connections.TryRemove(connection.Id, out dummy);
+        }
+
+        private void Initialize()
+        {
+            IntPtr completionPort = CreateIoCompletionPort(INVALID_HANDLE_VALUE, IntPtr.Zero, 0, 0);
+
+            if (completionPort == IntPtr.Zero)
+            {
+                var error = GetLastError();
+                RioImports.WSACleanup();
+                throw new Exception(string.Format("ERROR: CreateIoCompletionPort returned {0}", error));
+            }
+
+            var completionMethod = new NotificationCompletion()
+            {
+                Type = NotificationCompletionType.IocpCompletion,
+                Iocp = new NotificationCompletionIocp()
+                {
+                    IocpHandle = completionPort,
+                    QueueCorrelation = (ulong)_id,
+                    Overlapped = (NativeOverlapped*)(-1)// nativeOverlapped
+                }
+            };
+
+            IntPtr completionQueue = _rio.RioCreateCompletionQueue(MaxOutsandingCompletions, completionMethod);
+
+            if (completionQueue == IntPtr.Zero)
+            {
+                var error = RioImports.WSAGetLastError();
+                RioImports.WSACleanup();
+                throw new Exception(String.Format("ERROR: RioCreateCompletionQueue returned {0}", error));
+            }
+
             _completionPort = completionPort;
             _completionQueue = completionQueue;
         }
@@ -63,7 +117,20 @@ namespace Channels.Samples.Internal
 
         public void Start()
         {
+            Initialize();
             _thread.Start(this);
+        }
+
+        public bool TryResize()
+        {
+            if (_connectionCount >= _socketsPerThread)
+            {
+                _socketsPerThread <<= 1;
+                _rio.ResizeCompletionQueue(_completionQueue, MaxOutsandingCompletions);
+                return true;
+            }
+
+            return false;
         }
 
         private static void OnThreadStart(object state)
@@ -117,6 +184,9 @@ namespace Channels.Samples.Internal
 
         [DllImport(Kernel_32, SetLastError = true)]
         private static extern bool GetQueuedCompletionStatus(IntPtr CompletionPort, out uint lpNumberOfBytes, out uint lpCompletionKey, out NativeOverlapped* lpOverlapped, int dwMilliseconds);
+
+        [DllImport(Kernel_32, SetLastError = true)]
+        private static extern IntPtr CreateIoCompletionPort(long handle, IntPtr hExistingCompletionPort, int puiCompletionKey, uint uiNumberOfConcurrentThreads);
 
         [DllImport(Kernel_32, SetLastError = true)]
         private static extern long GetLastError();

@@ -17,9 +17,6 @@ namespace Channels.Samples.Internal
         private CancellationToken _token;
         private int _maxThreads;
 
-        private const int SocketsPerThread = 256;
-        private const int MaxOutsandingCompletions = 2 * SocketsPerThread;
-
         private IntPtr _socket;
         private RioThread[] _rioThreads;
 
@@ -29,41 +26,12 @@ namespace Channels.Samples.Internal
             _rio = rio;
             _token = token;
 
-            _maxThreads = Environment.ProcessorCount;
+            _maxThreads = 1;//Environment.ProcessorCount;
 
             _rioThreads = new RioThread[_maxThreads];
             for (var i = 0; i < _rioThreads.Length; i++)
             {
-                IntPtr completionPort = CreateIoCompletionPort(INVALID_HANDLE_VALUE, IntPtr.Zero, 0, 0);
-
-                if (completionPort == IntPtr.Zero)
-                {
-                    var error = GetLastError();
-                    RioImports.WSACleanup();
-                    throw new Exception(string.Format("ERROR: CreateIoCompletionPort returned {0}", error));
-                }
-
-                var completionMethod = new NotificationCompletion()
-                {
-                    Type = NotificationCompletionType.IocpCompletion,
-                    Iocp = new NotificationCompletionIocp()
-                    {
-                        IocpHandle = completionPort,
-                        QueueCorrelation = (ulong)i,
-                        Overlapped = (NativeOverlapped*)(-1)// nativeOverlapped
-                    }
-                };
-
-                IntPtr completionQueue = _rio.RioCreateCompletionQueue(MaxOutsandingCompletions, completionMethod);
-
-                if (completionQueue == IntPtr.Zero)
-                {
-                    var error = RioImports.WSAGetLastError();
-                    RioImports.WSACleanup();
-                    throw new Exception(String.Format("ERROR: RioCreateCompletionQueue returned {0}", error));
-                }
-
-                var thread = new RioThread(i, _token, completionPort, completionQueue, rio);
+                var thread = new RioThread(i, _token, rio);
                 _rioThreads[i] = thread;
             }
 
@@ -78,11 +46,5 @@ namespace Channels.Samples.Internal
         {
             return _rioThreads[(connetionId % _maxThreads)];
         }
-
-        [DllImport(Kernel_32, SetLastError = true)]
-        private static extern IntPtr CreateIoCompletionPort(long handle, IntPtr hExistingCompletionPort, int puiCompletionKey, uint uiNumberOfConcurrentThreads);
-
-        [DllImport(Kernel_32, SetLastError = true)]
-        private static extern long GetLastError();
     }
 }

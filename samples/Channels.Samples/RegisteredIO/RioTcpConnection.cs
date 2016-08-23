@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Channels.Samples.Internal;
@@ -23,11 +24,10 @@ namespace Channels.Samples
 
         public MemoryPoolChannel Input { get; }
         public MemoryPoolChannel Output { get; }
+        public long Id => _connectionId;
         public ChannelFactory ChannelFactory => _rioThread.ChannelFactory;
 
         private WritableBuffer _buffer;
-        private RioBufferSegment _receiveBufferSeg;
-        private RioBufferSegment _sendBufferSeg;
 
         private SemaphoreSlim _outgoingSends = new SemaphoreSlim(1);
 
@@ -45,7 +45,7 @@ namespace Channels.Samples
 
             _requestQueue = requestQueue;
 
-            rioThread.Connections.TryAdd(connectionId, this);
+            rioThread.AddConnection(this);
 
             ProcessReceives();
             _sendTask = ProcessSends();
@@ -53,12 +53,18 @@ namespace Channels.Samples
 
         private void ProcessReceives()
         {
-            _buffer = Input.Alloc(2048);
-            _receiveBufferSeg = GetSegmentFromSpan(_buffer.Memory);
-
-            if (!_rio.RioReceive(_requestQueue, ref _receiveBufferSeg, 1, RioReceiveFlags.None, 0))
+            try
             {
-                ThrowError(ErrorType.Receive);
+                _buffer = Input.Alloc(2048);
+                var segment = GetSegmentFromSpan(_buffer.Memory);
+                if (!_rio.RioReceive(_requestQueue, ref segment, 1, RioReceiveFlags.None, 0))
+                {
+                    ThrowError(ErrorType.Receive);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(_rioThread.Id + "," + _connectionId + ":" + ex);
             }
         }
 
@@ -91,11 +97,18 @@ namespace Channels.Samples
 
         private void Send(BufferSpan span)
         {
-            _sendBufferSeg = GetSegmentFromSpan(span);
+            var segment = GetSegmentFromSpan(span);
 
-            if (!_rio.Send(_requestQueue, ref _sendBufferSeg, 1, MessageEnd, -1))
+            try
             {
-                ThrowError(ErrorType.Send);
+                if (!_rio.Send(_requestQueue, ref segment, 1, MessageEnd, -1))
+                {
+                    ThrowError(ErrorType.Send);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(_rioThread.Id + "," + _connectionId + ":" + ex);
             }
         }
 
@@ -110,11 +123,11 @@ namespace Channels.Samples
             // Receives
             if (requestCorrelation >= 0)
             {
+                _buffer.UpdateWritten((int)bytesTransferred);
+                Input.WriteAsync(_buffer);
+
                 if (bytesTransferred > 0)
                 {
-                    _buffer.UpdateWritten((int)bytesTransferred);
-                    Input.WriteAsync(_buffer);
-
                     ProcessReceives();
                 }
                 else
@@ -129,7 +142,7 @@ namespace Channels.Samples
             }
         }
 
-        private static void ThrowError(ErrorType type)
+        private void ThrowError(ErrorType type)
         {
             var errorNo = RioImports.WSAGetLastError();
 
@@ -163,8 +176,7 @@ namespace Channels.Samples
         {
             if (!_disposedValue)
             {
-                RioTcpConnection connection;
-                _rioThread.Connections.TryRemove(_connectionId, out connection);
+                _rioThread.RemoveConnection(this);
                 RioImports.closesocket(_socket);
 
                 _disposedValue = true;
