@@ -33,30 +33,36 @@ namespace Channels.Samples
         {
             var writeReq = new UvWriteReq2(_listener.Log);
             writeReq.Init(_listener.Loop);
-
-            while (true)
+            try
             {
-                await _output;
-
-                var buffer = _output.BeginRead();
-
-                if (buffer.IsEmpty && _output.Completion.IsCompleted)
+                while (true)
                 {
-                    break;
+                    await _output;
+
+                    var buffer = _output.BeginRead();
+
+                    if (buffer.IsEmpty && _output.Completion.IsCompleted)
+                    {
+                        break;
+                    }
+
+                    var cloned = buffer.Clone();
+                    writeReq.Write(handle, cloned, WriteCallback, cloned);
+
+                    _output.EndRead(buffer);
                 }
-
-                var cloned = buffer.Clone();
-                writeReq.Write(handle, cloned, WriteCallback, cloned);
-
-                _output.EndRead(buffer);
             }
+            finally
+            {
+                _output.CompleteReading();
 
-            _output.CompleteReading();
+                writeReq.Dispose();
 
-            handle.Dispose();
+                handle.Dispose();
+            }
         }
 
-        private static void WriteCallback(UvWriteReq2 handle, int status, Exception ex, object state)
+        private static void WriteCallback(UvWriteReq2 req, int status, Exception ex, object state)
         {
             ((ReadableBuffer)state).Dispose();
         }
