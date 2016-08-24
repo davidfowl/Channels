@@ -51,6 +51,8 @@ namespace Channels.Samples
                 _output.EndRead(buffer);
             }
 
+            _output.CompleteReading();
+
             handle.Dispose();
         }
 
