@@ -55,7 +55,7 @@ namespace Channels.Samples.Internal
         public IntPtr GetBufferId(IntPtr address)
         {
             IntPtr bufferId;
-            if (_bufferIdMappings.TryRemove(address, out bufferId))
+            if (_bufferIdMappings.TryGetValue(address, out bufferId))
             {
                 return bufferId;
             }
@@ -72,7 +72,7 @@ namespace Channels.Samples.Internal
         private void OnSlabDeallocated(MemoryPoolSlab slab)
         {
             IntPtr bufferId;
-            if (_bufferIdMappings.TryGetValue(slab.ArrayPtr, out bufferId))
+            if (_bufferIdMappings.TryRemove(slab.ArrayPtr, out bufferId))
             {
                 _rio.DeregisterBuffer(bufferId);
             }

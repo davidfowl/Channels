@@ -2,10 +2,8 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Numerics;
-using System.Text;
 
 namespace Channels
 {
@@ -47,9 +45,9 @@ namespace Channels
 
         public ReadIterator IndexOf(ref Vector<byte> data)
         {
-            var iter = _start;
-            iter.Seek(ref data);
-            return iter;
+            var begin = _start;
+            begin.Seek(ref data);
+            return begin;
         }
 
         public ReadableBuffer Slice(int start, int length)
@@ -81,8 +79,9 @@ namespace Channels
 
         public ReadableBuffer Slice(ReadIterator start, int length)
         {
-            var end = start.Seek(length);
-            return Slice(start, end);
+            var begin = start;
+            var actual = begin.Seek(length);
+            return Slice(begin, actual);
         }
 
         public ReadableBuffer Slice(ReadIterator start)
@@ -99,10 +98,10 @@ namespace Channels
 
         public IEnumerable<BufferSpan> GetSpans()
         {
-            var head = _start;
+            var begin = _start;
 
             BufferSpan span;
-            while (head.TryGetBuffer(_end, out span))
+            while (begin.TryGetBuffer(_end, out span))
             {
                 yield return span;
             }
@@ -115,10 +114,10 @@ namespace Channels
 
         public ReadableBuffer Clone()
         {
-            var head = _start;
-            var tail = _end;
+            var begin = _start;
+            var end = _end;
 
-            var segmentHead = MemoryBlockSegment.Clone(head, tail);
+            var segmentHead = MemoryBlockSegment.Clone(begin, end);
             var segmentTail = segmentHead;
 
             while (segmentTail.Next != null)
@@ -126,10 +125,10 @@ namespace Channels
                 segmentTail = segmentTail.Next;
             }
 
-            head = new ReadIterator(segmentHead);
-            tail = new ReadIterator(segmentTail, segmentTail.End);
+            begin = new ReadIterator(segmentHead);
+            end = new ReadIterator(segmentTail, segmentTail.End);
 
-            return new ReadableBuffer(head, tail, isOwner: true);
+            return new ReadableBuffer(begin, end, isOwner: true);
         }
 
         public void CopyTo(byte[] data, int offset)
@@ -139,8 +138,8 @@ namespace Channels
                 throw new ArgumentOutOfRangeException();
             }
 
-            var iter = _start;
-            iter.CopyTo(data, offset, Length);
+            var begin = _start;
+            begin.CopyTo(data, offset, Length);
         }
 
         public void Dispose()
