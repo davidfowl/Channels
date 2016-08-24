@@ -9,16 +9,16 @@ namespace Channels
 {
     public struct ReadableBuffer : IDisposable
     {
-        public int Length => _length;
-
-        public BufferSpan FirstSpan => _span;
-
         private readonly BufferSpan _span;
         private readonly ReadIterator _start;
         private readonly ReadIterator _end;
         private readonly int _length;
         private readonly bool _isOwner;
         private bool _disposed;
+
+        public int Length => _length;
+        public bool IsEmpty => _length == 0;
+        public BufferSpan FirstSpan => _span;
 
         public ReadIterator Start => _start;
         public ReadIterator End => _end;

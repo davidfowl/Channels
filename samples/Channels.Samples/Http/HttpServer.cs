@@ -16,6 +16,7 @@ namespace Channels.Samples.Http
 
         private Socket _listenSocket;
         private RioTcpServer _rioTcpServer;
+        private UvTcpListener _uvTcpListener;
 
         public HttpServer()
         {
@@ -29,7 +30,18 @@ namespace Channels.Samples.Http
             IPAddress ip;
             int port;
             GetIp(address, out ip, out port);
-            Task.Run(() => StartAcceptingRIOConnections(application, ip, port));
+            Task.Run(() => StartAcceptingLibuvConnections(application, ip, port));
+        }
+
+        private void StartAcceptingLibuvConnections<TContext>(IHttpApplication<TContext> application, IPAddress ip, int port)
+        {
+            _uvTcpListener = new UvTcpListener(ip, port);
+            _uvTcpListener.OnConnection(async connection =>
+            {
+                await ProcessClient(application, connection.Input, connection.Output);
+            });
+
+            _uvTcpListener.Start();
         }
 
         private void StartAcceptingRIOConnections<TContext>(IHttpApplication<TContext> application, IPAddress ip, int port)
@@ -90,6 +102,7 @@ namespace Channels.Samples.Http
         {
             _rioTcpServer?.Stop();
             _listenSocket?.Dispose();
+            _uvTcpListener?.Stop();
         }
 
         private static void GetIp(string url, out IPAddress ip, out int port)
@@ -116,7 +129,7 @@ namespace Channels.Samples.Http
         {
             using (connection)
             {
-                await ProcessClient(application, connection.ChannelFactory, connection.Input, connection.Output);
+                await ProcessClient(application, connection.Input, connection.Output);
             }
         }
 
@@ -127,19 +140,13 @@ namespace Channels.Samples.Http
                 var input = channelFactory.MakeReadableChannel(ns);
                 var output = channelFactory.MakeWriteableChannel(ns);
 
-                await ProcessClient(application, channelFactory, input, output);
+                await ProcessClient(application, input, output);
             }
         }
 
-        private static async Task ProcessClient<TContext>(IHttpApplication<TContext> application, ChannelFactory channelFactory, IReadableChannel input, IWritableChannel output)
+        private static async Task ProcessClient<TContext>(IHttpApplication<TContext> application, IReadableChannel input, IWritableChannel output)
         {
-            // var id = Guid.NewGuid();
-            // output = channelFactory.MakeWriteableChannel(output, Dump);
-            // input = channelFactory.MakeReadableChannel(input, Dump);
-
             var connection = new HttpConnection<TContext>(application, input, output);
-
-            // Console.WriteLine($"[{id}]: Connection started");
 
             while (true)
             {
@@ -156,51 +163,8 @@ namespace Channels.Samples.Http
                 }
             }
 
-            // Console.WriteLine($"[{id}]: Connection ended");
-
             output.CompleteWriting();
             input.CompleteReading();
-
-            //GC.Collect();
-            //GC.WaitForPendingFinalizers();
-        }
-
-        private static async Task Dump(IReadableChannel input, IWritableChannel output)
-        {
-            while (true)
-            {
-                await input;
-
-                var fin = input.Completion.IsCompleted;
-
-                var inputBuffer = input.BeginRead();
-
-                try
-                {
-                    if (inputBuffer.Length == 0 && fin)
-                    {
-                        break;
-                    }
-
-                    foreach (var span in inputBuffer.GetSpans())
-                    {
-                        Console.Write(Encoding.UTF8.GetString(span.Array, span.Offset, span.Length));
-                    }
-
-                    var buffer = output.Alloc();
-
-                    buffer.Append(inputBuffer);
-
-                    await output.WriteAsync(buffer);
-                }
-                finally
-                {
-                    input.EndRead(inputBuffer);
-                }
-            }
-
-            input.CompleteReading();
-            output.CompleteWriting();
         }
     }
 }

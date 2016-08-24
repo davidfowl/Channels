@@ -12,6 +12,12 @@ namespace Channels.Samples
 {
     public sealed class RioTcpConnection : IDisposable
     {
+        private const RioSendFlags MessagePart = RioSendFlags.Defer | RioSendFlags.DontNotify;
+        private const RioSendFlags MessageEnd = RioSendFlags.None;
+
+        private const long PartialSendCorrelation = -1;
+        private const long RestartSendCorrelations = -2;
+
         private readonly static Task _completedTask = Task.FromResult(0);
 
         private readonly long _connectionId;
@@ -21,23 +27,16 @@ namespace Channels.Samples
         private readonly RioThread _rioThread;
         private bool _disposedValue;
 
-        private const RioSendFlags MessagePart = RioSendFlags.Defer | RioSendFlags.DontNotify;
-        private const RioSendFlags MessageEnd = RioSendFlags.None;
-
-        public MemoryPoolChannel Input { get; }
-        public MemoryPoolChannel Output { get; }
-        public ChannelFactory ChannelFactory => _rioThread.ChannelFactory;
-
-        private WritableBuffer _buffer;
-
-        private const long PartialSendCorrelation = -1;
-        private const long RestartSendCorrelations = -2;
         private long _sendCorrelation = RestartSendCorrelations;
-
+        private readonly MemoryPoolChannel _input;
+        private readonly MemoryPoolChannel _output;
         private readonly SingleConsumerSemaphore _outgoingSends = new SingleConsumerSemaphore(RioTcpServer.MaxWritesPerSocket);
         private readonly ConcurrentQueue<ReadableBuffer> _sendingBuffers = new ConcurrentQueue<ReadableBuffer>();
-
         private Task _sendTask;
+        private WritableBuffer _buffer;
+
+        public IReadableChannel Input => _input;
+        public IWritableChannel Output => _output;
 
         internal RioTcpConnection(IntPtr socket, long connectionId, IntPtr requestQueue, RioThread rioThread, RegisteredIO rio)
         {
@@ -46,8 +45,8 @@ namespace Channels.Samples
             _rio = rio;
             _rioThread = rioThread;
 
-            Input = ChannelFactory.CreateChannel();
-            Output = ChannelFactory.CreateChannel();
+            _input = rioThread.ChannelFactory.CreateChannel();
+            _output = rioThread.ChannelFactory.CreateChannel();
 
             _requestQueue = requestQueue;
 
@@ -84,7 +83,7 @@ namespace Channels.Samples
 
         private void ProcessReceives()
         {
-            _buffer = Input.Alloc(2048);
+            _buffer = _input.Alloc(2048);
             var receiveBufferSeg = GetSegmentFromSpan(_buffer.Memory);
 
             if (!_rio.RioReceive(_requestQueue, ref receiveBufferSeg, 1, RioReceiveFlags.None, 0))
@@ -97,11 +96,11 @@ namespace Channels.Samples
         {
             while (true)
             {
-                await Output;
+                await _output;
 
-                var buffer = Output.BeginRead();
+                var buffer = _output.BeginRead();
 
-                if (buffer.Length == 0 && Output.Completion.IsCompleted)
+                if (buffer.Length == 0 && _output.Completion.IsCompleted)
                 {
                     break;
                 }
@@ -125,10 +124,10 @@ namespace Channels.Samples
                     await SendAsync(current, endOfMessage: true);
                 }
 
-                Output.EndRead(buffer);
+                _output.EndRead(buffer);
             }
 
-            Output.CompleteReading();
+            _output.CompleteReading();
         }
 
         private Task SendAsync(BufferSpan span, bool endOfMessage)
@@ -195,13 +194,13 @@ namespace Channels.Samples
                 if (bytesTransferred > 0)
                 {
                     _buffer.UpdateWritten((int)bytesTransferred);
-                    Input.WriteAsync(_buffer);
+                    _input.WriteAsync(_buffer);
 
                     ProcessReceives();
                 }
                 else
                 {
-                    Input.CompleteWriting();
+                    _input.CompleteWriting();
                 }
             }
             else
