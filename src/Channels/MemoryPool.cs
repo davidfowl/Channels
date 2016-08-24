@@ -61,9 +61,9 @@ namespace Channels
         /// </summary>
         private bool _disposedValue = false; // To detect redundant calls
 
-        private Func<MemoryPoolSlab, object> _slabAllocationCallback;
+        private Action<MemoryPoolSlab> _slabAllocationCallback;
 
-        private Action<MemoryPoolSlab, object> _slabDeallocationCallback;
+        private Action<MemoryPoolSlab> _slabDeallocationCallback;
 
         /// <summary>
         /// Called to take a block from the pool.
@@ -99,12 +99,12 @@ namespace Channels
             return block;
         }
 
-        public void RegisterSlabAllocationCallback(Func<MemoryPoolSlab, object> callback)
+        public void RegisterSlabAllocationCallback(Action<MemoryPoolSlab> callback)
         {
             _slabAllocationCallback = callback;
         }
 
-        public void RegisterSlabDeallocationCallback(Action<MemoryPoolSlab, object> callback)
+        public void RegisterSlabDeallocationCallback(Action<MemoryPoolSlab> callback)
         {
             _slabDeallocationCallback = callback;
         }
@@ -118,7 +118,7 @@ namespace Channels
             var slab = MemoryPoolSlab.Create(_slabLength);
             _slabs.Push(slab);
 
-            slab.UserData = _slabAllocationCallback?.Invoke(slab);
+            _slabAllocationCallback?.Invoke(slab);
             slab.DeallocationCallback = _slabDeallocationCallback;
 
             var basePtr = slab.ArrayPtr;

@@ -181,9 +181,9 @@ namespace Channels.Samples
             }
         }
 
-        private static RioBufferSegment GetSegmentFromSpan(BufferSpan span)
+        private RioBufferSegment GetSegmentFromSpan(BufferSpan span)
         {
-            var bufferId = (IntPtr)span.UserData;
+            var bufferId = _rioThread.GetBufferId(span.BufferBasePtr);
             return new RioBufferSegment(bufferId, (uint)span.Offset, (uint)span.Length);
         }
 

@@ -22,7 +22,7 @@ namespace Channels
 
         public byte[] Array => _segment.Block.Array;
 
-        public object UserData => _segment.Block.Slab.UserData;
+        public IntPtr BufferBasePtr => _segment.Block.DataArrayPtr;
 
         public IntPtr BufferPtr => _segment.Block.DataArrayPtr + _offset;
 

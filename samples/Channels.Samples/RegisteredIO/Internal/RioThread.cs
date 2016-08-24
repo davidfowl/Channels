@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Threading;
 using Channels.Samples.Internal.Winsock;
@@ -19,6 +20,7 @@ namespace Channels.Samples.Internal
         private readonly IntPtr _completionPort;
         private readonly IntPtr _completionQueue;
         private readonly ConcurrentDictionary<long, RioTcpConnection> _connections = new ConcurrentDictionary<long, RioTcpConnection>();
+        private readonly ConcurrentDictionary<IntPtr, IntPtr> _bufferIdMappings = new ConcurrentDictionary<IntPtr, IntPtr>();
         private readonly Thread _thread;
         private readonly MemoryPool _memoryPool = new MemoryPool();
         private readonly ChannelFactory _channelFactory;
@@ -50,15 +52,34 @@ namespace Channels.Samples.Internal
             _completionQueue = completionQueue;
         }
 
-        private object OnSlabAllocated(MemoryPoolSlab slab)
+        public IntPtr GetBufferId(IntPtr address)
         {
-            var bufferId = _rio.RioRegisterBuffer(slab.ArrayPtr, (uint)slab.Array.Length);
-            return bufferId;
+            IntPtr bufferId;
+            if (_bufferIdMappings.TryGetValue(address, out bufferId))
+            {
+                return bufferId;
+            }
+            return IntPtr.Zero;
         }
 
-        private void OnSlabDeallocated(MemoryPoolSlab slab, object state)
+        private void OnSlabAllocated(MemoryPoolSlab slab)
         {
-            _rio.DeregisterBuffer((IntPtr)state);
+            var bufferId = _rio.RioRegisterBuffer(slab.ArrayPtr, (uint)slab.Array.Length);
+
+            _bufferIdMappings[slab.ArrayPtr] = bufferId;
+        }
+
+        private void OnSlabDeallocated(MemoryPoolSlab slab)
+        {
+            IntPtr bufferId;
+            if (_bufferIdMappings.TryGetValue(slab.ArrayPtr, out bufferId))
+            {
+                _rio.DeregisterBuffer(bufferId);
+            }
+            else
+            {
+                Debug.Assert(false, "Unknown buffer id!");
+            }
         }
 
         public void Start()
