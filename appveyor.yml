@@ -1,0 +1,17 @@
+os: Visual Studio 2015
+build: off
+
+before_test:
+  - dotnet --info
+  - dotnet restore
+
+test_script:
+  # Build sample
+  - dotnet build -c Release samples/Channels.Samples
+
+after_test:
+  # Build and pack source
+  - dotnet pack -c Release src/Channels
+
+artifacts:
+  path: 'src/Channels/bin/Release/*.nupkg'

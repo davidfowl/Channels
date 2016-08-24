@@ -1,5 +1,8 @@
 # Channels (Zero Copy Streams)
 
+[![Unix CI](https://travis-ci.org/davidfowl/Channels.svg?branch=master)](https://travis-ci.org/davidfowl/Channels)
+[![Windows CI](https://ci.appveyor.com/api/projects/status/github/davidfowl/Channels?svg=true)](https://ci.appveyor.com/project/davidfowl/Channels/branch/master)
+
 ## Disclaimer
 
 This is still very much a work in progress. The APIs are not baked and are going through serious churn.
