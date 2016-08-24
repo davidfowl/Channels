@@ -4,11 +4,21 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Server.Kestrel.Internal.Http;
 
 namespace Channels.Samples.Http
 {
     public partial class HttpConnection<TContext>
     {
+        private static readonly DateHeaderValueManager _dateHeaderValueManager = new DateHeaderValueManager();
+        private static readonly byte[] _serverHeaderBytes = Encoding.UTF8.GetBytes("\r\nServer: Channels");
+        private static readonly byte[] _chunkedHeaderBytes = Encoding.UTF8.GetBytes("\r\nTransfer-Encoding: chunked");
+        private static readonly byte[] _http11Bytes = Encoding.UTF8.GetBytes("HTTP/1.1 ");
+        private static readonly byte[] _headersStartBytes = Encoding.UTF8.GetBytes("\r\n");
+        private static readonly byte[] _headersSeperatorBytes = Encoding.UTF8.GetBytes(": ");
+        private static readonly byte[] _headersEndBytes = Encoding.UTF8.GetBytes("\r\n\r\n");
+        private static readonly byte[] _chunkedEndBytes = Encoding.UTF8.GetBytes("0\r\n\r\n");
+
         private static Vector<byte> _vectorCRs = new Vector<byte>((byte)'\r');
         private static Vector<byte> _vectorLFs = new Vector<byte>((byte)'\n');
         private static Vector<byte> _vectorColons = new Vector<byte>((byte)':');
@@ -211,7 +221,7 @@ namespace Channels.Samples.Http
             _autoChunk = false;
         }
 
-        public Task WriteAsync(ArraySegment<byte> data)
+        public Task WriteAsync(byte[] array, int offset, int count)
         {
             var buffer = _output.Alloc();
 
@@ -222,13 +232,13 @@ namespace Channels.Samples.Http
 
             if (_autoChunk)
             {
-                ChunkWriter.WriteBeginChunkBytes(ref buffer, data.Count);
-                buffer.Write(data.Array, data.Offset, data.Count);
+                ChunkWriter.WriteBeginChunkBytes(ref buffer, count);
+                buffer.Write(array, offset, count);
                 ChunkWriter.WriteEndChunkBytes(ref buffer);
             }
             else
             {
-                buffer.Write(data.Array, data.Offset, data.Count);
+                buffer.Write(array, offset, count);
             }
 
             return _output.WriteAsync(buffer);
@@ -243,36 +253,38 @@ namespace Channels.Samples.Http
 
             HasStarted = true;
 
-            ResponseHeaders["Server"] = "Channels HTTP Sample Server";
-            ResponseHeaders["Date"] = DateTime.UtcNow.ToString("r");
-
-            autoChunk = !HasContentLength && !HasTransferEncoding && KeepAlive;
-
-            if (autoChunk)
-            {
-                ResponseHeaders["Transfer-Encoding"] = "chunked";
-            }
-
-            var httpVersion = Encoding.UTF8.GetBytes("HTTP/1.1 ");
-            buffer.Write(httpVersion, 0, httpVersion.Length);
+            buffer.Write(_http11Bytes, 0, _http11Bytes.Length);
             var status = ReasonPhrases.ToStatusBytes(StatusCode);
             buffer.Write(status, 0, status.Length);
 
             foreach (var header in ResponseHeaders)
             {
-                var headerRaw = "\r\n" + header.Key + ": " + header.Value;
-                var headerBytes = Encoding.UTF8.GetBytes(headerRaw);
+                buffer.Write(_headersStartBytes, 0, _headersStartBytes.Length);
+                var headerBytes = Encoding.UTF8.GetBytes(header.Key);
+                buffer.Write(headerBytes, 0, headerBytes.Length);
+                buffer.Write(_headersSeperatorBytes, 0, _headersSeperatorBytes.Length);
+                headerBytes = Encoding.UTF8.GetBytes(header.Value);
                 buffer.Write(headerBytes, 0, headerBytes.Length);
             }
 
-            var crlf = Encoding.UTF8.GetBytes("\r\n\r\n");
-            buffer.Write(crlf, 0, crlf.Length);
+
+            autoChunk = !HasContentLength && !HasTransferEncoding && KeepAlive;
+
+            if (autoChunk)
+            {
+                buffer.Write(_chunkedHeaderBytes, 0, _chunkedHeaderBytes.Length);
+            }
+
+            buffer.Write(_serverHeaderBytes, 0, _serverHeaderBytes.Length);
+            var date = _dateHeaderValueManager.GetDateHeaderValues().Bytes;
+            buffer.Write(date, 0, date.Length);
+
+            buffer.Write(_headersEndBytes, 0, _headersEndBytes.Length);
         }
 
         private void WriteEndResponse(ref WritableBuffer buffer)
         {
-            var chunkedEnding = Encoding.UTF8.GetBytes("0\r\n\r\n");
-            buffer.Write(chunkedEnding, 0, chunkedEnding.Length);
+            buffer.Write(_chunkedEndBytes, 0, _chunkedEndBytes.Length);
         }
     }
 }

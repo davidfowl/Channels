@@ -87,7 +87,7 @@ namespace Channels.Samples.Http
 
         public override Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken token)
         {
-            return _connection.WriteAsync(new ArraySegment<byte>(buffer, offset, count));
+            return _connection.WriteAsync(buffer, offset, count);
         }
 
         public override void Flush()
