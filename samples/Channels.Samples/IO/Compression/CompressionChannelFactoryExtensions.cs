@@ -53,16 +53,15 @@ namespace Channels.Samples.IO.Compression
                 {
                     await input;
 
-                    var readBuffer = input.BeginRead();
-                    var end = readBuffer;
+                    var inputBuffer = input.BeginRead();
 
-                    if (readBuffer.Start.IsEnd && input.Completion.IsCompleted)
+                    if (inputBuffer.Length == 0 && input.Completion.IsCompleted)
                     {
                         break;
                     }
 
                     var writerBuffer = output.Alloc(2048);
-                    var span = readBuffer.FirstSpan;
+                    var span = inputBuffer.FirstSpan;
 
                     _deflater.SetInput(span.BufferPtr, span.Length);
 
@@ -74,9 +73,9 @@ namespace Channels.Samples.IO.Compression
 
                     var consumed = span.Length - _deflater.AvailableInput;
 
-                    readBuffer = readBuffer.Slice(0, consumed);
+                    inputBuffer = inputBuffer.Slice(0, consumed);
 
-                    input.EndRead(readBuffer);
+                    input.EndRead(inputBuffer);
 
                     await output.WriteAsync(writerBuffer);
                 }
@@ -132,15 +131,15 @@ namespace Channels.Samples.IO.Compression
                 {
                     await input;
 
-                    var readBuffer = input.BeginRead();
+                    var inputBuffer = input.BeginRead();
 
-                    if (readBuffer.Start.IsEnd && input.Completion.IsCompleted)
+                    if (inputBuffer.Length == 0 && input.Completion.IsCompleted)
                     {
                         break;
                     }
 
                     var writerBuffer = output.Alloc(2048);
-                    var span = readBuffer.FirstSpan;
+                    var span = inputBuffer.FirstSpan;
                     if (span.Length > 0)
                     {
                         _inflater.SetInput(span.BufferPtr, span.Length);
@@ -151,10 +150,10 @@ namespace Channels.Samples.IO.Compression
 
                         var consumed = span.Length - _inflater.AvailableInput;
 
-                        readBuffer = readBuffer.Slice(0, consumed);
+                        inputBuffer = inputBuffer.Slice(0, consumed);
                     }
 
-                    input.EndRead(readBuffer);
+                    input.EndRead(inputBuffer);
 
                     await output.WriteAsync(writerBuffer);
                 }
