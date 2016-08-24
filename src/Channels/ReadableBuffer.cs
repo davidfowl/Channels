@@ -145,6 +145,11 @@ namespace Channels
             return new ReadableBuffer(begin, end, isOwner: true);
         }
 
+        public void CopyTo(byte[] data)
+        {
+            CopyTo(data, 0);
+        }
+
         public void CopyTo(byte[] data, int offset)
         {
             if (data.Length < Length)
