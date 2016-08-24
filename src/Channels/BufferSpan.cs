@@ -32,16 +32,7 @@ namespace Channels
 
         public override string ToString()
         {
-            var builder = new StringBuilder();
-            for (int i = 0; i < Length; i++)
-            {
-                if (i > 0)
-                {
-                    builder.Append(" ");
-                }
-                builder.Append(Array[i + Offset].ToString("X2"));
-            }
-            return builder.ToString();
+            return Encoding.UTF8.GetString(Array, Offset, Length);
         }
 
         public void CopyTo(ref WritableBuffer buffer)

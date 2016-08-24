@@ -2,6 +2,8 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Channels.Samples.Internal;
 using Channels.Samples.Internal.Winsock;
@@ -33,8 +35,7 @@ namespace Channels.Samples
         private long _sendCorrelation = RestartSendCorrelations;
 
         private readonly SingleConsumerSemaphore _outgoingSends = new SingleConsumerSemaphore(RioTcpServer.MaxWritesPerSocket);
-
-        private ReadableBuffer _sendingBuffer;
+        private readonly ConcurrentQueue<ReadableBuffer> _sendingBuffers = new ConcurrentQueue<ReadableBuffer>();
 
         private Task _sendTask;
 
@@ -71,12 +72,14 @@ namespace Channels.Samples
 
         private void MarkReadyToSend(long correlation)
         {
-            _outgoingSends.Release();
-
             if (correlation == _sendCorrelation)
             {
-                _sendingBuffer.Dispose();
+                ReadableBuffer buffer;
+                _sendingBuffers.TryDequeue(out buffer);
+                buffer.Dispose();
             }
+
+            _outgoingSends.Release();
         }
 
         private void ProcessReceives()
@@ -103,6 +106,8 @@ namespace Channels.Samples
                     break;
                 }
 
+                _sendingBuffers.Enqueue(buffer.Clone());
+
                 var enumerator = buffer.GetSpans().GetEnumerator();
 
                 if (enumerator.MoveNext())
@@ -113,14 +118,13 @@ namespace Channels.Samples
                     {
                         var next = enumerator.Current;
 
-                        await SendAsync(current, false);
+                        await SendAsync(current, endOfMessage: false);
                         current = next;
                     }
 
-                    await SendAsync(current, true);
+                    await SendAsync(current, endOfMessage: true);
                 }
 
-                _sendingBuffer = buffer.Clone();
                 Output.EndRead(buffer);
             }
 
@@ -141,7 +145,7 @@ namespace Channels.Samples
 
             if (flushSends && !endOfMessage)
             {
-               return AwaitSendComplete();
+                return AwaitSendComplete();
             }
 
             return _completedTask;

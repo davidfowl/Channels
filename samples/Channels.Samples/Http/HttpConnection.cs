@@ -66,7 +66,7 @@ namespace Channels.Samples.Http
 
                 try
                 {
-                    var delim = buffer.Seek(ref _vectorSpaces);
+                    var delim = buffer.IndexOf(ref _vectorSpaces);
                     if (delim.IsEnd)
                     {
                         continue;
@@ -78,7 +78,7 @@ namespace Channels.Samples.Http
                     // Skip ' '
                     buffer = buffer.Slice(delim).Slice(1);
 
-                    delim = buffer.Seek(ref _vectorSpaces);
+                    delim = buffer.IndexOf(ref _vectorSpaces);
                     if (delim.IsEnd)
                     {
                         continue;
@@ -90,7 +90,7 @@ namespace Channels.Samples.Http
                     // Skip ' '
                     buffer = buffer.Slice(delim).Slice(1);
 
-                    delim = buffer.Seek(ref _vectorLFs);
+                    delim = buffer.IndexOf(ref _vectorLFs);
                     if (delim.IsEnd)
                     {
                         continue;
@@ -137,7 +137,7 @@ namespace Channels.Samples.Http
                         var headerValue = default(ReadableBuffer);
 
                         // :
-                        delim = buffer.Seek(ref _vectorColons);
+                        delim = buffer.IndexOf(ref _vectorColons);
                         if (delim.IsEnd)
                         {
                             break;
@@ -147,7 +147,7 @@ namespace Channels.Samples.Http
                         buffer = buffer.Slice(delim).Slice(1);
 
                         // \n
-                        delim = buffer.Seek(ref _vectorLFs);
+                        delim = buffer.IndexOf(ref _vectorLFs);
                         if (delim.IsEnd)
                         {
                             break;
@@ -162,7 +162,7 @@ namespace Channels.Samples.Http
                 }
                 finally
                 {
-                    _input.EndRead(buffer);
+                    _input.EndRead(buffer.Start);
                 }
 
                 if (!needMoreData)

@@ -20,30 +20,32 @@ namespace Channels
         private readonly ReadIterator _end;
         private readonly int _length;
         private readonly bool _isOwner;
+        private bool _disposed;
 
         public ReadIterator Start => _start;
         public ReadIterator End => _end;
 
-        public ReadableBuffer(ReadIterator head, ReadIterator tail) :
-            this(head, tail, isOwner: false)
+        public ReadableBuffer(ReadIterator start, ReadIterator end) :
+            this(start, end, isOwner: false)
         {
 
         }
 
-        public ReadableBuffer(ReadIterator head, ReadIterator tail, bool isOwner)
+        public ReadableBuffer(ReadIterator start, ReadIterator end, bool isOwner)
         {
-            _start = head;
-            _end = tail;
+            _start = start;
+            _end = end;
             _isOwner = isOwner;
+            _disposed = false;
 
-            var begin = head;
-            begin.TryGetBuffer(tail, out _span);
+            var begin = start;
+            begin.TryGetBuffer(end, out _span);
 
-            begin = head;
-            _length = begin.GetLength(tail);
+            begin = start;
+            _length = begin.GetLength(end);
         }
 
-        public ReadIterator Seek(ref Vector<byte> data)
+        public ReadIterator IndexOf(ref Vector<byte> data)
         {
             var iter = _start;
             iter.Seek(ref data);
@@ -125,7 +127,7 @@ namespace Channels
             }
 
             head = new ReadIterator(segmentHead);
-            tail = new ReadIterator(segmentTail);
+            tail = new ReadIterator(segmentTail, segmentTail.End);
 
             return new ReadableBuffer(head, tail, isOwner: true);
         }
@@ -148,20 +150,32 @@ namespace Channels
                 return;
             }
 
+            if (_disposed)
+            {
+                return;
+            }
+
             var returnStart = _start.Segment;
             var returnEnd = _end.Segment;
 
-            while (returnStart != returnEnd)
+            while (true)
             {
                 var returnSegment = returnStart;
                 returnStart = returnStart.Next;
                 returnSegment.Dispose();
+
+                if (returnSegment == returnEnd)
+                {
+                    break;
+                }
             }
+
+            _disposed = true;
         }
 
         public override string ToString()
         {
-            return Encoding.UTF8.GetString(FirstSpan.Array, FirstSpan.Offset, FirstSpan.Length);
+            return FirstSpan.ToString();
         }
     }
 }
