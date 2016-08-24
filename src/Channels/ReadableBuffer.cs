@@ -43,10 +43,24 @@ namespace Channels
             _length = begin.GetLength(end);
         }
 
-        public ReadIterator IndexOf(ref Vector<byte> data)
+        public ReadIterator IndexOf(ref Vector<byte> byte0Vector)
         {
             var begin = _start;
-            begin.Seek(ref data);
+            begin.Seek(ref byte0Vector);
+            return begin;
+        }
+
+        public ReadIterator IndexOfAny(ref Vector<byte> byte0Vector, ref Vector<byte> byte1Vector)
+        {
+            var begin = _start;
+            begin.Seek(ref byte0Vector, ref byte1Vector);
+            return begin;
+        }
+
+        public ReadIterator IndexOfAny(ref Vector<byte> byte0Vector, ref Vector<byte> byte1Vector, ref Vector<byte> byte2Vector)
+        {
+            var begin = _start;
+            begin.Seek(ref byte0Vector, ref byte1Vector, ref byte2Vector);
             return begin;
         }
 
