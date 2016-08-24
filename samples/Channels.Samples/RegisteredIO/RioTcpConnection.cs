@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Channels.Samples.Internal;
 using Channels.Samples.Internal.Winsock;
@@ -27,12 +28,17 @@ namespace Channels.Samples
         private readonly RioThread _rioThread;
         private bool _disposedValue;
 
-        private long _sendCorrelation = RestartSendCorrelations;
+        private long _previousSendCorrelation = RestartSendCorrelations;
+
         private readonly MemoryPoolChannel _input;
         private readonly MemoryPoolChannel _output;
-        private readonly SingleConsumerSemaphore _outgoingSends = new SingleConsumerSemaphore(RioTcpServer.MaxWritesPerSocket);
-        private readonly ConcurrentQueue<ReadableBuffer> _sendingBuffers = new ConcurrentQueue<ReadableBuffer>();
+
+        private readonly SemaphoreSlim _outgoingSends = new SemaphoreSlim(RioTcpServer.MaxWritesPerSocket);
+        private readonly SemaphoreSlim _previousSendsComplete = new SemaphoreSlim(1);
+
         private Task _sendTask;
+
+        private ReadableBuffer _sendingBuffer;
         private WritableBuffer _buffer;
 
         public IReadableChannel Input => _input;
@@ -54,31 +60,6 @@ namespace Channels.Samples
 
             ProcessReceives();
             _sendTask = ProcessSends();
-        }
-
-        private long CompleteSendCorrelation()
-        {
-            var sendCorrelation = _sendCorrelation;
-            if (sendCorrelation == int.MinValue)
-            {
-                _sendCorrelation = RestartSendCorrelations;
-                return RestartSendCorrelations;
-            }
-
-            _sendCorrelation = sendCorrelation - 1;
-            return sendCorrelation - 1;
-        }
-
-        private void MarkReadyToSend(long correlation)
-        {
-            if (correlation == _sendCorrelation)
-            {
-                ReadableBuffer buffer;
-                _sendingBuffers.TryDequeue(out buffer);
-                buffer.Dispose();
-            }
-
-            _outgoingSends.Release();
         }
 
         private void ProcessReceives()
@@ -105,8 +86,6 @@ namespace Channels.Samples
                     break;
                 }
 
-                _sendingBuffers.Enqueue(buffer.Clone());
-
                 var enumerator = buffer.GetEnumerator();
 
                 if (enumerator.MoveNext())
@@ -121,6 +100,10 @@ namespace Channels.Samples
                         current = next;
                     }
 
+                    await PreviousSendingComplete;
+
+                    _sendingBuffer = buffer.Clone();
+
                     await SendAsync(current, endOfMessage: true);
                 }
 
@@ -132,19 +115,18 @@ namespace Channels.Samples
 
         private Task SendAsync(BufferSpan span, bool endOfMessage)
         {
-            int remaining;
-            if (!_outgoingSends.TryAcquire(out remaining))
+            if (!IsReadyToSend)
             {
                 return SendAsyncAwaited(span, endOfMessage);
             }
 
-            var flushSends = endOfMessage || remaining == 0;
+            var flushSends = endOfMessage || MaxOutstandingSendsReached;
 
             Send(GetSegmentFromSpan(span), flushSends);
 
             if (flushSends && !endOfMessage)
             {
-                return AwaitSendComplete();
+                return AwaitReadyToSend();
             }
 
             return _completedTask;
@@ -152,21 +134,21 @@ namespace Channels.Samples
 
         private async Task SendAsyncAwaited(BufferSpan span, bool endOfMessage)
         {
-            var remaining = await _outgoingSends;
+            await ReadyToSend;
 
-            var flushSends = endOfMessage || remaining == 0;
+            var flushSends = endOfMessage || MaxOutstandingSendsReached;
 
             Send(GetSegmentFromSpan(span), flushSends);
 
             if (flushSends && !endOfMessage)
             {
-                await _outgoingSends;
+                await ReadyToSend;
             }
         }
 
-        private async Task AwaitSendComplete()
+        private async Task AwaitReadyToSend()
         {
-            await _outgoingSends;
+            await ReadyToSend;
         }
 
         private void Send(RioBufferSegment segment, bool flushSends)
@@ -177,6 +159,45 @@ namespace Channels.Samples
             if (!_rio.Send(_requestQueue, ref segment, 1, sendFlags, sendCorrelation))
             {
                 ThrowError(ErrorType.Send);
+            }
+        }
+
+        private Task PreviousSendingComplete => _previousSendsComplete.WaitAsync();
+
+        private Task ReadyToSend => _outgoingSends.WaitAsync();
+
+        private bool IsReadyToSend => _outgoingSends.Wait(0);
+
+        private bool MaxOutstandingSendsReached => _outgoingSends.CurrentCount == 0;
+
+        private void CompleteSend() => _outgoingSends.Release();
+
+        private void CompletePreviousSending()
+        {
+            _sendingBuffer.Dispose();
+            _previousSendsComplete.Release();
+        }
+
+        private long CompleteSendCorrelation()
+        {
+            var sendCorrelation = _previousSendCorrelation;
+            if (sendCorrelation == int.MinValue)
+            {
+                _previousSendCorrelation = RestartSendCorrelations;
+                return RestartSendCorrelations;
+            }
+
+            _previousSendCorrelation = sendCorrelation - 1;
+            return sendCorrelation - 1;
+        }
+
+        private void SendCompleting(long sendCorrelation)
+        {
+            CompleteSend();
+
+            if (sendCorrelation == _previousSendCorrelation)
+            {
+                CompletePreviousSending();
             }
         }
 
@@ -205,8 +226,7 @@ namespace Channels.Samples
             }
             else
             {
-                // Sends
-                MarkReadyToSend(requestCorrelation);
+                SendCompleting(requestCorrelation);
             }
         }
 
