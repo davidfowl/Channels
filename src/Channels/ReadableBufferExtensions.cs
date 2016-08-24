@@ -28,9 +28,14 @@ namespace Channels
 
         public static string GetUtf8String(this ReadableBuffer buffer)
         {
-            if (buffer.Length == 0)
+            if (buffer.IsEmpty)
             {
                 return null;
+            }
+
+            if (buffer.IsSingleSpan)
+            {
+                return Encoding.UTF8.GetString(buffer.FirstSpan.Array, buffer.FirstSpan.Offset, buffer.FirstSpan.Length);
             }
 
             var decoder = Encoding.UTF8.GetDecoder();
@@ -44,7 +49,7 @@ namespace Channels
             int charsUsed = 0;
             bool completed;
 
-            foreach (var span in buffer.GetSpans())
+            foreach (var span in buffer)
             {
                 decoder.Convert(
                     span.Array,

@@ -2,12 +2,13 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Numerics;
 
 namespace Channels
 {
-    public struct ReadableBuffer : IDisposable
+    public struct ReadableBuffer : IDisposable, IEnumerable<BufferSpan>
     {
         private readonly BufferSpan _span;
         private readonly ReadIterator _start;
@@ -18,6 +19,9 @@ namespace Channels
 
         public int Length => _length;
         public bool IsEmpty => _length == 0;
+
+        public bool IsSingleSpan => _start.Segment.Block == _end.Segment.Block;
+
         public BufferSpan FirstSpan => _span;
 
         public ReadIterator Start => _start;
@@ -110,17 +114,6 @@ namespace Channels
             return new ReadableBuffer(begin, _end);
         }
 
-        public IEnumerable<BufferSpan> GetSpans()
-        {
-            var begin = _start;
-
-            BufferSpan span;
-            while (begin.TryGetBuffer(_end, out span))
-            {
-                yield return span;
-            }
-        }
-
         public int Peek()
         {
             return _start.Peek();
@@ -194,6 +187,58 @@ namespace Channels
         public override string ToString()
         {
             return FirstSpan.ToString();
+        }
+
+        public Enumerator GetEnumerator()
+        {
+            return new Enumerator(ref this);
+        }
+
+        IEnumerator<BufferSpan> IEnumerable<BufferSpan>.GetEnumerator()
+        {
+            return GetEnumerator();
+        }
+
+        IEnumerator IEnumerable.GetEnumerator()
+        {
+            return GetEnumerator();
+        }
+
+        public struct Enumerator : IEnumerator<BufferSpan>
+        {
+            private ReadableBuffer _buffer;
+            private BufferSpan _current;
+
+            public Enumerator(ref ReadableBuffer buffer)
+            {
+                _buffer = buffer;
+                _current = default(BufferSpan);
+            }
+
+            public BufferSpan Current => _current;
+
+            object IEnumerator.Current
+            {
+                get { return _current; }
+            }
+
+            public void Dispose()
+            {
+
+            }
+
+            public bool MoveNext()
+            {
+                var start = _buffer.Start;
+                bool moved = start.TryGetBuffer(_buffer.End, out _current);
+                _buffer = _buffer.Slice(start);
+                return moved;
+            }
+
+            public void Reset()
+            {
+                throw new NotSupportedException();
+            }
         }
     }
 }

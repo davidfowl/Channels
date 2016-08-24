@@ -77,7 +77,7 @@ namespace Channels
                         return;
                     }
 
-                    foreach (var span in inputBuffer.GetSpans())
+                    foreach (var span in inputBuffer)
                     {
                         await stream.WriteAsync(span.Array, span.Offset, span.Length);
                     }

@@ -44,9 +44,9 @@ namespace Channels.Samples
         {
             try
             {
-                var spans = new List<BufferSpan>();
+                var spans = new List<BufferSpan>(1);
 
-                foreach (var span in buffer.GetSpans())
+                foreach (var span in buffer)
                 {
                     spans.Add(span);
                 }

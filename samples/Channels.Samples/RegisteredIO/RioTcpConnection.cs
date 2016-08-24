@@ -107,7 +107,7 @@ namespace Channels.Samples
 
                 _sendingBuffers.Enqueue(buffer.Clone());
 
-                var enumerator = buffer.GetSpans().GetEnumerator();
+                var enumerator = buffer.GetEnumerator();
 
                 if (enumerator.MoveNext())
                 {
