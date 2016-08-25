@@ -38,20 +38,25 @@ namespace Channels.Samples
 
         public unsafe void Write(
             UvStreamHandle handle,
-            ReadableBuffer buffer,
+            ref ReadableBuffer buffer,
             Action<UvWriteReq2, int, Exception, object> callback,
             object state)
         {
             try
             {
-                var spans = new List<BufferSpan>(1);
 
-                foreach (var span in buffer)
+                int nBuffers = 0;
+                if (buffer.IsSingleSpan)
                 {
-                    spans.Add(span);
+                    nBuffers = 1;
                 }
-
-                int nBuffers = spans.Count;
+                else
+                {
+                    foreach (var span in buffer)
+                    {
+                        nBuffers++;
+                    }
+                }
 
                 // add GCHandle to keeps this SafeHandle alive while request processing
                 _pins.Add(GCHandle.Alloc(this, GCHandleType.Normal));
@@ -66,9 +71,17 @@ namespace Channels.Samples
                     pBuffers = (Libuv.uv_buf_t*)gcHandle.AddrOfPinnedObject();
                 }
 
-                for (int i = 0; i < spans.Count; i++)
+                if (nBuffers == 1)
                 {
-                    pBuffers[i] = Libuv.buf_init(spans[i].BufferPtr, spans[i].Length);
+                    pBuffers[0] = Libuv.buf_init(buffer.FirstSpan.BufferPtr, buffer.FirstSpan.Length);
+                }
+                else
+                {
+                    int i = 0;
+                    foreach (var span in buffer)
+                    {
+                        pBuffers[i++] = Libuv.buf_init(span.BufferPtr, span.Length);
+                    }
                 }
 
                 _callback = callback;

@@ -56,7 +56,7 @@ namespace Channels.Samples
 
                     var cloned = buffer.Clone();
                     _outgoings.Enqueue(cloned);
-                    writeReq.Write(handle, cloned, _writeCallback, this);
+                    writeReq.Write(handle, ref cloned, _writeCallback, this);
 
                     _output.EndRead(buffer);
                 }
