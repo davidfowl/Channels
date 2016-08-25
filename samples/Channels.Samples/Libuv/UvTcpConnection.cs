@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Server.Kestrel.Internal.Networking;
@@ -9,14 +10,20 @@ namespace Channels.Samples
     {
         private const int EOF = -4095;
 
+        private static readonly Action<UvStreamHandle, int, object> _readCallback = ReadCallback;
+        private static readonly Func<UvStreamHandle, int, object, Libuv.uv_buf_t> _allocCallback = AllocCallback;
+        private static readonly Action<UvWriteReq2, int, Exception, object> _writeCallback = WriteCallback;
+
+        private readonly MemoryPoolChannel _input;
+        private readonly MemoryPoolChannel _output;
+        private readonly UvTcpListener _listener;
+        private readonly Queue<ReadableBuffer> _outgoings = new Queue<ReadableBuffer>(1);
+
+        private Task _sendingTask;
+        private WritableBuffer _buffer;
+
         public IReadableChannel Input => _input;
         public IWritableChannel Output => _output;
-
-        private MemoryPoolChannel _input;
-        private MemoryPoolChannel _output;
-        private WritableBuffer _buffer;
-        private UvTcpListener _listener;
-        private Task _sendingTask;
 
         public UvTcpConnection(UvTcpListener listener, UvTcpHandle handle)
         {
@@ -33,6 +40,7 @@ namespace Channels.Samples
         {
             var writeReq = new UvWriteReq2(_listener.Log);
             writeReq.Init(_listener.Loop);
+
             try
             {
                 while (true)
@@ -47,7 +55,8 @@ namespace Channels.Samples
                     }
 
                     var cloned = buffer.Clone();
-                    writeReq.Write(handle, cloned, WriteCallback, cloned);
+                    _outgoings.Enqueue(cloned);
+                    writeReq.Write(handle, cloned, _writeCallback, this);
 
                     _output.EndRead(buffer);
                 }
@@ -64,12 +73,12 @@ namespace Channels.Samples
 
         private static void WriteCallback(UvWriteReq2 req, int status, Exception ex, object state)
         {
-            ((ReadableBuffer)state).Dispose();
+            ((UvTcpConnection)state)._outgoings.Dequeue().Dispose();
         }
 
         private void ProcessReads(UvTcpHandle handle)
         {
-            handle.ReadStart(AllocCallback, ReadCallback, this);
+            handle.ReadStart(_allocCallback, _readCallback, this);
         }
 
         private static void ReadCallback(UvStreamHandle handle, int status, object state)
