@@ -81,7 +81,7 @@ namespace Channels.Samples
 
                 var buffer = _output.BeginRead();
 
-                if (buffer.Length == 0 && _output.Completion.IsCompleted)
+                if (buffer.IsEmpty && _output.Completion.IsCompleted)
                 {
                     break;
                 }

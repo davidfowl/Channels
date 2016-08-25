@@ -43,6 +43,7 @@ namespace Channels.Samples.Internal
             _token = token;
             _memoryPool = new MemoryPool();
             _memoryPool.RegisterSlabAllocationCallback(OnSlabAllocated);
+            _memoryPool.RegisterSlabDeallocationCallback(OnSlabDeallocated);
             _channelFactory = new ChannelFactory(_memoryPool);
             _connections = new ConcurrentDictionary<long, RioTcpConnection>();
             _thread = new Thread(OnThreadStart);
@@ -103,7 +104,6 @@ namespace Channels.Samples.Internal
             var completionQueue = thread.ReceiveCompletionQueue;
 
             uint count;
-            RioRequestResult result;
 
             while (!token.IsCancellationRequested)
             {
@@ -115,7 +115,7 @@ namespace Channels.Samples.Internal
                     {
                         for (var i = 0; i < count; i++)
                         {
-                            result = results[i];
+                            var result = results[i];
 
                             RioTcpConnection connection;
                             if (thread._connections.TryGetValue(result.ConnectionCorrelation, out connection))

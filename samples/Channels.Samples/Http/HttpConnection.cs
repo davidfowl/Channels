@@ -29,7 +29,7 @@ namespace Channels.Samples.Http
 
         private readonly IReadableChannel _input;
         private readonly IWritableChannel _output;
-        private IHttpApplication<TContext> _application;
+        private readonly IHttpApplication<TContext> _application;
 
         public HeaderDictionary RequestHeaders { get; } = new HeaderDictionary();
         public HeaderDictionary ResponseHeaders { get; } = new HeaderDictionary();
@@ -68,7 +68,7 @@ namespace Channels.Samples.Http
 
                 bool needMoreData = true;
 
-                if (buffer.Length == 0 && _input.Completion.IsCompleted)
+                if (buffer.IsEmpty && _input.Completion.IsCompleted)
                 {
                     // We're done with this connection
                     return;
@@ -114,7 +114,7 @@ namespace Channels.Samples.Http
                     // Parse headers
                     // key: value\r\n
 
-                    while (buffer.Length > 0)
+                    while (!buffer.IsEmpty)
                     {
                         var ch = buffer.Peek();
 

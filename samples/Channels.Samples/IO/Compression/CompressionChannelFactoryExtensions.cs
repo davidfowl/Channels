@@ -55,7 +55,7 @@ namespace Channels.Samples.IO.Compression
 
                     var inputBuffer = input.BeginRead();
 
-                    if (inputBuffer.Length == 0 && input.Completion.IsCompleted)
+                    if (inputBuffer.IsEmpty && input.Completion.IsCompleted)
                     {
                         break;
                     }
@@ -133,7 +133,7 @@ namespace Channels.Samples.IO.Compression
 
                     var inputBuffer = input.BeginRead();
 
-                    if (inputBuffer.Length == 0 && input.Completion.IsCompleted)
+                    if (inputBuffer.IsEmpty && input.Completion.IsCompleted)
                     {
                         break;
                     }
