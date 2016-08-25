@@ -3,10 +3,12 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
+using System.Net;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Channels;
 using Channels.Samples.Http;
 using Channels.Samples.IO;
 using Channels.Samples.IO.Compression;
@@ -24,7 +26,8 @@ namespace Channels.Samples
         {
             TaskScheduler.UnobservedTaskException += TaskScheduler_UnobservedTaskException;
 
-            RunHttpServer();
+            RunRawLibuvHttpServer();
+            // RunAspNetHttpServer();
             // RunCompressionSample();
         }
 
@@ -71,7 +74,55 @@ namespace Channels.Samples
 
         private static readonly byte[] _helloWorldPayload = Encoding.UTF8.GetBytes("Hello, World!");
 
-        private static void RunHttpServer()
+        private static void RunRawLibuvHttpServer()
+        {
+            // This sample makes some assumptions
+
+            var ip = IPAddress.Any;
+            int port = 5000;
+            var listener = new UvTcpListener(ip, port);
+            listener.OnConnection(async connection =>
+            {
+                // Wait for data
+                await connection.Input;
+
+                // Get the buffer
+                var input = connection.Input.BeginRead();
+
+                if (input.IsEmpty && connection.Input.Completion.IsCompleted)
+                {
+                    // No more data
+                    return;
+                }
+
+                // Dump the request
+                Console.WriteLine(input.GetAsciiString());
+
+                var output = connection.Output.Alloc();
+
+                WritableBufferExtensions.WriteAsciiString(ref output, "HTTP/1.1 200 OK");
+                WritableBufferExtensions.WriteAsciiString(ref output, "\r\nConnection: close");
+                WritableBufferExtensions.WriteAsciiString(ref output, "\r\n\r\n");
+                WritableBufferExtensions.WriteAsciiString(ref output, "Hello World!");
+
+                await connection.Output.WriteAsync(output);
+
+                // Tell the channel the data is consumed
+                connection.Input.EndRead(input);
+
+                // Close the output channel, which will close the connection
+                connection.Output.CompleteWriting();
+            });
+
+            listener.Start();
+
+            Console.WriteLine($"Listening on {ip} on port {port}");
+            Console.ReadKey();
+
+            listener.Stop();
+        }
+
+        private static void RunAspNetHttpServer()
         {
             var host = new WebHostBuilder()
                             .UseUrls("http://*:5000")

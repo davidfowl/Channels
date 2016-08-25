@@ -17,7 +17,8 @@ namespace Channels.Samples
         private readonly MemoryPoolChannel _input;
         private readonly MemoryPoolChannel _output;
         private readonly UvTcpListener _listener;
-        private readonly Queue<ReadableBuffer> _outgoings = new Queue<ReadableBuffer>(1);
+        private readonly Queue<ReadableBuffer> _outgoing = new Queue<ReadableBuffer>(1);
+        private TaskCompletionSource<object> _connectionCompleted;
 
         private Task _sendingTask;
         private WritableBuffer _buffer;
@@ -54,8 +55,9 @@ namespace Channels.Samples
                         break;
                     }
 
+                    // Up the reference count of the buffer so that we own the disposal of it
                     var cloned = buffer.Clone();
-                    _outgoings.Enqueue(cloned);
+                    _outgoing.Enqueue(cloned);
                     writeReq.Write(handle, ref cloned, _writeCallback, this);
 
                     _output.EndRead(buffer);
@@ -65,6 +67,14 @@ namespace Channels.Samples
             {
                 _output.CompleteReading();
 
+                // There's pending writes happening
+                if (_outgoing.Count > 0)
+                {
+                    _connectionCompleted = new TaskCompletionSource<object>();
+
+                    await _connectionCompleted.Task;
+                }
+
                 writeReq.Dispose();
 
                 handle.Dispose();
@@ -73,7 +83,9 @@ namespace Channels.Samples
 
         private static void WriteCallback(UvWriteReq2 req, int status, Exception ex, object state)
         {
-            ((UvTcpConnection)state)._outgoings.Dequeue().Dispose();
+            var connection = ((UvTcpConnection)state);
+            connection._outgoing.Dequeue().Dispose();
+            connection._connectionCompleted?.TrySetResult(null);
         }
 
         private void ProcessReads(UvTcpHandle handle)
