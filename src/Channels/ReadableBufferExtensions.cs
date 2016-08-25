@@ -26,6 +26,34 @@ namespace Channels
             return buffer;
         }
 
+        public unsafe static string GetAsciiString(this ReadableBuffer buffer)
+        {
+            if (buffer.IsEmpty)
+            {
+                return null;
+            }
+
+            var asciiString = new string('\0', buffer.Length);
+
+            fixed (char* outputStart = asciiString)
+            {
+                int offset = 0;
+                var output = outputStart;
+
+                foreach (var span in buffer)
+                {
+                    if (!AsciiUtilities.TryGetAsciiString((byte*)span.BufferPtr, output + offset, span.Length))
+                    {
+                        throw new InvalidOperationException();
+                    }
+
+                    offset += span.Length;
+                }
+            }
+
+            return asciiString;
+        }
+
         public static string GetUtf8String(this ReadableBuffer buffer)
         {
             if (buffer.IsEmpty)

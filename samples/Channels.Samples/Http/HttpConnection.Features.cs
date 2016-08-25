@@ -77,9 +77,40 @@ namespace Channels.Samples.Http
 
         public bool IsReadOnly => false;
 
-        public string Method { get; set; }
+        private string _method;
+        string IHttpRequestFeature.Method
+        {
+            get
+            {
+                if (_method == null)
+                {
+                    _method = Method.GetAsciiString();
+                }
 
-        public string Path { get; set; }
+                return _method;
+            }
+            set
+            {
+                _method = value;
+            }
+        }
+
+        private string _path;
+        string IHttpRequestFeature.Path
+        {
+            get
+            {
+                if (_path == null)
+                {
+                    _path = Path.GetAsciiString();
+                }
+                return _path;
+            }
+            set
+            {
+                _path = value;
+            }
+        }
 
         public string PathBase { get; set; }
 

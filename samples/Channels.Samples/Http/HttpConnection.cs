@@ -3,20 +3,12 @@ using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Hosting.Server;
-using Microsoft.AspNetCore.Http;
-using Microsoft.AspNetCore.Server.Kestrel.Internal.Http;
 
 namespace Channels.Samples.Http
 {
     public partial class HttpConnection<TContext>
     {
-        private static readonly DateHeaderValueManager _dateHeaderValueManager = new DateHeaderValueManager();
-        private static readonly byte[] _serverHeaderBytes = Encoding.UTF8.GetBytes("\r\nServer: Channels");
-        private static readonly byte[] _chunkedHeaderBytes = Encoding.UTF8.GetBytes("\r\nTransfer-Encoding: chunked");
         private static readonly byte[] _http11Bytes = Encoding.UTF8.GetBytes("HTTP/1.1 ");
-        private static readonly byte[] _headersStartBytes = Encoding.UTF8.GetBytes("\r\n");
-        private static readonly byte[] _headersSeperatorBytes = Encoding.UTF8.GetBytes(": ");
-        private static readonly byte[] _headersEndBytes = Encoding.UTF8.GetBytes("\r\n\r\n");
         private static readonly byte[] _chunkedEndBytes = Encoding.UTF8.GetBytes("0\r\n\r\n");
 
         private static Vector<byte> _vectorCRs = new Vector<byte>((byte)'\r');
@@ -31,12 +23,14 @@ namespace Channels.Samples.Http
         private readonly IWritableChannel _output;
         private readonly IHttpApplication<TContext> _application;
 
-        public HeaderDictionary RequestHeaders { get; } = new HeaderDictionary();
-        public HeaderDictionary ResponseHeaders { get; } = new HeaderDictionary();
+        public RequestHeaderDictionary RequestHeaders { get; } = new RequestHeaderDictionary();
+        public ResponseHeaderDictionary ResponseHeaders { get; } = new ResponseHeaderDictionary();
 
         public IReadableChannel RequestBody => _input;
 
-        private string HttpVersion { get; set; }
+        public ReadableBuffer HttpVersion { get; set; }
+        public ReadableBuffer Path { get; set; }
+        public ReadableBuffer Method { get; set; }
 
         // TODO: Check the http version
         public bool KeepAlive => true; //RequestHeaders.ContainsKey("Connection") && string.Equals(RequestHeaders["Connection"], "keep-alive");
@@ -83,7 +77,7 @@ namespace Channels.Samples.Http
                     }
 
                     var method = buffer.Slice(0, delim);
-                    Method = method.GetUtf8String();
+                    Method = method.Clone();
 
                     // Skip ' '
                     buffer = buffer.Slice(delim).Slice(1);
@@ -95,7 +89,7 @@ namespace Channels.Samples.Http
                     }
 
                     var path = buffer.Slice(0, delim);
-                    Path = path.GetUtf8String();
+                    Path = path.Clone();
 
                     // Skip ' '
                     buffer = buffer.Slice(delim).Slice(1);
@@ -107,7 +101,7 @@ namespace Channels.Samples.Http
                     }
 
                     var httpVersion = buffer.Slice(0, delim).Trim();
-                    HttpVersion = httpVersion.GetUtf8String();
+                    HttpVersion = httpVersion.Clone();
 
                     buffer = buffer.Slice(delim).Slice(1);
 
@@ -167,7 +161,7 @@ namespace Channels.Samples.Http
                         headerValue = buffer.Slice(0, delim).Trim();
                         buffer = buffer.Slice(delim).Slice(1);
 
-                        RequestHeaders[headerName.GetUtf8String()] = headerValue.GetUtf8String();
+                        RequestHeaders.SetHeader(ref headerName, ref headerValue);
                     }
                 }
                 finally
@@ -221,11 +215,16 @@ namespace Channels.Samples.Http
         private void Reset()
         {
             Body = _initialBody;
-            RequestHeaders.Clear();
-            ResponseHeaders.Clear();
+            RequestHeaders.Reset();
+            ResponseHeaders.Reset();
             HasStarted = false;
             StatusCode = 200;
             _autoChunk = false;
+
+            HttpVersion.Dispose();
+            Method.Dispose();
+            Path.Dispose();
+
         }
 
         public Task WriteAsync(byte[] array, int offset, int count)
@@ -264,29 +263,9 @@ namespace Channels.Samples.Http
             var status = ReasonPhrases.ToStatusBytes(StatusCode);
             buffer.Write(status, 0, status.Length);
 
-            foreach (var header in ResponseHeaders)
-            {
-                buffer.Write(_headersStartBytes, 0, _headersStartBytes.Length);
-                var headerBytes = Encoding.UTF8.GetBytes(header.Key);
-                buffer.Write(headerBytes, 0, headerBytes.Length);
-                buffer.Write(_headersSeperatorBytes, 0, _headersSeperatorBytes.Length);
-                headerBytes = Encoding.UTF8.GetBytes(header.Value);
-                buffer.Write(headerBytes, 0, headerBytes.Length);
-            }
-
-
             autoChunk = !HasContentLength && !HasTransferEncoding && KeepAlive;
 
-            if (autoChunk)
-            {
-                buffer.Write(_chunkedHeaderBytes, 0, _chunkedHeaderBytes.Length);
-            }
-
-            buffer.Write(_serverHeaderBytes, 0, _serverHeaderBytes.Length);
-            var date = _dateHeaderValueManager.GetDateHeaderValues().Bytes;
-            buffer.Write(date, 0, date.Length);
-
-            buffer.Write(_headersEndBytes, 0, _headersEndBytes.Length);
+            ResponseHeaders.CopyTo(autoChunk, ref buffer);
         }
 
         private void WriteEndResponse(ref WritableBuffer buffer)

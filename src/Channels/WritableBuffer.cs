@@ -40,6 +40,45 @@ namespace Channels
 
         public BufferSpan Memory => new BufferSpan(_tail, _tail.End, _tail.Block.Data.Offset + _tail.Block.Data.Count - _tail.End);
 
+        public void Ensure(int count)
+        {
+            if (_tail == null)
+            {
+                _tail = new MemoryBlockSegment(_pool.Lease());
+                _tailIndex = _tail.End;
+                _head = _tail;
+                _headIndex = _tail.Start;
+            }
+
+            Debug.Assert(_tail.Block != null);
+            Debug.Assert(_tail.Next == null);
+            Debug.Assert(_tail.End == _tailIndex);
+
+            var segment = _tail;
+            var block = _tail.Block;
+            var blockIndex = _tailIndex;
+            var remaining = count;
+            var bytesLeftInBlock = block.Data.Offset + block.Data.Count - blockIndex;
+
+            // If inadequate bytes left or if the segment is readonly
+            if (bytesLeftInBlock < count || segment.ReadOnly)
+            {
+                var nextBlock = _pool.Lease();
+                var nextSegment = new MemoryBlockSegment(nextBlock);
+                segment.End = blockIndex;
+                Volatile.Write(ref segment.Next, nextSegment);
+                segment = nextSegment;
+                block = nextBlock;
+
+                blockIndex = block.Data.Offset;
+
+                segment.End = blockIndex;
+                segment.Block = block;
+                _tail = segment;
+                _tailIndex = blockIndex;
+            }
+        }
+
         public void Write(byte[] data, int offset, int count)
         {
             if (_tail == null)
