@@ -148,20 +148,7 @@ namespace Channels.Samples.Http
         {
             var connection = new HttpConnection<TContext>(application, input, output);
 
-            while (true)
-            {
-                await connection.ProcessRequest();
-
-                if (input.Completion.IsCompleted)
-                {
-                    break;
-                }
-
-                if (!connection.KeepAlive)
-                {
-                    break;
-                }
-            }
+            await connection.ProcessAllRequests();
 
             output.CompleteWriting();
             input.CompleteReading();

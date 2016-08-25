@@ -56,7 +56,7 @@ namespace Channels.Samples.Http
             _initialBody = new HttpBodyStream<TContext>(this);
         }
 
-        public async Task ProcessRequest()
+        public async Task ProcessAllRequests()
         {
             Reset();
 
@@ -175,27 +175,34 @@ namespace Channels.Samples.Http
                     _input.EndRead(buffer.Start);
                 }
 
-                if (!needMoreData)
+                if (needMoreData)
+                {
+                    continue;
+                }
+
+                var context = _application.CreateContext(this);
+
+                try
+                {
+                    await _application.ProcessRequestAsync(context);
+                }
+                catch (Exception ex)
+                {
+                    StatusCode = 500;
+
+                    _application.DisposeContext(context, ex);
+                }
+                finally
+                {
+                    await EndResponse();
+                }
+
+                if (!KeepAlive)
                 {
                     break;
                 }
-            }
 
-            var context = _application.CreateContext(this);
-
-            try
-            {
-                await _application.ProcessRequestAsync(context);
-            }
-            catch (Exception ex)
-            {
-                StatusCode = 500;
-
-                _application.DisposeContext(context, ex);
-            }
-            finally
-            {
-                await EndResponse();
+                Reset();
             }
         }
 
