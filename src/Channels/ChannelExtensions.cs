@@ -72,7 +72,7 @@ namespace Channels
 
                 try
                 {
-                    if (inputBuffer.Length == 0 && fin)
+                    if (inputBuffer.IsEmpty && fin)
                     {
                         return;
                     }
@@ -105,7 +105,7 @@ namespace Channels
 
                 try
                 {
-                    if (inputBuffer.Length == 0 && fin)
+                    if (inputBuffer.IsEmpty && fin)
                     {
                         return;
                     }
