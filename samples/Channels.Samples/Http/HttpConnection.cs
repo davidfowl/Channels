@@ -42,6 +42,8 @@ namespace Channels.Samples.Http
 
         private bool _autoChunk;
 
+        private ParsingState _state;
+
         public HttpConnection(IHttpApplication<TContext> application, IReadableChannel input, IWritableChannel output)
         {
             _application = application;
@@ -59,51 +61,68 @@ namespace Channels.Samples.Http
                 await _input;
 
                 var buffer = _input.BeginRead();
-
+                var consumed = buffer.Start;
                 bool needMoreData = true;
-
-                if (buffer.IsEmpty && _input.Completion.IsCompleted)
-                {
-                    // We're done with this connection
-                    return;
-                }
 
                 try
                 {
-                    var delim = buffer.IndexOf(ref _vectorSpaces);
-                    if (delim.IsEnd)
+                    if (buffer.IsEmpty && _input.Completion.IsCompleted)
                     {
-                        continue;
+                        // We're done with this connection
+                        return;
                     }
 
-                    var method = buffer.Slice(0, delim);
-                    Method = method.Clone();
-
-                    // Skip ' '
-                    buffer = buffer.Slice(delim).Slice(1);
-
-                    delim = buffer.IndexOf(ref _vectorSpaces);
-                    if (delim.IsEnd)
+                    if (_state == ParsingState.StartLine)
                     {
-                        continue;
+                        // Find \n
+                        var delim = buffer.IndexOf(ref _vectorLFs);
+                        if (delim.IsEnd)
+                        {
+                            continue;
+                        }
+
+                        // Grab the entire start line
+                        var startLine = buffer.Slice(0, delim);
+
+                        // Move the buffer to the rest
+                        buffer = buffer.Slice(delim).Slice(1);
+
+                        delim = startLine.IndexOf(ref _vectorSpaces);
+                        if (delim.IsEnd)
+                        {
+                            throw new Exception();
+                        }
+
+                        var method = startLine.Slice(0, delim);
+                        Method = method.Clone();
+
+                        // Skip ' '
+                        startLine = startLine.Slice(delim).Slice(1);
+
+                        delim = startLine.IndexOf(ref _vectorSpaces);
+                        if (delim.IsEnd)
+                        {
+                            throw new Exception();
+                        }
+
+                        var path = startLine.Slice(0, delim);
+                        Path = path.Clone();
+
+                        // Skip ' '
+                        startLine = startLine.Slice(delim).Slice(1);
+
+                        delim = startLine.IndexOf(ref _vectorCRs);
+                        if (delim.IsEnd)
+                        {
+                            throw new Exception();
+                        }
+
+                        var httpVersion = startLine.Slice(0, delim);
+                        HttpVersion = httpVersion.Clone();
+
+                        _state = ParsingState.Headers;
+                        consumed = startLine.End;
                     }
-
-                    var path = buffer.Slice(0, delim);
-                    Path = path.Clone();
-
-                    // Skip ' '
-                    buffer = buffer.Slice(delim).Slice(1);
-
-                    delim = buffer.IndexOf(ref _vectorLFs);
-                    if (delim.IsEnd)
-                    {
-                        continue;
-                    }
-
-                    var httpVersion = buffer.Slice(0, delim).Trim();
-                    HttpVersion = httpVersion.Clone();
-
-                    buffer = buffer.Slice(delim).Slice(1);
 
                     // Parse headers
                     // key: value\r\n
@@ -130,43 +149,65 @@ namespace Channels.Samples.Http
                             }
                             else if (ch == '\n')
                             {
+                                consumed = buffer.Start;
                                 needMoreData = false;
                                 break;
                             }
 
                             // Headers don't end in CRLF line.
+                            throw new Exception();
                         }
 
                         var headerName = default(ReadableBuffer);
                         var headerValue = default(ReadableBuffer);
 
-                        // :
-                        delim = buffer.IndexOf(ref _vectorColons);
-                        if (delim.IsEnd)
-                        {
-                            break;
-                        }
-
-                        headerName = buffer.Slice(0, delim).Trim();
-                        buffer = buffer.Slice(delim).Slice(1);
-
+                        // End of the header
                         // \n
-                        delim = buffer.IndexOf(ref _vectorLFs);
+                        var delim = buffer.IndexOf(ref _vectorLFs);
                         if (delim.IsEnd)
                         {
                             break;
                         }
 
-                        // Skip \r
-                        headerValue = buffer.Slice(0, delim).Trim();
+                        var headerPair = buffer.Slice(0, delim);
                         buffer = buffer.Slice(delim).Slice(1);
 
+                        // :
+                        delim = headerPair.IndexOf(ref _vectorColons);
+                        if (delim.IsEnd)
+                        {
+                            throw new Exception();
+                        }
+
+                        headerName = headerPair.Slice(0, delim).TrimStart();
+                        headerPair = headerPair.Slice(delim).Slice(1);
+
+                        // \r
+                        delim = headerPair.IndexOf(ref _vectorCRs);
+                        if (delim.IsEnd)
+                        {
+                            // Bad request
+                            throw new Exception();
+                        }
+
+                        headerValue = headerPair.Slice(0, delim).TrimStart();
                         RequestHeaders.SetHeader(ref headerName, ref headerValue);
+
+                        // Move the consumed
+                        consumed = buffer.Start;
                     }
+                }
+                catch (Exception)
+                {
+                    StatusCode = 400;
+
+                    await EndResponse();
+
+                    return;
                 }
                 finally
                 {
-                    _input.EndRead(buffer.Start);
+                    _input.EndRead(consumed);
                 }
 
                 if (needMoreData)
@@ -202,10 +243,27 @@ namespace Channels.Samples.Http
 
         private Task EndResponse()
         {
+            var buffer = default(WritableBuffer);
+            var hasBuffer = false;
+
+            if (!HasStarted)
+            {
+                buffer = _output.Alloc();
+
+                WriteBeginResponseHeaders(ref buffer, ref _autoChunk);
+
+                hasBuffer = true;
+            }
+
             if (_autoChunk)
             {
-                var buffer = _output.Alloc();
+                if (!hasBuffer)
+                {
+                    buffer = _output.Alloc();
+                }
+
                 WriteEndResponse(ref buffer);
+
                 return _output.WriteAsync(buffer);
             }
 
@@ -220,6 +278,7 @@ namespace Channels.Samples.Http
             HasStarted = false;
             StatusCode = 200;
             _autoChunk = false;
+            _state = ParsingState.StartLine;
 
             HttpVersion.Dispose();
             Method.Dispose();
@@ -271,6 +330,12 @@ namespace Channels.Samples.Http
         private void WriteEndResponse(ref WritableBuffer buffer)
         {
             buffer.Write(_chunkedEndBytes, 0, _chunkedEndBytes.Length);
+        }
+
+        private enum ParsingState
+        {
+            StartLine,
+            Headers
         }
     }
 }

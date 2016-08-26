@@ -8,7 +8,7 @@ namespace Channels.Samples
 {
     public static class ReadableBufferExtensions
     {
-        public static ReadableBuffer Trim(this ReadableBuffer buffer)
+        public static ReadableBuffer TrimStart(this ReadableBuffer buffer)
         {
             int ch;
             while ((ch = buffer.Peek()) != -1)
