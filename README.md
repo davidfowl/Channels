@@ -1,5 +1,7 @@
 # Channels (Zero Copy Streams)
 
+[![Join the chat at https://gitter.im/davidfowl/Channels](https://badges.gitter.im/davidfowl/Channels.svg)](https://gitter.im/davidfowl/Channels?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 [![Unix CI](https://travis-ci.org/davidfowl/Channels.svg?branch=master)](https://travis-ci.org/davidfowl/Channels)
 [![Windows CI](https://ci.appveyor.com/api/projects/status/github/davidfowl/Channels?svg=true)](https://ci.appveyor.com/project/davidfowl/Channels/branch/master)
 
