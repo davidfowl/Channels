@@ -52,7 +52,6 @@ namespace Channels.Samples
 
                     if (buffer.IsEmpty && _output.Completion.IsCompleted)
                     {
-                        _output.CompleteReading();
                         break;
                     }
 
@@ -70,6 +69,8 @@ namespace Channels.Samples
             }
             finally
             {
+                _output.CompleteReading();
+
                 // There's pending writes happening
                 if (_outgoing.Count > 0)
                 {
