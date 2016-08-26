@@ -6,9 +6,11 @@ using System.IO.Compression;
 using System.Net;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Text.Formatting;
 using System.Threading;
 using System.Threading.Tasks;
 using Channels;
+using Channels.Samples.Formatting;
 using Channels.Samples.Http;
 using Channels.Samples.IO;
 using Channels.Samples.IO.Compression;
@@ -26,8 +28,8 @@ namespace Channels.Samples
         {
             TaskScheduler.UnobservedTaskException += TaskScheduler_UnobservedTaskException;
 
-            RunRawLibuvHttpServer();
-            // RunAspNetHttpServer();
+            // RunRawLibuvHttpServer();
+            RunAspNetHttpServer();
             // RunCompressionSample();
         }
 
@@ -98,14 +100,17 @@ namespace Channels.Samples
                 // Dump the request
                 Console.WriteLine(input.GetAsciiString());
 
-                var output = connection.Output.Alloc();
+                var formatter = connection.Output.GetFormatter(FormattingData.InvariantUtf8);
 
-                WritableBufferExtensions.WriteAsciiString(ref output, "HTTP/1.1 200 OK");
-                WritableBufferExtensions.WriteAsciiString(ref output, "\r\nConnection: close");
-                WritableBufferExtensions.WriteAsciiString(ref output, "\r\n\r\n");
-                WritableBufferExtensions.WriteAsciiString(ref output, "Hello World!");
+                unsafe
+                {
+                    formatter.Append("HTTP/1.1 200 OK");
+                    formatter.Append("\r\nConnection: close");
+                    formatter.Append("\r\n\r\n");
+                    formatter.Append("Hello World!");
+                }
 
-                await connection.Output.WriteAsync(output);
+                await connection.Output.WriteAsync(formatter.Buffer);
 
                 // Tell the channel the data is consumed
                 connection.Input.EndRead(input);

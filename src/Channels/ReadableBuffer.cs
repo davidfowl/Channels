@@ -154,6 +154,13 @@ namespace Channels
             begin.CopyTo(data, offset, Length);
         }
 
+        public byte[] ToArray()
+        {
+            var buffer = new byte[Length];
+            CopyTo(buffer);
+            return buffer;
+        }
+
         public void Dispose()
         {
             if (!_isOwner)
