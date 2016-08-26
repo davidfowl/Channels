@@ -20,7 +20,7 @@ namespace Channels
 
         public ReadableBuffer BeginRead() => _channel.BeginRead();
 
-        public void CompleteReading() => _channel.CompleteReading();
+        public void CompleteReading(Exception error = null) => _channel.CompleteReading(error);
 
         public void EndRead(ReadIterator consumed, ReadIterator examined) => _channel.EndRead(consumed, examined);
 

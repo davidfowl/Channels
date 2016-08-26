@@ -1,4 +1,5 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 
 namespace Channels
@@ -16,6 +17,6 @@ namespace Channels
 
         void EndRead(ReadIterator consumed, ReadIterator examined);
 
-        void CompleteReading();
+        void CompleteReading(Exception exception = null);
     }
 }

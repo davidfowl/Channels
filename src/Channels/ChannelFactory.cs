@@ -51,7 +51,14 @@ namespace Channels
 
             channel.CopyToAsync(stream).ContinueWith((task) =>
             {
-                channel.CompleteReading();
+                if (task.IsFaulted)
+                {
+                    channel.CompleteReading(task.Exception);
+                }
+                else
+                {
+                    channel.CompleteReading();
+                }
             });
 
             return channel;

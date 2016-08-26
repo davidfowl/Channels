@@ -115,6 +115,9 @@ namespace Channels.Samples
                 // Tell the channel the data is consumed
                 connection.Input.EndRead(input);
 
+                // Close the input channel, which will tell the producer to stop producing
+                connection.Input.CompleteReading();
+
                 // Close the output channel, which will close the connection
                 connection.Output.CompleteWriting();
             });

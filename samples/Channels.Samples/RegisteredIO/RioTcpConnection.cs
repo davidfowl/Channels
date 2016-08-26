@@ -207,7 +207,7 @@ namespace Channels.Samples
             return new RioBufferSegment(bufferId, (uint)span.Offset, (uint)span.Length);
         }
 
-        public void Complete(long requestCorrelation, uint bytesTransferred)
+        public void Complete(int status, long requestCorrelation, uint bytesTransferred)
         {
             // Receives
             if (requestCorrelation >= 0)

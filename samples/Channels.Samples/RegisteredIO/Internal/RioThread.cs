@@ -120,7 +120,7 @@ namespace Channels.Samples.Internal
                             RioTcpConnection connection;
                             if (thread._connections.TryGetValue(result.ConnectionCorrelation, out connection))
                             {
-                                connection.Complete(result.RequestCorrelation, result.BytesTransferred);
+                                connection.Complete(result.Status, result.RequestCorrelation, result.BytesTransferred);
                             }
                         }
                     }

@@ -28,7 +28,8 @@ namespace Channels
         private int _consumingState;
         private int _producingState;
         private object _sync = new object();
-        private readonly TaskCompletionSource<object> _tcs = new TaskCompletionSource<object>();
+        private readonly TaskCompletionSource<object> _readingTcs = new TaskCompletionSource<object>();
+        private TaskCompletionSource<object> _writeTcs;
 
         private Action _startReadingCallback;
         private Action _disposeCallback;
@@ -49,7 +50,7 @@ namespace Channels
             _disposeCallback = disposeCallback;
         }
 
-        public Task Completion => _tcs.Task;
+        public Task Completion => _readingTcs.Task;
 
         public bool IsCompleted => ReferenceEquals(_awaitableState, _awaitableIsCompleted);
 
@@ -108,7 +109,7 @@ namespace Channels
                 if (buffer.IsDefault)
                 {
                     // REVIEW: Should we signal the completion?
-                    return _completedTask;
+                    return _writeTcs?.Task ?? _completedTask;
                 }
 
                 if (_head == null)
@@ -131,7 +132,7 @@ namespace Channels
 
                 Complete();
 
-                return _completedTask;
+                return _writeTcs?.Task ?? _completedTask;
             }
         }
 
@@ -221,11 +222,11 @@ namespace Channels
 
                 if (error != null)
                 {
-                    _tcs.TrySetResult(error);
+                    _readingTcs.TrySetResult(error);
                 }
                 else
                 {
-                    _tcs.TrySetResult(null);
+                    _readingTcs.TrySetResult(null);
                 }
 
                 Complete();
@@ -237,11 +238,20 @@ namespace Channels
             }
         }
 
-        public void CompleteReading()
+        public void CompleteReading(Exception error = null)
         {
             lock (_sync)
             {
                 _completedReading = true;
+
+                if (error != null)
+                {
+                    if (_writeTcs == null)
+                    {
+                        _writeTcs = new TaskCompletionSource<object>();
+                        _writeTcs.TrySetException(error);
+                    }
+                }
 
                 if (_completedWriting)
                 {
@@ -275,7 +285,7 @@ namespace Channels
             }
             else
             {
-                _tcs.SetException(new InvalidOperationException("Concurrent reads are not supported."));
+                _readingTcs.SetException(new InvalidOperationException("Concurrent reads are not supported."));
 
                 Interlocked.Exchange(
                     ref _awaitableState,
@@ -298,7 +308,7 @@ namespace Channels
                 throw new InvalidOperationException("can't GetResult unless completed");
             }
 
-            var error = _tcs.Task.Exception?.InnerException;
+            var error = _readingTcs.Task.Exception?.InnerException;
             if (error != null)
             {
                 throw error;

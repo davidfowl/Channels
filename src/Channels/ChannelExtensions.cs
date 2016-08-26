@@ -82,10 +82,6 @@ namespace Channels
                         await stream.WriteAsync(span.Array, span.Offset, span.Length);
                     }
                 }
-                catch (Exception)
-                {
-                    // REVIEW: Should we do anything here?
-                }
                 finally
                 {
                     input.EndRead(inputBuffer);
