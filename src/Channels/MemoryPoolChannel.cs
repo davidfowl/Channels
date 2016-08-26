@@ -244,18 +244,18 @@ namespace Channels
             {
                 _completedReading = true;
 
-                if (error != null)
+                if (_completedWriting)
                 {
+                    Dispose();
+                }
+                else if (error != null)
+                {
+                    // No need to allocate the tcs if the writer is already complete
                     if (_writeTcs == null)
                     {
                         _writeTcs = new TaskCompletionSource<object>();
                         _writeTcs.TrySetException(error);
                     }
-                }
-
-                if (_completedWriting)
-                {
-                    Dispose();
                 }
             }
         }
