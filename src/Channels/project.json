@@ -13,10 +13,6 @@
 
   "frameworks": {
     "net451": {},
-    "netstandard1.3": {
-      "dependencies": {
-        "System.Threading.Overlapped": "4.0.1"
-      }
-    }
+    "netstandard1.3": {}
   }
 }

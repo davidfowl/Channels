@@ -5,7 +5,7 @@ using System;
 using System.Net;
 using System.Runtime.InteropServices;
 
-namespace Channels.Samples.Libuv.Interop
+namespace Channels.Networking.Libuv.Interop
 {
     public class UvTcpHandle : UvStreamHandle
     {

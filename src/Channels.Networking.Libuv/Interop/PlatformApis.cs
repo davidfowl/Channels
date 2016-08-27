@@ -3,7 +3,7 @@
 
 using System.Runtime.InteropServices;
 
-namespace Channels.Samples.Libuv.Interop
+namespace Channels.Networking.Libuv.Interop
 {
     public static class PlatformApis
     {

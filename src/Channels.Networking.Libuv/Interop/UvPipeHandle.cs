@@ -3,7 +3,7 @@
 
 using System;
 
-namespace Channels.Samples.Libuv.Interop
+namespace Channels.Networking.Libuv.Interop
 {
     public class UvPipeHandle : UvStreamHandle
     {

@@ -5,7 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 
-namespace Channels.Samples.Libuv.Interop
+namespace Channels.Networking.Libuv.Interop
 {
     /// <summary>
     /// Summary description for UvWriteRequest

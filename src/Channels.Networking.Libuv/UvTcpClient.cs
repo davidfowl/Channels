@@ -2,11 +2,11 @@
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
-using Channels.Samples.Libuv.Interop;
+using Channels.Networking.Libuv.Interop;
 
-namespace Channels.Samples.Libuv
+namespace Channels.Networking.Libuv
 {
-    public class TcpClient
+    public class UvTcpClient
     {
         private static Action<Action<IntPtr>, IntPtr> _queueCloseCallback = QueueCloseHandle;
 
@@ -24,7 +24,7 @@ namespace Channels.Samples.Libuv
 
         public ChannelFactory ChannelFactory { get; private set; } = new ChannelFactory();
 
-        public TcpClient(IPAddress ip, int port)
+        public UvTcpClient(IPAddress ip, int port)
         {
             _ip = ip;
             _port = port;
@@ -43,7 +43,7 @@ namespace Channels.Samples.Libuv
 
         private static void OnStart(object state)
         {
-            ((TcpClient)state).RunLoop();
+            ((UvTcpClient)state).RunLoop();
         }
 
         private void RunLoop()
@@ -69,7 +69,7 @@ namespace Channels.Samples.Libuv
 
         private static void OnConnection(UvConnectRequest req, int status, Exception exception, object state)
         {
-            var client = (TcpClient)state;
+            var client = (UvTcpClient)state;
 
             client._connectTcs.TrySetResult(null);
         }

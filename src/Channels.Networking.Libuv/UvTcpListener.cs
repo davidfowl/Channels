@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Net;
 using System.Threading;
-using Channels.Samples.Libuv.Interop;
+using Channels.Networking.Libuv.Interop;
 
-namespace Channels.Samples.Libuv
+namespace Channels.Networking.Libuv
 {
     public class UvTcpListener
     {

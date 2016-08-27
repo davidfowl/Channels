@@ -6,11 +6,13 @@
   },
 
   "dependencies": {
-    "Channels": "1.0.0",
+    "Channels": "1.0.0-*",
+    "Channels.Networking.Libuv": "1.0.0-*",
     "System.Slices": "0.1.0-*",
     "System.Text.Primitives": "0.1.0-*",
     "System.Text.Formatting": "0.1.0-*",
     "System.Text.Utf8": "0.1.0-*",
+    "System.Threading.Overlapped": "4.0.1",
     "Microsoft.AspNetCore.Server.Kestrel": "1.0.0",
     "Microsoft.NETCore.App": {
       "type": "platform",

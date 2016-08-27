@@ -2,32 +2,32 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
-using Channels.Samples.Libuv.Interop;
+using Channels.Networking.Libuv.Interop;
 
-namespace Channels.Samples.Libuv
+namespace Channels.Networking.Libuv
 {
     public class UvTcpClientConnection : UvTcpConnection
     {
-        public IWritableChannel Input => _output;
-        public IReadableChannel Output => _input;
-
         public UvTcpClientConnection(ChannelFactory channelFactory, UvLoopHandle loop, UvTcpHandle handle) :
             base(channelFactory, loop, handle)
         {
 
         }
+
+        public IWritableChannel Input => _output;
+        public IReadableChannel Output => _input;
     }
 
     public class UvTcpServerConnection : UvTcpConnection
     {
-        public IReadableChannel Input => _input;
-        public IWritableChannel Output => _output;
-
         public UvTcpServerConnection(ChannelFactory channelFactory, UvLoopHandle loop, UvTcpHandle handle) :
             base(channelFactory, loop, handle)
         {
 
         }
+
+        public IReadableChannel Input => _input;
+        public IWritableChannel Output => _output;
     }
 
     public abstract class UvTcpConnection

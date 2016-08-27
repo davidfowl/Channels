@@ -4,7 +4,7 @@
 using System;
 using System.Net;
 
-namespace Channels.Samples.Libuv.Interop
+namespace Channels.Networking.Libuv.Interop
 {
     /// <summary>
     /// Summary description for UvWriteRequest

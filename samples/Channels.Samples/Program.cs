@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 using Channels.Samples.Formatting;
 using Channels.Samples.Http;
 using Channels.Samples.IO.Compression;
-using Channels.Samples.Libuv;
+using Channels.Networking.Libuv;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server;
@@ -127,7 +127,7 @@ namespace Channels.Samples
 
         private static async Task RunHttpClient(IPAddress ip, int port)
         {
-            var client = new TcpClient(ip, port);
+            var client = new UvTcpClient(ip, port);
 
             var consoleOutput = client.ChannelFactory.MakeWriteableChannel(Console.OpenStandardOutput());
 
