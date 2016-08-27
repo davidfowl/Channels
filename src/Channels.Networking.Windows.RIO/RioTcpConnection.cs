@@ -41,9 +41,6 @@ namespace Channels.Networking.Windows.RIO
         private ReadableBuffer _sendingBuffer;
         private WritableBuffer _buffer;
 
-        public IReadableChannel Input => _input;
-        public IWritableChannel Output => _output;
-
         internal RioTcpConnection(IntPtr socket, long connectionId, IntPtr requestQueue, RioThread rioThread, RegisteredIO rio)
         {
             _socket = socket;
@@ -61,6 +58,9 @@ namespace Channels.Networking.Windows.RIO
             ProcessReceives();
             _sendTask = ProcessSends();
         }
+
+        public IReadableChannel Input => _input;
+        public IWritableChannel Output => _output;
 
         private void ProcessReceives()
         {

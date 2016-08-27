@@ -18,17 +18,17 @@ namespace Channels.Networking.Libuv
         private UvTcpHandle _listenSocket;
         private Action<UvTcpServerConnection> _callback;
 
-        public Uv Uv { get; private set; }
-
-        public UvLoopHandle Loop { get; private set; }
-
-        public ChannelFactory ChannelFactory { get; private set; } = new ChannelFactory();
-
         public UvTcpListener(IPAddress ip, int port)
         {
             _ip = ip;
             _port = port;
         }
+
+        public Uv Uv { get; private set; }
+
+        public UvLoopHandle Loop { get; private set; }
+
+        public ChannelFactory ChannelFactory { get; private set; } = new ChannelFactory();
 
         public void OnConnection(Action<UvTcpServerConnection> callback)
         {
