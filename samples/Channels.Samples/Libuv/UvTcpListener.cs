@@ -91,7 +91,7 @@ namespace Channels.Samples.Libuv
                 acceptSocket.Init(listener.Loop, _queueCloseCallback);
                 acceptSocket.NoDelay(true);
                 listenSocket.Accept(acceptSocket);
-                var connection = new UvTcpConnection(listener, acceptSocket);
+                var connection = new UvTcpConnection(listener.ChannelFactory, listener.Loop, acceptSocket);
                 listener._callback?.Invoke(connection);
             }
             catch (UvException)

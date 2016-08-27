@@ -16,31 +16,28 @@ namespace Channels.Samples.Libuv
 
         private readonly MemoryPoolChannel _input;
         private readonly MemoryPoolChannel _output;
-        private readonly UvTcpListener _listener;
         private readonly Queue<ReadableBuffer> _outgoing = new Queue<ReadableBuffer>(1);
-        private TaskCompletionSource<object> _connectionCompleted;
 
+        private TaskCompletionSource<object> _connectionCompleted;
         private Task _sendingTask;
-        private WritableBuffer _buffer;
+        private WritableBuffer _inputBuffer;
 
         public IReadableChannel Input => _input;
         public IWritableChannel Output => _output;
 
-        public UvTcpConnection(UvTcpListener listener, UvTcpHandle handle)
+        public UvTcpConnection(ChannelFactory channelFactory, UvLoopHandle loop, UvTcpHandle handle)
         {
-            _listener = listener;
-
-            _input = listener.ChannelFactory.CreateChannel();
-            _output = listener.ChannelFactory.CreateChannel();
+            _input = channelFactory.CreateChannel();
+            _output = channelFactory.CreateChannel();
 
             ProcessReads(handle);
-            _sendingTask = ProcessWrites(handle);
+            _sendingTask = ProcessWrites(loop, handle);
         }
 
-        private async Task ProcessWrites(UvTcpHandle handle)
+        private async Task ProcessWrites(UvLoopHandle loop, UvTcpHandle handle)
         {
             var writeReq = new UvWriteReq();
-            writeReq.Init(_listener.Loop);
+            writeReq.Init(loop);
 
             try
             {
@@ -118,16 +115,12 @@ namespace Channels.Samples.Libuv
             var errorDone = !(normalDone || normalRead);
             var readCount = normalRead ? status : 0;
 
-            if (normalRead)
-            {
-                // Log.ConnectionRead(ConnectionId, readCount);
-            }
-            else
+            if (!normalRead)
             {
                 handle.ReadStop();
             }
 
-            _buffer.UpdateWritten(readCount);
+            _inputBuffer.UpdateWritten(readCount);
 
             IOException error = null;
             if (errorDone)
@@ -144,7 +137,8 @@ namespace Channels.Samples.Libuv
             }
             else
             {
-                _input.WriteAsync(_buffer);
+                // TODO: If this task is incomplete then pause readin from the stream
+                _input.WriteAsync(_inputBuffer);
             }
         }
 
@@ -155,8 +149,8 @@ namespace Channels.Samples.Libuv
 
         private Uv.uv_buf_t OnAlloc(UvStreamHandle handle, int status)
         {
-            _buffer = _input.Alloc(2048);
-            return handle.Libuv.buf_init(_buffer.Memory.BufferPtr, _buffer.Memory.Length);
+            _inputBuffer = _input.Alloc(2048);
+            return handle.Libuv.buf_init(_inputBuffer.Memory.BufferPtr, _inputBuffer.Memory.Length);
         }
     }
 }
