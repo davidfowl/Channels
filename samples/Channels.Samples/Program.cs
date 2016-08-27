@@ -1,18 +1,12 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.IO.Compression;
 using System.Net;
-using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Formatting;
-using System.Threading;
 using System.Threading.Tasks;
-using Channels;
 using Channels.Samples.Formatting;
 using Channels.Samples.Http;
-using Channels.Samples.IO;
 using Channels.Samples.IO.Compression;
 using Channels.Samples.Libuv;
 using Microsoft.AspNetCore.Builder;
@@ -135,10 +129,11 @@ namespace Channels.Samples
         {
             var client = new TcpClient(ip, port);
 
-            // This is on a libuv thread
             var consoleOutput = client.ChannelFactory.MakeWriteableChannel(Console.OpenStandardOutput());
 
             var connection = await client.ConnectAsync();
+
+            // This is on a libuv thread
 
             while (true)
             {
