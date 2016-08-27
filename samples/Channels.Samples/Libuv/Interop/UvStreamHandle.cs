@@ -3,7 +3,6 @@
 
 using System;
 using System.Runtime.InteropServices;
-using Microsoft.AspNetCore.Server.Kestrel.Internal.Http;
 
 namespace Channels.Samples.Libuv.Interop
 {
@@ -26,8 +25,6 @@ namespace Channels.Samples.Libuv.Interop
         protected UvStreamHandle() : base()
         {
         }
-
-        public Connection Connection { get; set; }
 
         protected override bool ReleaseHandle()
         {

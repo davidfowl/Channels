@@ -131,6 +131,60 @@ namespace Channels.Samples
             listener.Stop();
         }
 
+        private static async Task RunHttpClient(IPAddress ip, int port)
+        {
+            var client = new TcpClient(ip, port);
+
+            // This is on a libuv thread
+            var consoleOutput = client.ChannelFactory.MakeWriteableChannel(Console.OpenStandardOutput());
+
+            var connection = await client.ConnectAsync();
+
+            while (true)
+            {
+                var buffer = connection.Input.Alloc();
+
+                WritableBufferExtensions.WriteAsciiString(ref buffer, "GET / HTTP/1.1");
+                WritableBufferExtensions.WriteAsciiString(ref buffer, "\r\n\r\n");
+
+                await connection.Input.WriteAsync(buffer);
+
+                // Write the client output to the console
+                await CopyCompletedAsync(connection.Output, consoleOutput);
+            }
+        }
+
+        private static async Task CopyCompletedAsync(IReadableChannel input, IWritableChannel channel)
+        {
+            await input;
+
+            do
+            {
+                var fin = input.Completion.IsCompleted;
+
+                var inputBuffer = input.BeginRead();
+
+                try
+                {
+                    if (inputBuffer.IsEmpty && fin)
+                    {
+                        return;
+                    }
+
+                    var buffer = channel.Alloc();
+
+                    buffer.Append(inputBuffer);
+
+                    await channel.WriteAsync(buffer);
+                }
+                finally
+                {
+                    input.EndRead(inputBuffer);
+                }
+            }
+            while (input.IsCompleted);
+        }
+
         private static void RunAspNetHttpServer()
         {
             var host = new WebHostBuilder()
@@ -154,6 +208,13 @@ namespace Channels.Samples
                                 });
                             })
                             .Build();
+
+            //Task.Run(async () =>
+            //{
+            //    await Task.Delay(500);
+            //    await RunHttpClient(IPAddress.Loopback, 5000);
+            //});
+
             host.Run();
         }
     }

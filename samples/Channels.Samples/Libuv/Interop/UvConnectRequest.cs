@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
+using System.Net;
 
 namespace Channels.Samples.Libuv.Interop
 {
@@ -26,6 +27,35 @@ namespace Channels.Samples.Libuv.Interop
                 loop.Libuv,
                 loop.ThreadId,
                 requestSize);
+        }
+
+        public void Connect(
+            UvTcpHandle socket,
+            IPEndPoint endpoint,
+            Action<UvConnectRequest, int, Exception, object> callback,
+            object state)
+        {
+            _callback = callback;
+            _state = state;
+
+            SockAddr addr;
+            var addressText = endpoint.Address.ToString();
+
+            Exception error1;
+            _uv.ip4_addr(addressText, endpoint.Port, out addr, out error1);
+
+            if (error1 != null)
+            {
+                Exception error2;
+                _uv.ip6_addr(addressText, endpoint.Port, out addr, out error2);
+                if (error2 != null)
+                {
+                    throw error1;
+                }
+            }
+
+            Pin();
+            Libuv.tcp_connect(this, socket, ref addr, _uv_connect_cb);
         }
 
         public void Connect(

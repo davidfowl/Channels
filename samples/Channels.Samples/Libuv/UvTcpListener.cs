@@ -16,7 +16,7 @@ namespace Channels.Samples.Libuv
 
         private UvAsyncHandle _shutdownPostHandle;
         private UvTcpHandle _listenSocket;
-        private Action<UvTcpConnection> _callback;
+        private Action<UvTcpServerConnection> _callback;
 
         public Uv Uv { get; private set; }
 
@@ -30,7 +30,7 @@ namespace Channels.Samples.Libuv
             _port = port;
         }
 
-        public void OnConnection(Action<UvTcpConnection> callback)
+        public void OnConnection(Action<UvTcpServerConnection> callback)
         {
             _callback = callback;
         }
@@ -91,7 +91,7 @@ namespace Channels.Samples.Libuv
                 acceptSocket.Init(listener.Loop, _queueCloseCallback);
                 acceptSocket.NoDelay(true);
                 listenSocket.Accept(acceptSocket);
-                var connection = new UvTcpConnection(listener.ChannelFactory, listener.Loop, acceptSocket);
+                var connection = new UvTcpServerConnection(listener.ChannelFactory, listener.Loop, acceptSocket);
                 listener._callback?.Invoke(connection);
             }
             catch (UvException)

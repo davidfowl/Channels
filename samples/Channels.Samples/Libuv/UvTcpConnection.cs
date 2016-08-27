@@ -6,7 +6,31 @@ using Channels.Samples.Libuv.Interop;
 
 namespace Channels.Samples.Libuv
 {
-    public class UvTcpConnection
+    public class UvTcpClientConnection : UvTcpConnection
+    {
+        public IWritableChannel Input => _output;
+        public IReadableChannel Output => _input;
+
+        public UvTcpClientConnection(ChannelFactory channelFactory, UvLoopHandle loop, UvTcpHandle handle) :
+            base(channelFactory, loop, handle)
+        {
+
+        }
+    }
+
+    public class UvTcpServerConnection : UvTcpConnection
+    {
+        public IReadableChannel Input => _input;
+        public IWritableChannel Output => _output;
+
+        public UvTcpServerConnection(ChannelFactory channelFactory, UvLoopHandle loop, UvTcpHandle handle) :
+            base(channelFactory, loop, handle)
+        {
+
+        }
+    }
+
+    public abstract class UvTcpConnection
     {
         private const int EOF = -4095;
 
@@ -14,16 +38,14 @@ namespace Channels.Samples.Libuv
         private static readonly Func<UvStreamHandle, int, object, Uv.uv_buf_t> _allocCallback = AllocCallback;
         private static readonly Action<UvWriteReq, int, Exception, object> _writeCallback = WriteCallback;
 
-        private readonly MemoryPoolChannel _input;
-        private readonly MemoryPoolChannel _output;
         private readonly Queue<ReadableBuffer> _outgoing = new Queue<ReadableBuffer>(1);
+
+        protected readonly MemoryPoolChannel _input;
+        protected readonly MemoryPoolChannel _output;
 
         private TaskCompletionSource<object> _connectionCompleted;
         private Task _sendingTask;
         private WritableBuffer _inputBuffer;
-
-        public IReadableChannel Input => _input;
-        public IWritableChannel Output => _output;
 
         public UvTcpConnection(ChannelFactory channelFactory, UvLoopHandle loop, UvTcpHandle handle)
         {
