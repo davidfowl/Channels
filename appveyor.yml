@@ -16,6 +16,4 @@ after_test:
   - dotnet pack -c Release src/Channels.Networking.Windows.RIO
 
 artifacts:
-  path: 'src/Channels/bin/Release/*.nupkg'
-  path: 'src/Channels.Networking.Libuv/bin/Release/*.nupkg'
-  path: 'src/Channels.Networking.Windows.RIO/bin/Release/*.nupkg'
+  path: '**/*.nupkg'
