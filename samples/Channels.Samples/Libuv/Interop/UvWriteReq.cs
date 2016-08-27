@@ -1,34 +1,35 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.InteropServices;
-using System.Threading.Tasks;
-using Microsoft.AspNetCore.Server.Kestrel.Internal.Infrastructure;
-using Microsoft.AspNetCore.Server.Kestrel.Internal.Networking;
-using Microsoft.Extensions.Logging;
+// Copyright (c) .NET Foundation. All rights reserved.
+// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
-namespace Channels.Samples
+using System;
+using System.Collections.Generic;
+using System.Runtime.InteropServices;
+
+namespace Channels.Samples.Libuv.Interop
 {
-    public class UvWriteReq2 : UvRequest
+    /// <summary>
+    /// Summary description for UvWriteRequest
+    /// </summary>
+    public class UvWriteReq : UvRequest
     {
-        private readonly static Libuv.uv_write_cb _uv_write_cb = (IntPtr ptr, int status) => UvWriteCb(ptr, status);
+        private readonly static Uv.uv_write_cb _uv_write_cb = (IntPtr ptr, int status) => UvWriteCb(ptr, status);
 
         private IntPtr _bufs;
 
-        private Action<UvWriteReq2, int, Exception, object> _callback;
+        private Action<UvWriteReq, int, Exception, object> _callback;
         private object _state;
         private const int BUFFER_COUNT = 4;
 
         private List<GCHandle> _pins = new List<GCHandle>(BUFFER_COUNT + 1);
 
-        public UvWriteReq2(IKestrelTrace logger) : base(logger)
+        public UvWriteReq() : base()
         {
         }
 
         public void Init(UvLoopHandle loop)
         {
-            var requestSize = loop.Libuv.req_size(Libuv.RequestType.WRITE);
-            var bufferSize = Marshal.SizeOf<Libuv.uv_buf_t>() * BUFFER_COUNT;
+            var requestSize = loop.Libuv.req_size(Uv.RequestType.WRITE);
+            var bufferSize = Marshal.SizeOf<Uv.uv_buf_t>() * BUFFER_COUNT;
             CreateMemory(
                 loop.Libuv,
                 loop.ThreadId,
@@ -39,7 +40,7 @@ namespace Channels.Samples
         public unsafe void Write(
             UvStreamHandle handle,
             ref ReadableBuffer buffer,
-            Action<UvWriteReq2, int, Exception, object> callback,
+            Action<UvWriteReq, int, Exception, object> callback,
             object state)
         {
             try
@@ -61,14 +62,14 @@ namespace Channels.Samples
                 // add GCHandle to keeps this SafeHandle alive while request processing
                 _pins.Add(GCHandle.Alloc(this, GCHandleType.Normal));
 
-                var pBuffers = (Libuv.uv_buf_t*)_bufs;
+                var pBuffers = (Uv.uv_buf_t*)_bufs;
                 if (nBuffers > BUFFER_COUNT)
                 {
                     // create and pin buffer array when it's larger than the pre-allocated one
-                    var bufArray = new Libuv.uv_buf_t[nBuffers];
+                    var bufArray = new Uv.uv_buf_t[nBuffers];
                     var gcHandle = GCHandle.Alloc(bufArray, GCHandleType.Pinned);
                     _pins.Add(gcHandle);
-                    pBuffers = (Libuv.uv_buf_t*)gcHandle.AddrOfPinnedObject();
+                    pBuffers = (Uv.uv_buf_t*)gcHandle.AddrOfPinnedObject();
                 }
 
                 if (nBuffers == 1)
@@ -97,7 +98,7 @@ namespace Channels.Samples
             }
         }
 
-        private static void Unpin(UvWriteReq2 req)
+        private static void Unpin(UvWriteReq req)
         {
             foreach (var pin in req._pins)
             {
@@ -108,7 +109,7 @@ namespace Channels.Samples
 
         private static void UvWriteCb(IntPtr ptr, int status)
         {
-            var req = FromIntPtr<UvWriteReq2>(ptr);
+            var req = FromIntPtr<UvWriteReq>(ptr);
             Unpin(req);
 
             var callback = req._callback;
@@ -123,15 +124,7 @@ namespace Channels.Samples
                 req.Libuv.Check(status, out error);
             }
 
-            try
-            {
-                callback(req, status, error, state);
-            }
-            catch (Exception ex)
-            {
-                req._log.LogError(0, ex, "UvWriteCb");
-                throw;
-            }
+            callback(req, status, error, state);
         }
     }
 }

@@ -14,6 +14,7 @@ using Channels.Samples.Formatting;
 using Channels.Samples.Http;
 using Channels.Samples.IO;
 using Channels.Samples.IO.Compression;
+using Channels.Samples.Libuv;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server;

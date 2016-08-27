@@ -2,17 +2,17 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Server.Kestrel.Internal.Networking;
+using Channels.Samples.Libuv.Interop;
 
-namespace Channels.Samples
+namespace Channels.Samples.Libuv
 {
     public class UvTcpConnection
     {
         private const int EOF = -4095;
 
         private static readonly Action<UvStreamHandle, int, object> _readCallback = ReadCallback;
-        private static readonly Func<UvStreamHandle, int, object, Libuv.uv_buf_t> _allocCallback = AllocCallback;
-        private static readonly Action<UvWriteReq2, int, Exception, object> _writeCallback = WriteCallback;
+        private static readonly Func<UvStreamHandle, int, object, Uv.uv_buf_t> _allocCallback = AllocCallback;
+        private static readonly Action<UvWriteReq, int, Exception, object> _writeCallback = WriteCallback;
 
         private readonly MemoryPoolChannel _input;
         private readonly MemoryPoolChannel _output;
@@ -39,7 +39,7 @@ namespace Channels.Samples
 
         private async Task ProcessWrites(UvTcpHandle handle)
         {
-            var writeReq = new UvWriteReq2(_listener.Log);
+            var writeReq = new UvWriteReq();
             writeReq.Init(_listener.Loop);
 
             try
@@ -85,7 +85,7 @@ namespace Channels.Samples
             }
         }
 
-        private static void WriteCallback(UvWriteReq2 req, int status, Exception ex, object state)
+        private static void WriteCallback(UvWriteReq req, int status, Exception ex, object state)
         {
             var connection = ((UvTcpConnection)state);
             connection._outgoing.Dequeue().Dispose();
@@ -148,12 +148,12 @@ namespace Channels.Samples
             }
         }
 
-        private static Libuv.uv_buf_t AllocCallback(UvStreamHandle handle, int status, object state)
+        private static Uv.uv_buf_t AllocCallback(UvStreamHandle handle, int status, object state)
         {
             return ((UvTcpConnection)state).OnAlloc(handle, status);
         }
 
-        private Libuv.uv_buf_t OnAlloc(UvStreamHandle handle, int status)
+        private Uv.uv_buf_t OnAlloc(UvStreamHandle handle, int status)
         {
             _buffer = _input.Alloc(2048);
             return handle.Libuv.buf_init(_buffer.Memory.BufferPtr, _buffer.Memory.Length);

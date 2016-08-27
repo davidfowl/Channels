@@ -1,11 +1,9 @@
 ﻿using System;
 using System.Net;
 using System.Threading;
-using Microsoft.AspNetCore.Server.Kestrel.Internal;
-using Microsoft.AspNetCore.Server.Kestrel.Internal.Networking;
-using Microsoft.Extensions.Logging;
+using Channels.Samples.Libuv.Interop;
 
-namespace Channels.Samples
+namespace Channels.Samples.Libuv
 {
     public class UvTcpListener
     {
@@ -20,9 +18,7 @@ namespace Channels.Samples
         private UvTcpHandle _listenSocket;
         private Action<UvTcpConnection> _callback;
 
-        public Libuv Uv { get; private set; }
-
-        public KestrelTrace Log { get; private set; }
+        public Uv Uv { get; private set; }
 
         public UvLoopHandle Loop { get; private set; }
 
@@ -46,36 +42,18 @@ namespace Channels.Samples
 
         private void RunLoop()
         {
-            Uv = new Libuv();
-            Log = new KestrelTrace(new LoggerFactory().CreateLogger<UvTcpListener>());
+            Uv = new Uv();
 
-            Loop = new UvLoopHandle(Log);
+            Loop = new UvLoopHandle();
             Loop.Init(Uv);
 
-            _shutdownPostHandle = new UvAsyncHandle(Log);
+            _shutdownPostHandle = new UvAsyncHandle();
             _shutdownPostHandle.Init(Loop, OnPost, _queueCloseCallback);
 
-            _listenSocket = new UvTcpHandle(Log);
+            _listenSocket = new UvTcpHandle();
             _listenSocket.Init(Loop, _queueCloseCallback);
             _listenSocket.NoDelay(true);
-
-            string host = null;
-            if (_ip == IPAddress.Any)
-            {
-                host = "*";
-            }
-            else if (_ip == IPAddress.Loopback)
-            {
-                host = "localhost";
-            }
-            else
-            {
-                host = _ip.ToString();
-            }
-
-            var url = $"http://{host}:{_port}";
-            var address = Microsoft.AspNetCore.Server.Kestrel.ServerAddress.FromUrl(url);
-            _listenSocket.Bind(address);
+            _listenSocket.Bind(new IPEndPoint(_ip, _port));
 
             _listenSocket.Listen(10, _onConnectionCallback, this);
 
@@ -106,7 +84,7 @@ namespace Channels.Samples
         {
             var listener = (UvTcpListener)state;
 
-            var acceptSocket = new UvTcpHandle(listener.Log);
+            var acceptSocket = new UvTcpHandle();
 
             try
             {
@@ -116,9 +94,8 @@ namespace Channels.Samples
                 var connection = new UvTcpConnection(listener, acceptSocket);
                 listener._callback?.Invoke(connection);
             }
-            catch (UvException ex)
+            catch (UvException)
             {
-                listener.Log.LogError(0, ex, "UvTcpListener.OnConnection");
                 acceptSocket.Dispose();
             }
         }
