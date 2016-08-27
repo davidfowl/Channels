@@ -6,8 +6,8 @@
   },
 
   "dependencies": {
-    "Channels": "1.0.0-*",
-    "Channels.Networking.Libuv": "1.0.0-*",
+    "Channels": "0.1.0-*",
+    "Channels.Networking.Libuv": "0.1.0-*",
     "System.Slices": "0.1.0-*",
     "System.Text.Primitives": "0.1.0-*",
     "System.Text.Formatting": "0.1.0-*",
