@@ -1,10 +1,10 @@
 // Copyright (c) Illyriad Games. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
-namespace Channels.Samples.Internal.Winsock
+namespace Channels.Networking.Windows.RIO.Internal.Winsock
 {
-    public enum SocketType : short
+    public enum AddressFamilies : short
     {
-        Stream = 1,
+        Internet = 2,
     }
 }

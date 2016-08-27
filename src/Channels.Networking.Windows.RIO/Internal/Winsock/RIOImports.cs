@@ -5,7 +5,7 @@ using System;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
 
-namespace Channels.Samples.Internal.Winsock
+namespace Channels.Networking.Windows.RIO.Internal.Winsock
 {
     public static class RioImports
     {

@@ -6,10 +6,10 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Channels.Samples.Internal;
-using Channels.Samples.Internal.Winsock;
+using Channels.Networking.Windows.RIO.Internal;
+using Channels.Networking.Windows.RIO.Internal.Winsock;
 
-namespace Channels.Samples
+namespace Channels.Networking.Windows.RIO
 {
     public sealed class RioTcpConnection : IDisposable
     {

@@ -4,9 +4,9 @@
 using System;
 using System.Runtime.InteropServices;
 using System.Threading;
-using Channels.Samples.Internal.Winsock;
+using Channels.Networking.Windows.RIO.Internal.Winsock;
 
-namespace Channels.Samples.Internal
+namespace Channels.Networking.Windows.RIO.Internal
 {
     internal class RioThreadPool
     {

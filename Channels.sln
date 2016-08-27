@@ -20,6 +20,8 @@ Project("{8BB2217D-0F2D-49D1-97BC-3654ED321F3B}") = "Channels.Samples", "samples
 EndProject
 Project("{8BB2217D-0F2D-49D1-97BC-3654ED321F3B}") = "Channels.Networking.Libuv", "src\Channels.Networking.Libuv\Channels.Networking.Libuv.xproj", "{11D6B886-A303-4D13-BCA8-A917D5740FB6}"
 EndProject
+Project("{8BB2217D-0F2D-49D1-97BC-3654ED321F3B}") = "Channels.Networking.Windows.RIO", "src\Channels.Networking.Windows.RIO\Channels.Networking.Windows.RIO.xproj", "{86A0B10D-8C7A-4B20-A033-D6F679454E30}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -38,6 +40,10 @@ Global
 		{11D6B886-A303-4D13-BCA8-A917D5740FB6}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{11D6B886-A303-4D13-BCA8-A917D5740FB6}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{11D6B886-A303-4D13-BCA8-A917D5740FB6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{86A0B10D-8C7A-4B20-A033-D6F679454E30}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{86A0B10D-8C7A-4B20-A033-D6F679454E30}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{86A0B10D-8C7A-4B20-A033-D6F679454E30}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{86A0B10D-8C7A-4B20-A033-D6F679454E30}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -46,5 +52,6 @@ Global
 		{D6B28FC7-8D6D-4E9E-962F-9505D7C0E958} = {7FA56B23-A28C-49A2-AB04-23BD0F485DA6}
 		{3DCB0F92-51AE-493E-A1B6-5B42449EA2BD} = {5C457C3C-ED7C-4B4E-9E02-0655F8CE6EFE}
 		{11D6B886-A303-4D13-BCA8-A917D5740FB6} = {7FA56B23-A28C-49A2-AB04-23BD0F485DA6}
+		{86A0B10D-8C7A-4B20-A033-D6F679454E30} = {7FA56B23-A28C-49A2-AB04-23BD0F485DA6}
 	EndGlobalSection
 EndGlobal

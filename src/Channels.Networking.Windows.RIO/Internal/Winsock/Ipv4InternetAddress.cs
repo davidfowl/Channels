@@ -3,7 +3,7 @@
 
 using System.Runtime.InteropServices;
 
-namespace Channels.Samples.Internal.Winsock
+namespace Channels.Networking.Windows.RIO.Internal.Winsock
 {
     [StructLayout(LayoutKind.Explicit, Size = 4)]
     public struct Ipv4InternetAddress

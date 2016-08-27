@@ -1,6 +1,6 @@
 ﻿{
   "version": "0.1.0-*",
-  "description": "Networking implementation of Channels based on Libuv",
+  "description": "Networking implementation of Channels based on Windows RIO",
   "packOptions": {
     "projectUrl": "https://github.com/davidfowl/Channels"
   },
@@ -10,16 +10,16 @@
   },
 
   "dependencies": {
-    "NETStandard.Library": "1.6.0",
-    "Channels": "0.1.0-*",
-    "Libuv": "1.9.0"
+    "Channels": "0.1.0-*"
   },
 
   "frameworks": {
     "net451": {},
     "netstandard1.3": {
       "dependencies": {
-        "System.Threading.Thread": "4.0.0"
+        "NETStandard.Library": "1.6.0",
+        "System.Threading.Thread": "4.0.0",
+        "System.Threading.Overlapped": "4.0.1"
       }
     }
   }

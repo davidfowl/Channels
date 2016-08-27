@@ -4,7 +4,7 @@
 using System;
 using System.Runtime.InteropServices;
 
-namespace Channels.Samples.Internal.Winsock
+namespace Channels.Networking.Windows.RIO.Internal.Winsock
 {
     [UnmanagedFunctionPointer(CallingConvention.StdCall, SetLastError = true)]
     public delegate IntPtr RioRegisterBuffer([In] IntPtr dataBuffer, [In] UInt32 dataLength);
