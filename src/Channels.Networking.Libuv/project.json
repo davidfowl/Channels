@@ -1,5 +1,9 @@
 ﻿{
-  "version": "1.0.0-*",
+  "version": "0.1.0-*",
+  "description": "Networking implementation of Channels based on Libuv",
+  "packOptions": {
+    "projectUrl": "https://github.com/davidfowl/Channels"
+  },
   "buildOptions": {
     "allowUnsafe": true,
     "keyFile": "../../tools/Key.snk"
@@ -11,7 +15,7 @@
   },
 
   "frameworks": {
-    "net451": { },
+    "net451": {},
     "netstandard1.3": {
       "dependencies": {
         "System.Threading.Thread": "4.0.0"

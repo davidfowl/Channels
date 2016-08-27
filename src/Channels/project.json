@@ -1,5 +1,9 @@
 ﻿{
-  "version": "1.0.0-*",
+  "version": "0.1.0-*",
+  "description": "An abstraction for doing efficient asynchronous IO",
+  "packOptions": {
+    "projectUrl": "https://github.com/davidfowl/Channels"
+  },
   "buildOptions": {
     "allowUnsafe": true,
     "keyFile": "../../tools/Key.snk"
