@@ -33,7 +33,7 @@ namespace Channels.Samples
             var key = request.RequestUri.GetComponents(UriComponents.HostAndPort, UriFormat.SafeUnescaped);
 
             var state = _connectionPool.GetOrAdd(key, k => GetConnection(request));
-            var connection = state.Connection;
+            var connection = await state.ConnectionTask;
 
             var requestBuffer = connection.Input.Alloc();
             WritableBufferExtensions.WriteAsciiString(ref requestBuffer, $"{request.Method} {request.RequestUri} HTTP/1.1");
@@ -59,7 +59,7 @@ namespace Channels.Samples
             }
 
             var response = new HttpResponseMessage();
-            response.Content = new ChannelHttpContent(connection.Output); 
+            response.Content = new ChannelHttpContent(connection.Output);
 
             await ProduceResponse(state, connection, response);
 
@@ -96,9 +96,11 @@ namespace Channels.Samples
                         // The caller didn't read the body
                         responseBuffer = responseBuffer.Slice(state.PreviousContentLength);
                         consumed = responseBuffer.Start;
+
+                        state.Consumed = default(ReadIterator);
                     }
 
-                    if (responseBuffer.IsEmpty && connection.Output.IsCompleted)
+                    if (responseBuffer.IsEmpty && connection.Output.Completion.IsCompleted)
                     {
                         break;
                     }
@@ -230,7 +232,6 @@ namespace Channels.Samples
                 finally
                 {
                     connection.Output.EndRead(consumed);
-                    state.Consumed = consumed;
                 }
 
                 if (needMoreData)
@@ -251,6 +252,7 @@ namespace Channels.Samples
                     // BAD but it's a proof of concept ok?
                     state.PreviousContentLength = (int)length.Value;
                     ((ChannelHttpContent)response.Content).ContentLength = (int)length;
+                    state.Consumed = consumed;
                 }
 
                 break;
@@ -267,26 +269,29 @@ namespace Channels.Samples
 
         private ConnectionState GetConnection(HttpRequestMessage request)
         {
-            // Make this async
-            var addresses = Dns.GetHostAddressesAsync(request.RequestUri.Host).GetAwaiter().GetResult();
-            var port = request.RequestUri.Port;
-
-            // TODO: Fix this
-            var address = addresses.First(a => a.AddressFamily == AddressFamily.InterNetwork);
-            var connection = new UvTcpClient(_thread, new IPEndPoint(address, port));
             var state = new ConnectionState
             {
-                Connection = connection.ConnectAsync().GetAwaiter().GetResult()
+                ConnectionTask = ConnectAsync(request)
             };
 
             return state;
+        }
+
+        private async Task<UvTcpClientConnection> ConnectAsync(HttpRequestMessage request)
+        {
+            var addresses = await Dns.GetHostAddressesAsync(request.RequestUri.Host);
+            var port = request.RequestUri.Port;
+
+            var address = addresses.First(a => a.AddressFamily == AddressFamily.InterNetwork);
+            var connection = new UvTcpClient(_thread, new IPEndPoint(address, port));
+            return await connection.ConnectAsync();
         }
 
         protected override void Dispose(bool disposing)
         {
             foreach (var state in _connectionPool)
             {
-                state.Value.Connection.Input.CompleteWriting();
+                state.Value.ConnectionTask.GetAwaiter().GetResult().Input.CompleteWriting();
             }
 
             _thread.Dispose();
@@ -296,7 +301,7 @@ namespace Channels.Samples
 
         private class ConnectionState
         {
-            public UvTcpClientConnection Connection { get; set; }
+            public Task<UvTcpClientConnection> ConnectionTask { get; set; }
 
             public int PreviousContentLength { get; set; }
 
