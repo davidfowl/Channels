@@ -833,5 +833,12 @@ namespace Channels
         {
             return Encoding.UTF8.GetString(Segment.Block.Array, Index, Segment.End - Index);
         }
+
+        public override bool Equals(object obj)
+        {
+            var other = ((ReadIterator)obj);
+
+            return other._segment == _segment && other._index == _index;
+        }
     }
 }

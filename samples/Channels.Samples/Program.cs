@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
+using System.Net.Http;
 
 namespace Channels.Samples
 {
@@ -127,7 +128,23 @@ namespace Channels.Samples
             thread.Dispose();
         }
 
-        private static async Task RunHttpClient(IPAddress ip, int port)
+        private static async Task RunHttpClient()
+        {
+            var client = new HttpClient(new LibuvHttpClientHandler());
+
+            while (true)
+            {
+                var response = await client.GetAsync("http://localhost:5000");
+
+                Console.WriteLine(response);
+
+                Console.WriteLine(await response.Content.ReadAsStringAsync());
+
+                await Task.Delay(1000);
+            }
+        }
+
+        private static async Task RunRawHttpClient(IPAddress ip, int port)
         {
             var thread = new UvThread();
             var client = new UvTcpClient(thread, new IPEndPoint(ip, port));
@@ -212,6 +229,12 @@ namespace Channels.Samples
             //    await Task.Delay(500);
             //    await RunHttpClient(IPAddress.Loopback, 5000);
             //});
+
+            Task.Run(async () =>
+            {
+                await Task.Delay(500);
+                await RunHttpClient();
+            });
 
             host.Run();
         }
