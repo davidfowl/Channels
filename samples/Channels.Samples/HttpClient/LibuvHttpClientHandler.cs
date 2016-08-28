@@ -31,12 +31,13 @@ namespace Channels.Samples
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             var key = request.RequestUri.GetComponents(UriComponents.HostAndPort, UriFormat.SafeUnescaped);
+            var path = request.RequestUri.GetComponents(UriComponents.PathAndQuery, UriFormat.SafeUnescaped);
 
             var state = _connectionPool.GetOrAdd(key, k => GetConnection(request));
             var connection = await state.ConnectionTask;
 
             var requestBuffer = connection.Input.Alloc();
-            WritableBufferExtensions.WriteAsciiString(ref requestBuffer, $"{request.Method} {request.RequestUri} HTTP/1.1");
+            WritableBufferExtensions.WriteAsciiString(ref requestBuffer, $"{request.Method} {path} HTTP/1.1");
             WriteHeaders(request.Headers, ref requestBuffer);
 
             // End of the headers
