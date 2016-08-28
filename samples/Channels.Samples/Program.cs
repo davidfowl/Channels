@@ -77,7 +77,8 @@ namespace Channels.Samples
 
             var ip = IPAddress.Any;
             int port = 5000;
-            var listener = new UvTcpListener(ip, port);
+            var thread = new UvThread();
+            var listener = new UvTcpListener(thread, new IPEndPoint(ip, port));
             listener.OnConnection(async connection =>
             {
                 // Wait for data
@@ -123,17 +124,17 @@ namespace Channels.Samples
             Console.ReadKey();
 
             listener.Stop();
+            thread.Dispose();
         }
 
         private static async Task RunHttpClient(IPAddress ip, int port)
         {
-            var client = new UvTcpClient(ip, port);
+            var thread = new UvThread();
+            var client = new UvTcpClient(thread, new IPEndPoint(ip, port));
 
-            var consoleOutput = client.ChannelFactory.MakeWriteableChannel(Console.OpenStandardOutput());
+            var consoleOutput = thread.ChannelFactory.MakeWriteableChannel(Console.OpenStandardOutput());
 
             var connection = await client.ConnectAsync();
-
-            // This is on a libuv thread
 
             while (true)
             {
@@ -146,6 +147,8 @@ namespace Channels.Samples
 
                 // Write the client output to the console
                 await CopyCompletedAsync(connection.Output, consoleOutput);
+
+                await Task.Delay(1000);
             }
         }
 

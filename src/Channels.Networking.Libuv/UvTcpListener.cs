@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Net;
-using System.Threading;
 using Channels.Networking.Libuv.Interop;
 
 namespace Channels.Networking.Libuv
@@ -8,76 +7,50 @@ namespace Channels.Networking.Libuv
     public class UvTcpListener
     {
         private static Action<UvStreamHandle, int, Exception, object> _onConnectionCallback = OnConnectionCallback;
-        private static Action<Action<IntPtr>, IntPtr> _queueCloseCallback = QueueCloseHandle;
+        private static Action<object> _startListeningCallback = state => ((UvTcpListener)state).Listen();
+        private static Action<object> _stopListeningCallback = state => ((UvTcpListener)state).Dispose();
 
-        private readonly Thread _thread = new Thread(OnStart);
-        private readonly IPAddress _ip;
-        private readonly int _port;
+        private readonly IPEndPoint _endpoint;
+        private readonly UvThread _thread;
 
-        private UvAsyncHandle _shutdownPostHandle;
         private UvTcpHandle _listenSocket;
         private Action<UvTcpServerConnection> _callback;
 
-        public UvTcpListener(IPAddress ip, int port)
+        public UvTcpListener(UvThread thread, IPEndPoint endpoint)
         {
-            _ip = ip;
-            _port = port;
+            _thread = thread;
+            _endpoint = endpoint;
         }
-
-        public Uv Uv { get; private set; }
-
-        public UvLoopHandle Loop { get; private set; }
-
-        public ChannelFactory ChannelFactory { get; private set; } = new ChannelFactory();
 
         public void OnConnection(Action<UvTcpServerConnection> callback)
         {
             _callback = callback;
         }
 
-        private static void OnStart(object state)
-        {
-            ((UvTcpListener)state).RunLoop();
-        }
-
-        private void RunLoop()
-        {
-            Uv = new Uv();
-
-            Loop = new UvLoopHandle();
-            Loop.Init(Uv);
-
-            _shutdownPostHandle = new UvAsyncHandle();
-            _shutdownPostHandle.Init(Loop, OnPost, _queueCloseCallback);
-
-            _listenSocket = new UvTcpHandle();
-            _listenSocket.Init(Loop, _queueCloseCallback);
-            _listenSocket.NoDelay(true);
-            _listenSocket.Bind(new IPEndPoint(_ip, _port));
-
-            _listenSocket.Listen(10, _onConnectionCallback, this);
-
-            Uv.run(Loop, 0);
-        }
-
-        private void OnPost()
-        {
-            _listenSocket.Dispose();
-
-            // Unreference the post handle
-            _shutdownPostHandle.Unreference();
-        }
-
         public void Start()
         {
-            _thread.Start(this);
+            // TODO: Make idempotent
+            _thread.Post(_startListeningCallback, this);
         }
 
         public void Stop()
         {
-            _shutdownPostHandle.Send();
+            // TODO: Make idempotent
+            _thread.Post(_stopListeningCallback, this);
+        }
 
-            _thread.Join();
+        private void Dispose()
+        {
+            _listenSocket.Dispose();
+        }
+
+        private void Listen()
+        {
+            _listenSocket = new UvTcpHandle();
+            _listenSocket.Init(_thread.Loop, UvThread._queueCloseCallback);
+            _listenSocket.NoDelay(true);
+            _listenSocket.Bind(_endpoint);
+            _listenSocket.Listen(10, _onConnectionCallback, this);
         }
 
         private static void OnConnectionCallback(UvStreamHandle listenSocket, int status, Exception error, object state)
@@ -88,20 +61,16 @@ namespace Channels.Networking.Libuv
 
             try
             {
-                acceptSocket.Init(listener.Loop, _queueCloseCallback);
+                acceptSocket.Init(listener._thread.Loop, UvThread._queueCloseCallback);
                 acceptSocket.NoDelay(true);
                 listenSocket.Accept(acceptSocket);
-                var connection = new UvTcpServerConnection(listener.ChannelFactory, listener.Loop, acceptSocket);
+                var connection = new UvTcpServerConnection(listener._thread, acceptSocket);
                 listener._callback?.Invoke(connection);
             }
             catch (UvException)
             {
                 acceptSocket.Dispose();
             }
-        }
-
-        private static void QueueCloseHandle(Action<IntPtr> callback, IntPtr handle)
-        {
         }
     }
 }

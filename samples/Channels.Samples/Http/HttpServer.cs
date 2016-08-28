@@ -19,6 +19,7 @@ namespace Channels.Samples.Http
         private Socket _listenSocket;
         private RioTcpServer _rioTcpServer;
         private UvTcpListener _uvTcpListener;
+        private UvThread _uvThread;
 
         public HttpServer()
         {
@@ -37,7 +38,8 @@ namespace Channels.Samples.Http
 
         private void StartAcceptingLibuvConnections<TContext>(IHttpApplication<TContext> application, IPAddress ip, int port)
         {
-            _uvTcpListener = new UvTcpListener(ip, port);
+            _uvThread = new UvThread();
+            _uvTcpListener = new UvTcpListener(_uvThread, new IPEndPoint(ip, port));
             _uvTcpListener.OnConnection(async connection =>
             {
                 await ProcessClient(application, connection.Input, connection.Output);
@@ -105,6 +107,7 @@ namespace Channels.Samples.Http
             _rioTcpServer?.Stop();
             _listenSocket?.Dispose();
             _uvTcpListener?.Stop();
+            _uvThread?.Dispose();
         }
 
         private static void GetIp(string url, out IPAddress ip, out int port)

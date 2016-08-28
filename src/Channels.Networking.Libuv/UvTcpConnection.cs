@@ -8,8 +8,8 @@ namespace Channels.Networking.Libuv
 {
     public class UvTcpClientConnection : UvTcpConnection
     {
-        public UvTcpClientConnection(ChannelFactory channelFactory, UvLoopHandle loop, UvTcpHandle handle) :
-            base(channelFactory, loop, handle)
+        public UvTcpClientConnection(UvThread thread, UvTcpHandle handle) :
+            base(thread, handle)
         {
 
         }
@@ -20,8 +20,8 @@ namespace Channels.Networking.Libuv
 
     public class UvTcpServerConnection : UvTcpConnection
     {
-        public UvTcpServerConnection(ChannelFactory channelFactory, UvLoopHandle loop, UvTcpHandle handle) :
-            base(channelFactory, loop, handle)
+        public UvTcpServerConnection(UvThread thread, UvTcpHandle handle) :
+            base(thread, handle)
         {
 
         }
@@ -42,30 +42,38 @@ namespace Channels.Networking.Libuv
 
         protected readonly MemoryPoolChannel _input;
         protected readonly MemoryPoolChannel _output;
+        private readonly UvThread _thread;
+        private readonly UvTcpHandle _handle;
 
         private TaskCompletionSource<object> _connectionCompleted;
         private Task _sendingTask;
         private WritableBuffer _inputBuffer;
 
-        public UvTcpConnection(ChannelFactory channelFactory, UvLoopHandle loop, UvTcpHandle handle)
+        public UvTcpConnection(UvThread thread, UvTcpHandle handle)
         {
-            _input = channelFactory.CreateChannel();
-            _output = channelFactory.CreateChannel();
+            _thread = thread;
+            _handle = handle;
 
-            ProcessReads(handle);
-            _sendingTask = ProcessWrites(loop, handle);
+            _input = _thread.ChannelFactory.CreateChannel();
+            _output = _thread.ChannelFactory.CreateChannel();
+
+            ProcessReads();
+            _sendingTask = ProcessWrites();
         }
 
-        private async Task ProcessWrites(UvLoopHandle loop, UvTcpHandle handle)
+        private async Task ProcessWrites()
         {
             var writeReq = new UvWriteReq();
-            writeReq.Init(loop);
+            writeReq.Init(_thread.Loop);
 
             try
             {
                 while (true)
                 {
                     await _output;
+
+                    // Make sure we're on the libuv thread
+                    await _thread;
 
                     var buffer = _output.BeginRead();
 
@@ -77,7 +85,7 @@ namespace Channels.Networking.Libuv
                     // Up the reference count of the buffer so that we own the disposal of it
                     var cloned = buffer.Clone();
                     _outgoing.Enqueue(cloned);
-                    writeReq.Write(handle, ref cloned, _writeCallback, this);
+                    writeReq.Write(_handle, ref cloned, _writeCallback, this);
 
                     _output.EndRead(buffer);
                 }
@@ -100,7 +108,7 @@ namespace Channels.Networking.Libuv
 
                 writeReq.Dispose();
 
-                handle.Dispose();
+                _handle.Dispose();
             }
         }
 
@@ -111,9 +119,9 @@ namespace Channels.Networking.Libuv
             connection._connectionCompleted?.TrySetResult(null);
         }
 
-        private void ProcessReads(UvTcpHandle handle)
+        private void ProcessReads()
         {
-            handle.ReadStart(_allocCallback, _readCallback, this);
+            _handle.ReadStart(_allocCallback, _readCallback, this);
         }
 
         private static void ReadCallback(UvStreamHandle handle, int status, object state)
@@ -159,8 +167,16 @@ namespace Channels.Networking.Libuv
             }
             else
             {
-                // TODO: If this task is incomplete then pause readin from the stream
-                _input.WriteAsync(_inputBuffer);
+                var task = _input.WriteAsync(_inputBuffer);
+
+                if (task.IsFaulted)
+                {
+                    // TODO: Stop producing forever
+                }
+                else if (!task.IsCompleted)
+                {
+                    // TODO: Pause reading until the task completes
+                }
             }
         }
 
