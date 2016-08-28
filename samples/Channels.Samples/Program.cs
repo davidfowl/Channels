@@ -230,11 +230,11 @@ namespace Channels.Samples
             //    await RunHttpClient(IPAddress.Loopback, 5000);
             //});
 
-            Task.Run(async () =>
-            {
-                await Task.Delay(500);
-                await RunHttpClient();
-            });
+            //Task.Run(async () =>
+            //{
+            //    await Task.Delay(500);
+            //    await RunHttpClient();
+            //});
 
             host.Run();
         }
