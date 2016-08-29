@@ -11,7 +11,7 @@ namespace Channels.Networking.Libuv.Internal
     {
         private Node Head;
 
-        public void Add(T value)
+        public void Enqueue(T value)
         {
             var node = new Node();
             node.Value = value;
@@ -29,26 +29,17 @@ namespace Channels.Networking.Libuv.Internal
             }
         }
 
-        public T[] GetAndClear()
+        public void Dequeue(T[] values)
         {
             var node = Interlocked.Exchange(ref Head, null);
 
-            if (node == null)
-            {
-                return EmptyArray<T>.Instance;
-            }
-
-            // TODO: Don't allocate here
-            var values = new T[node.Count];
-            int at = node.Count - 1;
+            int at = Math.Min(node.Count, values.Length) - 1;
 
             while (node != null)
             {
                 values[at--] = node.Value;
                 node = node.Next;
             }
-
-            return values;
         }
 
         private class Node
@@ -56,11 +47,6 @@ namespace Channels.Networking.Libuv.Internal
             public T Value;
             public Node Next;
             public int Count;
-        }
-
-        private static class EmptyArray<TArray>
-        {
-            public static TArray[] Instance = new TArray[0];
         }
     }
 }

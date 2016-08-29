@@ -15,9 +15,12 @@ namespace Channels.Networking.Libuv
         private readonly Thread _thread = new Thread(OnStart);
         private readonly ManualResetEventSlim _running = new ManualResetEventSlim();
         private readonly LockFreeWorkQueue<Work> _workQueue = new LockFreeWorkQueue<Work>();
+        private readonly Work[] _work = new Work[100];
 
         private bool _stopping;
         private UvAsyncHandle _postHandle;
+
+        private object _startLock = new object();
 
         public UvThread()
         {
@@ -45,7 +48,7 @@ namespace Channels.Networking.Libuv
                 State = state
             };
 
-            _workQueue.Add(work);
+            _workQueue.Enqueue(work);
 
             _postHandle.Send();
         }
@@ -82,7 +85,9 @@ namespace Channels.Networking.Libuv
 
         private void OnPost()
         {
-            foreach (var work in _workQueue.GetAndClear())
+            _workQueue.Dequeue(_work);
+
+            foreach (var work in _work)
             {
                 work.Callback(work.State);
             }
@@ -95,11 +100,14 @@ namespace Channels.Networking.Libuv
 
         private void EnsureStarted()
         {
-            if (!_running.IsSet)
+            lock (_startLock)
             {
-                _thread.Start(this);
+                if (!_running.IsSet)
+                {
+                    _thread.Start(this);
 
-                _running.Wait();
+                    _running.Wait();
+                }
             }
         }
 

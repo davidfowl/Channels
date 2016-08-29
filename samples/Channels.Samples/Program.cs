@@ -134,11 +134,20 @@ namespace Channels.Samples
 
             while (true)
             {
-                var response = await client.GetAsync("http://localhost:5000");
+                var responses = new Task<HttpResponseMessage>[20];
+                for (int i = 0; i < responses.Length; i++)
+                {
+                    responses[i] = client.GetAsync("http://localhost:5000", HttpCompletionOption.ResponseHeadersRead);
+                }
 
-                Console.WriteLine(response);
+                await Task.WhenAll(responses);
 
-                Console.WriteLine(await response.Content.ReadAsStringAsync());
+                foreach (var response in responses)
+                {
+                    Console.WriteLine(await response);
+                }
+
+                //Console.WriteLine(await response.Content.ReadAsStringAsync());
 
                 await Task.Delay(1000);
             }
@@ -230,11 +239,11 @@ namespace Channels.Samples
             //    await RunHttpClient(IPAddress.Loopback, 5000);
             //});
 
-            //Task.Run(async () =>
-            //{
-            //    await Task.Delay(500);
-            //    await RunHttpClient();
-            //});
+            Task.Run(async () =>
+            {
+                await Task.Delay(500);
+                await RunHttpClient();
+            });
 
             host.Run();
         }
