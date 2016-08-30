@@ -14,7 +14,7 @@ namespace Channels
         {
             var writeBuffer = channel.Alloc();
             writeBuffer.Write(buffer, offset, count);
-            return writeBuffer.CommitAsync();
+            return writeBuffer.FlushAsync();
         }
 
         public static Task WriteAsync(this IWritableChannel channel, ArraySegment<byte> buffer)
@@ -96,7 +96,7 @@ namespace Channels
 
                     buffer.Append(inputBuffer);
 
-                    await buffer.CommitAsync();
+                    await buffer.FlushAsync();
                 }
                 finally
                 {

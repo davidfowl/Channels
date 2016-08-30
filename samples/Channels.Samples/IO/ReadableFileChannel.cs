@@ -46,7 +46,7 @@ namespace Channels.Samples.IO
 
             var buffer = operation.BoxedBuffer.Value;
 
-            buffer.UpdateWritten((int)numBytes);
+            buffer.CommitBytes((int)numBytes);
             operation.Channel.WriteAsync(buffer);
 
             if (numBytes == 0)

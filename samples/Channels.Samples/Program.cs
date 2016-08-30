@@ -105,7 +105,7 @@ namespace Channels.Samples
                     formatter.Append("Hello World!");
                 }
 
-                await formatter.Buffer.CommitAsync();
+                await formatter.Buffer.FlushAsync();
 
                 // Consume the input
                 input.Consumed();
@@ -158,7 +158,7 @@ namespace Channels.Samples
                 WritableBufferExtensions.WriteAsciiString(ref buffer, "GET / HTTP/1.1");
                 WritableBufferExtensions.WriteAsciiString(ref buffer, "\r\n\r\n");
 
-                await buffer.CommitAsync();
+                await buffer.FlushAsync();
 
                 // Write the client output to the console
                 await CopyCompletedAsync(connection.Output, consoleOutput);
@@ -186,7 +186,7 @@ namespace Channels.Samples
 
                     buffer.Append(inputBuffer);
 
-                    await buffer.CommitAsync();
+                    await buffer.FlushAsync();
                 }
                 finally
                 {

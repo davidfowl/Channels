@@ -25,8 +25,8 @@ namespace Channels
                     }
                     else
                     {
-                        buffer.UpdateWritten(bytesRead);
-                        await buffer.CommitAsync();
+                        buffer.CommitBytes(bytesRead);
+                        await buffer.FlushAsync();
                     }
                 }
                 catch (Exception error)

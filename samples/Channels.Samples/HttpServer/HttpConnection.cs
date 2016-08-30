@@ -264,7 +264,7 @@ namespace Channels.Samples.Http
 
                 WriteEndResponse(ref buffer);
 
-                return buffer.CommitAsync();
+                return buffer.FlushAsync();
             }
 
             return Task.CompletedTask;
@@ -306,7 +306,7 @@ namespace Channels.Samples.Http
                 buffer.Write(array, offset, count);
             }
 
-            return buffer.CommitAsync();
+            return buffer.FlushAsync();
         }
 
         private void WriteBeginResponseHeaders(ref WritableBuffer buffer, ref bool autoChunk)

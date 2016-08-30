@@ -82,7 +82,7 @@ namespace Channels
             }
         }
 
-        public Task CommitAsync()
+        public Task FlushAsync()
         {
             return _channel.WriteAsync(this);
         }
@@ -167,7 +167,7 @@ namespace Channels
             _tailIndex = clonedEnd.End;
         }
 
-        public void UpdateWritten(int bytesWritten)
+        public void CommitBytes(int bytesWritten)
         {
             Debug.Assert(_tail != null);
             Debug.Assert(!_tail.ReadOnly);

@@ -48,7 +48,7 @@ namespace Channels.Samples
             {
                 WriteHeaders(request.Content.Headers, ref requestBuffer);
 
-                await requestBuffer.CommitAsync();
+                await requestBuffer.FlushAsync();
 
                 // Copy the body to the input channel
                 var body = await request.Content.ReadAsStreamAsync();
@@ -57,7 +57,7 @@ namespace Channels.Samples
             }
             else
             {
-                await requestBuffer.CommitAsync();
+                await requestBuffer.FlushAsync();
             }
 
             var response = new HttpResponseMessage();

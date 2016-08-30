@@ -66,7 +66,7 @@ namespace Channels.Samples.IO.Compression
                     while (!_deflater.NeedsInput())
                     {
                         int written = _deflater.ReadDeflateOutput(writerBuffer.Memory.BufferPtr, writerBuffer.Memory.Length);
-                        writerBuffer.UpdateWritten(written);
+                        writerBuffer.CommitBytes(written);
                     }
 
                     var consumed = span.Length - _deflater.AvailableInput;
@@ -75,7 +75,7 @@ namespace Channels.Samples.IO.Compression
 
                     inputBuffer.Consumed();
 
-                    await writerBuffer.CommitAsync();
+                    await writerBuffer.FlushAsync();
                 }
 
                 bool flushed;
@@ -86,9 +86,9 @@ namespace Channels.Samples.IO.Compression
 
                     int compressedBytes;
                     flushed = _deflater.Flush(writerBuffer.Memory.BufferPtr, writerBuffer.Memory.Length, out compressedBytes);
-                    writerBuffer.UpdateWritten(compressedBytes);
+                    writerBuffer.CommitBytes(compressedBytes);
 
-                    await writerBuffer.CommitAsync();
+                    await writerBuffer.FlushAsync();
                 }
                 while (flushed);
 
@@ -100,9 +100,9 @@ namespace Channels.Samples.IO.Compression
 
                     int compressedBytes;
                     finished = _deflater.Finish(writerBuffer.Memory.BufferPtr, writerBuffer.Memory.Length, out compressedBytes);
-                    writerBuffer.UpdateWritten(compressedBytes);
+                    writerBuffer.CommitBytes(compressedBytes);
 
-                    await writerBuffer.CommitAsync();
+                    await writerBuffer.FlushAsync();
                 }
                 while (!finished);
 
@@ -142,7 +142,7 @@ namespace Channels.Samples.IO.Compression
 
                         int written = _inflater.Inflate(writerBuffer.Memory.BufferPtr, writerBuffer.Memory.Length);
 
-                        writerBuffer.UpdateWritten(written);
+                        writerBuffer.CommitBytes(written);
 
                         var consumed = span.Length - _inflater.AvailableInput;
 
@@ -151,7 +151,7 @@ namespace Channels.Samples.IO.Compression
 
                     inputBuffer.Consumed();
 
-                    await writerBuffer.CommitAsync();
+                    await writerBuffer.FlushAsync();
                 }
 
                 input.CompleteReading();

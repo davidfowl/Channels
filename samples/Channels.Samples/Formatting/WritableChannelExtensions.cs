@@ -37,7 +37,7 @@ namespace Channels.Samples.Formatting
 
         public void CommitBytes(int bytes)
         {
-            _writableBuffer.UpdateWritten(bytes);
+            _writableBuffer.CommitBytes(bytes);
         }
 
         public void ResizeBuffer()
