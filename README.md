@@ -33,6 +33,15 @@ Unlike `Stream`, it's unexpected that users would implement `IReadableChannel` a
 
 To see an example of a custom `IReadableChannel` over Win32 files look at https://github.com/davidfowl/Channels/blob/master/samples/Channels.Samples/IO/ReadableFileChannel.cs
 
-## Backpressure
+## MyGet Feed
 
-TODO
+You can access CI builds of channels using the following myget source:
+
+```XML
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <packageSources>
+    <add key="Channels" value="https://www.myget.org/F/channels/api/v3/index.json" />
+  </packageSources>
+</configuration>
+```
