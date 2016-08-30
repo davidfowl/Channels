@@ -1,10 +1,14 @@
 ﻿using System;
 using System.Text;
+using System.Text.Utf8;
 
 namespace Channels.Text.Primitives
 {
     public static class ReadableBufferExtensions
     {
+        private static readonly Encoding Utf8Encoding = Encoding.UTF8;
+        private static readonly Decoder Utf8Decoder = Utf8Encoding.GetDecoder();
+
         public static ReadableBuffer TrimStart(this ReadableBuffer buffer)
         {
             int ch;
@@ -21,6 +25,43 @@ namespace Channels.Text.Primitives
             }
 
             return buffer;
+        }
+
+        public unsafe static uint GetInt32(this ReadableBuffer buffer)
+        {
+            var span = default(ReadOnlySpan<byte>);
+
+            if (buffer.IsSingleSpan)
+            {
+                // It fits!
+                span = new ReadOnlySpan<byte>(buffer.FirstSpan.Array, buffer.FirstSpan.Offset, buffer.FirstSpan.Length);
+            }
+            else if (buffer.Length < 100) // REVIEW: What's a good number
+            {
+                var target = stackalloc byte[100];
+                var temp = new Span<byte>(target, buffer.Length);
+                foreach (var bs in buffer)
+                {
+                    var s = new ReadOnlySpan<byte>((byte*)bs.BufferPtr, bs.Length);
+                    s.TryCopyTo(temp);
+                    temp = temp.Slice(s.Length);
+                }
+
+                span = new ReadOnlySpan<byte>(target, buffer.Length);
+            }
+            else
+            {
+                // Heap allocated copy to parse into array (should be rare)
+                span = new ReadOnlySpan<byte>(buffer.ToArray());
+            }
+
+            uint value;
+            var utf8Buffer = new Utf8String(span);
+            if (!InvariantParser.TryParse(utf8Buffer, out value))
+            {
+                throw new InvalidOperationException();
+            }
+            return value;
         }
 
         public unsafe static string GetAsciiString(this ReadableBuffer buffer)
@@ -60,10 +101,10 @@ namespace Channels.Text.Primitives
 
             if (buffer.IsSingleSpan)
             {
-                return Encoding.UTF8.GetString(buffer.FirstSpan.Array, buffer.FirstSpan.Offset, buffer.FirstSpan.Length);
+                return Utf8Encoding.GetString(buffer.FirstSpan.Array, buffer.FirstSpan.Offset, buffer.FirstSpan.Length);
             }
 
-            var decoder = Encoding.UTF8.GetDecoder();
+            var decoder = Utf8Decoder;
 
             var length = buffer.Length;
             var charLength = length * 2;
