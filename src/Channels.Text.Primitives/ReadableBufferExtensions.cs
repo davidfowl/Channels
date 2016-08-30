@@ -37,9 +37,9 @@ namespace Channels.Text.Primitives
                 // It fits!
                 span = new ReadOnlySpan<byte>(buffer.FirstSpan.Array, buffer.FirstSpan.Offset, buffer.FirstSpan.Length);
             }
-            else if (buffer.Length < 100) // REVIEW: What's a good number
+            else if (buffer.Length < 128) // REVIEW: What's a good number
             {
-                var target = stackalloc byte[100];
+                var target = stackalloc byte[128];
                 var temp = new Span<byte>(target, buffer.Length);
                 foreach (var bs in buffer)
                 {
