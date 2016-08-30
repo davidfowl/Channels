@@ -6,6 +6,7 @@ namespace Channels.Text.Primitives
     public static class WritableBufferExtensions
     {
         private static readonly Encoding Utf8Encoding = Encoding.UTF8;
+        private static readonly Encoding ASCIIEncoding = Encoding.ASCII;
 
         public static unsafe void WriteAsciiString(ref WritableBuffer buffer, string value)
         {
@@ -14,7 +15,7 @@ namespace Channels.Text.Primitives
 
             fixed (char* s = value)
             {
-                int written = Encoding.ASCII.GetBytes(s, value.Length, (byte*)buffer.Memory.BufferPtr, value.Length);
+                int written = ASCIIEncoding.GetBytes(s, value.Length, (byte*)buffer.Memory.BufferPtr, value.Length);
                 buffer.UpdateWritten(written);
             }
         }
