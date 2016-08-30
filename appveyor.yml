@@ -11,7 +11,7 @@ test_script:
 
 after_test:
   # Build and pack source
-  - dotnet pack -c Release src/Channels
+  - dotnet pack -c Release src/Channels --version-suffix %APPVEYOR_BUILD_NUMBER%
   - dotnet pack -c Release src/Channels.Networking.Libuv --version-suffix %APPVEYOR_BUILD_NUMBER%
   - dotnet pack -c Release src/Channels.Networking.Windows.RIO --version-suffix %APPVEYOR_BUILD_NUMBER%
 
