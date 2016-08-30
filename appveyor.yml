@@ -1,9 +1,6 @@
 os: Visual Studio 2015
 build: off
 
-environment:
-  DOTNET_BUILD_VERSION: %APPVEYOR_BUILD_NUMBER%
-
 before_test:
   - dotnet --info
   - dotnet restore
