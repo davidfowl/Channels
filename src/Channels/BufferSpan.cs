@@ -1,8 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace Channels
 {
@@ -33,11 +30,6 @@ namespace Channels
         public override string ToString()
         {
             return Encoding.UTF8.GetString(Array, Offset, Length);
-        }
-
-        public void CopyTo(ref WritableBuffer buffer)
-        {
-            buffer.Write(Array, Offset, Length);
         }
     }
 }
