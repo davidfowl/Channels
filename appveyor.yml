@@ -17,3 +17,12 @@ after_test:
 
 artifacts:
   path: '**/*.nupkg'
+
+deploy:  
+- provider: NuGet
+  server: https://www.myget.org/F/channels/api/v2/package
+  api_key:
+    secure: OvE2o5re489/Dr0nt3p9UzpcIcLhSt7FoHyvRUuniUbj5Wkx9+i9fBYuwmDGtxnw
+  skip_symbols: true
+  on:
+    branch: master
