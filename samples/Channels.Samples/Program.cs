@@ -2,19 +2,20 @@
 using System.IO;
 using System.IO.Compression;
 using System.Net;
+using System.Net.Http;
 using System.Text;
 using System.Text.Formatting;
 using System.Threading.Tasks;
+using Channels.Networking.Libuv;
 using Channels.Samples.Formatting;
 using Channels.Samples.Http;
 using Channels.Samples.IO.Compression;
-using Channels.Networking.Libuv;
+using Channels.Text.Primitives;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
-using System.Net.Http;
 
 namespace Channels.Samples
 {

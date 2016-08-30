@@ -2,6 +2,7 @@
 using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
+using Channels.Text.Primitives;
 using Microsoft.AspNetCore.Hosting.Server;
 
 namespace Channels.Samples.Http

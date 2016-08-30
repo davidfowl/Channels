@@ -1,0 +1,21 @@
+﻿{
+  "version": "0.1.0-beta-*",
+  "description": "Primitives for dealing with reading and writing text to and from channels",
+  "packOptions": {
+    "projectUrl": "https://github.com/davidfowl/Channels"
+  },
+  "buildOptions": {
+    "allowUnsafe": true,
+    "keyFile": "../../tools/Key.snk"
+  },
+
+  "dependencies": {
+    "NETStandard.Library": "1.6.0",
+    "Channels": "0.1.0-*"
+  },
+
+  "frameworks": {
+    "net451": {},
+    "netstandard1.3": {}
+  }
+}

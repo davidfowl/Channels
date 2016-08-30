@@ -7,6 +7,7 @@
 
   "dependencies": {
     "Channels": "0.1.0-*",
+    "Channels.Text.Primitives": "0.1.0-*",
     "Channels.Networking.Libuv": "0.1.0-*",
     "Channels.Networking.Windows.RIO": "0.1.0-*",
     "System.Slices": "0.1.0-*",

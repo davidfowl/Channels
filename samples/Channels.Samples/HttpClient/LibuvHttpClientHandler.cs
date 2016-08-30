@@ -9,6 +9,7 @@ using System.Numerics;
 using System.Threading;
 using System.Threading.Tasks;
 using Channels.Networking.Libuv;
+using Channels.Text.Primitives;
 
 namespace Channels.Samples
 {

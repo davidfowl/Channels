@@ -1,13 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Text;
 
-namespace Channels.Samples
+namespace Channels.Text.Primitives
 {
+    // These APIs suck since you can't pass structs by ref to extension methods and they are mutable structs...
     public static class WritableBufferExtensions
     {
+        private static readonly Encoding Utf8Encoding = Encoding.UTF8;
+
         public static unsafe void WriteAsciiString(ref WritableBuffer buffer, string value)
         {
             // One byte per char
@@ -22,13 +21,11 @@ namespace Channels.Samples
 
         public static unsafe void WriteUtf8String(ref WritableBuffer buffer, string value)
         {
-            var encoding = Encoding.UTF8;
-
             fixed (char* s = value)
             {
-                var byteCount = encoding.GetByteCount(value);
+                var byteCount = Utf8Encoding.GetByteCount(value);
                 buffer.Ensure(byteCount);
-                int written = encoding.GetBytes(s, value.Length, (byte*)buffer.Memory.BufferPtr, byteCount);
+                int written = Utf8Encoding.GetBytes(s, value.Length, (byte*)buffer.Memory.BufferPtr, byteCount);
                 buffer.UpdateWritten(written);
             }
         }
