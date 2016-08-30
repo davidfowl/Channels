@@ -142,12 +142,7 @@ namespace Channels
 
         public void Append(ReadableBuffer buffer)
         {
-            Append(buffer.Start, buffer.End);
-        }
-
-        public void Append(ReadCursor begin, ReadCursor end)
-        {
-            var clonedBegin = MemoryBlockSegment.Clone(begin, end);
+            var clonedBegin = MemoryBlockSegment.Clone(buffer.Start, buffer.End);
             var clonedEnd = clonedBegin;
             while (clonedEnd.Next != null)
             {
