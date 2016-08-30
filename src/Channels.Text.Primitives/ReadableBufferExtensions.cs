@@ -1,13 +1,14 @@
 ﻿using System;
 using System.Text;
 using System.Text.Utf8;
+using System.Threading;
 
 namespace Channels.Text.Primitives
 {
     public static class ReadableBufferExtensions
     {
         private static readonly Encoding Utf8Encoding = Encoding.UTF8;
-        private static readonly Decoder Utf8Decoder = Utf8Encoding.GetDecoder();
+        private static object Utf8Decoder;
 
         public static ReadableBuffer TrimStart(this ReadableBuffer buffer)
         {
@@ -103,11 +104,13 @@ namespace Channels.Text.Primitives
             {
                 return Utf8Encoding.GetString(buffer.FirstSpan.Array, buffer.FirstSpan.Offset, buffer.FirstSpan.Length);
             }
-
-            var decoder = Utf8Decoder;
+            // try to re-use a shared decoder; note that in heavy usage, we might need to allocate another
+            var decoder = (Decoder)Interlocked.Exchange(ref Utf8Decoder, null);
+            if (decoder == null) decoder = Utf8Encoding.GetDecoder();
+            else decoder.Reset();
 
             var length = buffer.Length;
-            var charLength = length * 2;
+            var charLength = length; // worst case is 1 byte per char
             var chars = new char[charLength];
             var charIndex = 0;
 
@@ -124,14 +127,15 @@ namespace Channels.Text.Primitives
                     chars,
                     charIndex,
                     charLength - charIndex,
-                    true,
+                    false, // a single character could span two spans
                     out bytesUsed,
                     out charsUsed,
                     out completed);
 
                 charIndex += charsUsed;
             }
-
+            // make the decoder available for re-use
+            Interlocked.CompareExchange(ref Utf8Decoder, decoder, null);
             return new string(chars, 0, charIndex);
         }
     }
