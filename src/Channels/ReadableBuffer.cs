@@ -11,10 +11,11 @@ namespace Channels
     public struct ReadableBuffer : IDisposable, IEnumerable<BufferSpan>
     {
         private readonly BufferSpan _span;
-        private readonly ReadIterator _start;
-        private readonly ReadIterator _end;
+        private readonly ReadCursor _start;
+        private readonly ReadCursor _end;
         private readonly int _length;
         private readonly bool _isOwner;
+        private readonly MemoryPoolChannel _channel;
         private bool _disposed;
 
         public int Length => _length;
@@ -24,17 +25,18 @@ namespace Channels
 
         public BufferSpan FirstSpan => _span;
 
-        public ReadIterator Start => _start;
-        public ReadIterator End => _end;
+        public ReadCursor Start => _start;
+        public ReadCursor End => _end;
 
-        public ReadableBuffer(ReadIterator start, ReadIterator end) :
-            this(start, end, isOwner: false)
+        public ReadableBuffer(MemoryPoolChannel channel, ReadCursor start, ReadCursor end) :
+            this(channel, start, end, isOwner: false)
         {
 
         }
 
-        public ReadableBuffer(ReadIterator start, ReadIterator end, bool isOwner)
+        public ReadableBuffer(MemoryPoolChannel channel, ReadCursor start, ReadCursor end, bool isOwner)
         {
+            _channel = channel;
             _start = start;
             _end = end;
             _isOwner = isOwner;
@@ -47,21 +49,21 @@ namespace Channels
             _length = begin.GetLength(end);
         }
 
-        public ReadIterator IndexOf(ref Vector<byte> byte0Vector)
+        public ReadCursor IndexOf(ref Vector<byte> byte0Vector)
         {
             var begin = _start;
             begin.Seek(ref byte0Vector);
             return begin;
         }
 
-        public ReadIterator IndexOfAny(ref Vector<byte> byte0Vector, ref Vector<byte> byte1Vector)
+        public ReadCursor IndexOfAny(ref Vector<byte> byte0Vector, ref Vector<byte> byte1Vector)
         {
             var begin = _start;
             begin.Seek(ref byte0Vector, ref byte1Vector);
             return begin;
         }
 
-        public ReadIterator IndexOfAny(ref Vector<byte> byte0Vector, ref Vector<byte> byte1Vector, ref Vector<byte> byte2Vector)
+        public ReadCursor IndexOfAny(ref Vector<byte> byte0Vector, ref Vector<byte> byte1Vector, ref Vector<byte> byte2Vector)
         {
             var begin = _start;
             begin.Seek(ref byte0Vector, ref byte1Vector, ref byte2Vector);
@@ -80,7 +82,7 @@ namespace Channels
             return Slice(begin, end);
         }
 
-        public ReadableBuffer Slice(int start, ReadIterator end)
+        public ReadableBuffer Slice(int start, ReadCursor end)
         {
             var begin = _start;
             if (start != 0)
@@ -90,28 +92,28 @@ namespace Channels
             return Slice(begin, end);
         }
 
-        public ReadableBuffer Slice(ReadIterator start, ReadIterator end)
+        public ReadableBuffer Slice(ReadCursor start, ReadCursor end)
         {
-            return new ReadableBuffer(start, end);
+            return new ReadableBuffer(_channel, start, end);
         }
 
-        public ReadableBuffer Slice(ReadIterator start, int length)
+        public ReadableBuffer Slice(ReadCursor start, int length)
         {
             var begin = start;
             var actual = begin.Seek(length);
             return Slice(begin, actual);
         }
 
-        public ReadableBuffer Slice(ReadIterator start)
+        public ReadableBuffer Slice(ReadCursor start)
         {
-            return new ReadableBuffer(start, _end);
+            return new ReadableBuffer(_channel, start, _end);
         }
 
         public ReadableBuffer Slice(int start)
         {
             var begin = _start;
             begin.Seek(start);
-            return new ReadableBuffer(begin, _end);
+            return new ReadableBuffer(_channel, begin, _end);
         }
 
         public int Peek()
@@ -132,10 +134,10 @@ namespace Channels
                 segmentTail = segmentTail.Next;
             }
 
-            begin = new ReadIterator(segmentHead);
-            end = new ReadIterator(segmentTail, segmentTail.End);
+            begin = new ReadCursor(segmentHead);
+            end = new ReadCursor(segmentTail, segmentTail.End);
 
-            return new ReadableBuffer(begin, end, isOwner: true);
+            return new ReadableBuffer(_channel, begin, end, isOwner: true);
         }
 
         public void CopyTo(byte[] data)
@@ -189,6 +191,21 @@ namespace Channels
             }
 
             _disposed = true;
+        }
+
+        public void Consumed()
+        {
+            _channel.EndRead(End, End);
+        }
+
+        public void Consumed(ReadCursor consumed)
+        {
+            _channel.EndRead(consumed, consumed);
+        }
+
+        public void Consumed(ReadCursor consumed, ReadCursor examined)
+        {
+            _channel.EndRead(consumed, examined);
         }
 
         public override string ToString()

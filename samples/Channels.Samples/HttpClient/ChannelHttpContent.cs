@@ -29,7 +29,7 @@ namespace Channels.Samples
 
                 var fin = _output.Completion.IsCompleted;
 
-                var inputBuffer = _output.BeginRead();
+                var inputBuffer = _output.Read();
                 var consumed = inputBuffer.Start;
 
                 try
@@ -51,7 +51,7 @@ namespace Channels.Samples
                 }
                 finally
                 {
-                    _output.EndRead(consumed);
+                    inputBuffer.Consumed(consumed);
                 }
             }
         }

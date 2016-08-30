@@ -93,7 +93,7 @@ namespace Channels
                     _tail = segment;
                 }
 
-                return new WritableBuffer(_pool, segment);
+                return new WritableBuffer(this, _pool, segment);
             }
         }
 
@@ -156,24 +156,24 @@ namespace Channels
             }
         }
 
-        public ReadableBuffer BeginRead()
+        public ReadableBuffer Read()
         {
             if (Interlocked.CompareExchange(ref _consumingState, 1, 0) != 0)
             {
                 throw new InvalidOperationException("Already consuming.");
             }
 
-            return new ReadableBuffer(new ReadIterator(_head), new ReadIterator(_tail, _tail?.End ?? 0));
+            return new ReadableBuffer(this, new ReadCursor(_head), new ReadCursor(_tail, _tail?.End ?? 0));
         }
 
-        public void EndRead(ReadIterator end)
+        public void EndRead(ReadCursor end)
         {
             EndRead(end, end);
         }
 
         public void EndRead(
-            ReadIterator consumed,
-            ReadIterator examined)
+            ReadCursor consumed,
+            ReadCursor examined)
         {
             MemoryBlockSegment returnStart = null;
             MemoryBlockSegment returnEnd = null;

@@ -60,7 +60,7 @@ namespace Channels.Samples.Http
             {
                 await _input;
 
-                var buffer = _input.BeginRead();
+                var buffer = _input.Read();
                 var consumed = buffer.Start;
                 bool needMoreData = true;
 
@@ -207,7 +207,7 @@ namespace Channels.Samples.Http
                 }
                 finally
                 {
-                    _input.EndRead(consumed);
+                    buffer.Consumed(consumed);
                 }
 
                 if (needMoreData)
@@ -264,7 +264,7 @@ namespace Channels.Samples.Http
 
                 WriteEndResponse(ref buffer);
 
-                return _output.WriteAsync(buffer);
+                return buffer.CommitAsync();
             }
 
             return Task.CompletedTask;
@@ -306,7 +306,7 @@ namespace Channels.Samples.Http
                 buffer.Write(array, offset, count);
             }
 
-            return _output.WriteAsync(buffer);
+            return buffer.CommitAsync();
         }
 
         private void WriteBeginResponseHeaders(ref WritableBuffer buffer, ref bool autoChunk)

@@ -4,12 +4,14 @@
 using System;
 using System.Diagnostics;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Channels
 {
     public struct WritableBuffer
     {
         private MemoryPool _pool;
+        private MemoryPoolChannel _channel;
 
         private MemoryBlockSegment _tail;
         private int _tailIndex;
@@ -17,8 +19,9 @@ namespace Channels
         private MemoryBlockSegment _head;
         private int _headIndex;
 
-        internal WritableBuffer(MemoryPool pool, MemoryBlockSegment segment)
+        internal WritableBuffer(MemoryPoolChannel channel, MemoryPool pool, MemoryBlockSegment segment)
         {
+            _channel = channel;
             _pool = pool;
 
             _tail = segment;
@@ -79,6 +82,11 @@ namespace Channels
             }
         }
 
+        public Task CommitAsync()
+        {
+            return _channel.WriteAsync(this);
+        }
+
         public void Write(byte[] data, int offset, int count)
         {
             if (_tail == null)
@@ -137,7 +145,7 @@ namespace Channels
             Append(buffer.Start, buffer.End);
         }
 
-        public void Append(ReadIterator begin, ReadIterator end)
+        public void Append(ReadCursor begin, ReadCursor end)
         {
             var clonedBegin = MemoryBlockSegment.Clone(begin, end);
             var clonedEnd = clonedBegin;

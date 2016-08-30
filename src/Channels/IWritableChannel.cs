@@ -8,7 +8,6 @@ namespace Channels
     public interface IWritableChannel
     {
         WritableBuffer Alloc(int minimumSize = 0);
-        Task WriteAsync(WritableBuffer buffer);
 
         void CompleteWriting(Exception error = null);
     }

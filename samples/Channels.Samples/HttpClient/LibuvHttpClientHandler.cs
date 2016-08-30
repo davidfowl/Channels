@@ -47,7 +47,7 @@ namespace Channels.Samples
             {
                 WriteHeaders(request.Content.Headers, ref requestBuffer);
 
-                await connection.Input.WriteAsync(requestBuffer);
+                await requestBuffer.CommitAsync();
 
                 // Copy the body to the input channel
                 var body = await request.Content.ReadAsStreamAsync();
@@ -56,7 +56,7 @@ namespace Channels.Samples
             }
             else
             {
-                await connection.Input.WriteAsync(requestBuffer);
+                await requestBuffer.CommitAsync();
             }
 
             var response = new HttpResponseMessage();
@@ -77,7 +77,7 @@ namespace Channels.Samples
             {
                 await connection.Output;
 
-                var responseBuffer = connection.Output.BeginRead();
+                var responseBuffer = connection.Output.Read();
                 var consumed = responseBuffer.Start;
 
                 var needMoreData = true;
@@ -98,7 +98,7 @@ namespace Channels.Samples
                         responseBuffer = responseBuffer.Slice(state.PreviousContentLength);
                         consumed = responseBuffer.Start;
 
-                        state.Consumed = default(ReadIterator);
+                        state.Consumed = default(ReadCursor);
                     }
 
                     if (responseBuffer.IsEmpty && connection.Output.Completion.IsCompleted)
@@ -232,7 +232,7 @@ namespace Channels.Samples
                 }
                 finally
                 {
-                    connection.Output.EndRead(consumed);
+                    responseBuffer.Consumed(consumed);
                 }
 
                 if (needMoreData)
@@ -306,7 +306,7 @@ namespace Channels.Samples
 
             public int PreviousContentLength { get; set; }
 
-            public ReadIterator Consumed { get; set; }
+            public ReadCursor Consumed { get; set; }
         }
     }
 }

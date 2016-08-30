@@ -80,7 +80,7 @@ namespace Channels
             return Encoding.UTF8.GetString(Block.Array, Start, End - Start);
         }
 
-        public static MemoryBlockSegment Clone(ReadIterator beginBuffer, ReadIterator endBuffer)
+        public static MemoryBlockSegment Clone(ReadCursor beginBuffer, ReadCursor endBuffer)
         {
             var beginOrig = beginBuffer.Segment;
             var endOrig = endBuffer.Segment;

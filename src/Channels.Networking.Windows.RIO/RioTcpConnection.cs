@@ -79,7 +79,7 @@ namespace Channels.Networking.Windows.RIO
             {
                 await _output;
 
-                var buffer = _output.BeginRead();
+                var buffer = _output.Read();
 
                 if (buffer.IsEmpty && _output.Completion.IsCompleted)
                 {
@@ -107,7 +107,7 @@ namespace Channels.Networking.Windows.RIO
                     await SendAsync(current, endOfMessage: true);
                 }
 
-                _output.EndRead(buffer);
+                buffer.Consumed();
             }
 
             _output.CompleteReading();

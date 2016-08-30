@@ -14,7 +14,7 @@ namespace Channels
         {
             var writeBuffer = channel.Alloc();
             writeBuffer.Write(buffer, offset, count);
-            return channel.WriteAsync(writeBuffer);
+            return writeBuffer.CommitAsync();
         }
 
         public static Task WriteAsync(this IWritableChannel channel, ArraySegment<byte> buffer)
@@ -25,27 +25,17 @@ namespace Channels
 
     public static class ReadableChannelExtensions
     {
-        public static void EndRead(this IReadableChannel input, ReadIterator consumed)
-        {
-            input.EndRead(consumed, consumed);
-        }
-
-        public static void EndRead(this IReadableChannel input, ReadableBuffer consumed)
-        {
-            input.EndRead(consumed.End, consumed.End);
-        }
-
         public static ValueTask<int> ReadAsync(this IReadableChannel input, byte[] buffer, int offset, int count)
         {
             while (input.IsCompleted)
             {
                 var fin = input.Completion.IsCompleted;
 
-                var inputBuffer = input.BeginRead();
+                var inputBuffer = input.Read();
                 var sliced = inputBuffer.Slice(0, count);
                 sliced.CopyTo(buffer, offset);
                 int actual = sliced.Length;
-                input.EndRead(sliced);
+                inputBuffer.Consumed(sliced.End);
 
                 if (actual != 0)
                 {
@@ -68,7 +58,7 @@ namespace Channels
 
                 var fin = input.Completion.IsCompleted;
 
-                var inputBuffer = input.BeginRead();
+                var inputBuffer = input.Read();
 
                 try
                 {
@@ -84,7 +74,7 @@ namespace Channels
                 }
                 finally
                 {
-                    input.EndRead(inputBuffer);
+                    inputBuffer.Consumed();
                 }
             }
         }
@@ -97,7 +87,7 @@ namespace Channels
 
                 var fin = input.Completion.IsCompleted;
 
-                var inputBuffer = input.BeginRead();
+                var inputBuffer = input.Read();
 
                 try
                 {
@@ -110,11 +100,11 @@ namespace Channels
 
                     buffer.Append(inputBuffer);
 
-                    await channel.WriteAsync(buffer);
+                    await buffer.CommitAsync();
                 }
                 finally
                 {
-                    input.EndRead(inputBuffer);
+                    inputBuffer.Consumed();
                 }
             }
         }
@@ -127,11 +117,11 @@ namespace Channels
 
                 var fin = input.Completion.IsCompleted;
 
-                var inputBuffer = input.BeginRead();
+                var inputBuffer = input.Read();
                 var sliced = inputBuffer.Slice(0, count);
                 sliced.CopyTo(buffer, offset);
                 int actual = sliced.Length;
-                input.EndRead(sliced);
+                inputBuffer.Consumed(sliced.End);
 
                 if (actual != 0)
                 {

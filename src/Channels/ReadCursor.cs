@@ -7,20 +7,20 @@ using System.Threading.Tasks;
 
 namespace Channels
 {
-    public struct ReadIterator
+    public struct ReadCursor
     {
         private static readonly int _vectorSpan = Vector<byte>.Count;
 
         private MemoryBlockSegment _segment;
         private int _index;
 
-        internal ReadIterator(MemoryBlockSegment segment)
+        internal ReadCursor(MemoryBlockSegment segment)
         {
             _segment = segment;
             _index = segment?.Start ?? 0;
         }
 
-        internal ReadIterator(MemoryBlockSegment segment, int index)
+        internal ReadCursor(MemoryBlockSegment segment, int index)
         {
             _segment = segment;
             _index = index;
@@ -681,7 +681,7 @@ namespace Channels
             }
         }
 
-        internal int GetLength(ReadIterator end)
+        internal int GetLength(ReadCursor end)
         {
             if (IsDefault)
             {
@@ -715,10 +715,10 @@ namespace Channels
 
         internal bool TryGetBuffer(out BufferSpan span)
         {
-            return TryGetBuffer(end: default(ReadIterator), span: out span);
+            return TryGetBuffer(end: default(ReadCursor), span: out span);
         }
 
-        internal bool TryGetBuffer(ReadIterator end, out BufferSpan span)
+        internal bool TryGetBuffer(ReadCursor end, out BufferSpan span)
         {
             span = default(BufferSpan);
 
@@ -836,7 +836,7 @@ namespace Channels
 
         public override bool Equals(object obj)
         {
-            var other = ((ReadIterator)obj);
+            var other = ((ReadCursor)obj);
 
             return other._segment == _segment && other._index == _index;
         }

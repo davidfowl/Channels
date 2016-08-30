@@ -75,7 +75,7 @@ namespace Channels.Networking.Libuv
                     // Make sure we're on the libuv thread
                     await _thread;
 
-                    var buffer = _output.BeginRead();
+                    var buffer = _output.Read();
 
                     if (buffer.IsEmpty && _output.Completion.IsCompleted)
                     {
@@ -87,7 +87,7 @@ namespace Channels.Networking.Libuv
                     _outgoing.Enqueue(cloned);
                     writeReq.Write(_handle, ref cloned, _writeCallback, this);
 
-                    _output.EndRead(buffer);
+                    buffer.Consumed();
                 }
             }
             catch (Exception ex)

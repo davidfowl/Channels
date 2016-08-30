@@ -86,7 +86,7 @@ namespace Channels.Samples
                 await connection.Input;
 
                 // Get the buffer
-                var input = connection.Input.BeginRead();
+                var input = connection.Input.Read();
 
                 if (input.IsEmpty && connection.Input.Completion.IsCompleted)
                 {
@@ -107,10 +107,10 @@ namespace Channels.Samples
                     formatter.Append("Hello World!");
                 }
 
-                await connection.Output.WriteAsync(formatter.Buffer);
+                await formatter.Buffer.CommitAsync();
 
-                // Tell the channel the data is consumed
-                connection.Input.EndRead(input);
+                // Consume the input
+                input.Consumed();
 
                 // Close the input channel, which will tell the producer to stop producing
                 connection.Input.CompleteReading();
@@ -160,7 +160,7 @@ namespace Channels.Samples
                 WritableBufferExtensions.WriteAsciiString(ref buffer, "GET / HTTP/1.1");
                 WritableBufferExtensions.WriteAsciiString(ref buffer, "\r\n\r\n");
 
-                await connection.Input.WriteAsync(buffer);
+                await buffer.CommitAsync();
 
                 // Write the client output to the console
                 await CopyCompletedAsync(connection.Output, consoleOutput);
@@ -177,7 +177,7 @@ namespace Channels.Samples
             {
                 var fin = input.Completion.IsCompleted;
 
-                var inputBuffer = input.BeginRead();
+                var inputBuffer = input.Read();
 
                 try
                 {
@@ -190,11 +190,11 @@ namespace Channels.Samples
 
                     buffer.Append(inputBuffer);
 
-                    await channel.WriteAsync(buffer);
+                    await buffer.CommitAsync();
                 }
                 finally
                 {
-                    input.EndRead(inputBuffer);
+                    inputBuffer.Consumed();
                 }
             }
             while (input.IsCompleted);

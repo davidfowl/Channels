@@ -18,11 +18,11 @@ namespace Channels
 
         public bool IsCompleted => _channel.IsCompleted;
 
-        public ReadableBuffer BeginRead() => _channel.BeginRead();
+        public ReadableBuffer Read() => _channel.Read();
 
         public void CompleteReading(Exception error = null) => _channel.CompleteReading(error);
 
-        public void EndRead(ReadIterator consumed, ReadIterator examined) => _channel.EndRead(consumed, examined);
+        public void EndRead(ReadCursor consumed, ReadCursor examined) => _channel.EndRead(consumed, examined);
 
         public IReadableChannel GetAwaiter() => _channel.GetAwaiter();
 

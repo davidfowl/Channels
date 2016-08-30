@@ -53,7 +53,7 @@ namespace Channels.Samples.IO.Compression
                 {
                     await input;
 
-                    var inputBuffer = input.BeginRead();
+                    var inputBuffer = input.Read();
 
                     if (inputBuffer.IsEmpty && input.Completion.IsCompleted)
                     {
@@ -75,9 +75,9 @@ namespace Channels.Samples.IO.Compression
 
                     inputBuffer = inputBuffer.Slice(0, consumed);
 
-                    input.EndRead(inputBuffer);
+                    inputBuffer.Consumed();
 
-                    await output.WriteAsync(writerBuffer);
+                    await writerBuffer.CommitAsync();
                 }
 
                 bool flushed;
@@ -90,7 +90,7 @@ namespace Channels.Samples.IO.Compression
                     flushed = _deflater.Flush(writerBuffer.Memory.BufferPtr, writerBuffer.Memory.Length, out compressedBytes);
                     writerBuffer.UpdateWritten(compressedBytes);
 
-                    await output.WriteAsync(writerBuffer);
+                    await writerBuffer.CommitAsync();
                 }
                 while (flushed);
 
@@ -104,7 +104,7 @@ namespace Channels.Samples.IO.Compression
                     finished = _deflater.Finish(writerBuffer.Memory.BufferPtr, writerBuffer.Memory.Length, out compressedBytes);
                     writerBuffer.UpdateWritten(compressedBytes);
 
-                    await output.WriteAsync(writerBuffer);
+                    await writerBuffer.CommitAsync();
                 }
                 while (!finished);
 
@@ -131,7 +131,7 @@ namespace Channels.Samples.IO.Compression
                 {
                     await input;
 
-                    var inputBuffer = input.BeginRead();
+                    var inputBuffer = input.Read();
 
                     if (inputBuffer.IsEmpty && input.Completion.IsCompleted)
                     {
@@ -153,9 +153,9 @@ namespace Channels.Samples.IO.Compression
                         inputBuffer = inputBuffer.Slice(0, consumed);
                     }
 
-                    input.EndRead(inputBuffer);
+                    inputBuffer.Consumed();
 
-                    await output.WriteAsync(writerBuffer);
+                    await writerBuffer.CommitAsync();
                 }
 
                 input.CompleteReading();
