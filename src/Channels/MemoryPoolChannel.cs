@@ -156,7 +156,7 @@ namespace Channels
             }
         }
 
-        public ReadableBuffer Read()
+        private ReadableBuffer Read()
         {
             if (Interlocked.CompareExchange(ref _consumingState, 1, 0) != 0)
             {
@@ -301,7 +301,7 @@ namespace Channels
             OnCompleted(continuation);
         }
 
-        public void GetResult()
+        public ReadableBuffer GetResult()
         {
             if (!IsCompleted)
             {
@@ -313,6 +313,8 @@ namespace Channels
             {
                 throw error;
             }
+
+            return Read();
         }
 
         public void Dispose()

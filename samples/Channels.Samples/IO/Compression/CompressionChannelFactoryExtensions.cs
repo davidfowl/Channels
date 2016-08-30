@@ -51,9 +51,7 @@ namespace Channels.Samples.IO.Compression
             {
                 while (true)
                 {
-                    await input;
-
-                    var inputBuffer = input.Read();
+                    var inputBuffer = await input;
 
                     if (inputBuffer.IsEmpty && input.Completion.IsCompleted)
                     {
@@ -129,9 +127,7 @@ namespace Channels.Samples.IO.Compression
             {
                 while (true)
                 {
-                    await input;
-
-                    var inputBuffer = input.Read();
+                    var inputBuffer = await input;
 
                     if (inputBuffer.IsEmpty && input.Completion.IsCompleted)
                     {

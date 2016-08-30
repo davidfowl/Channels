@@ -83,10 +83,7 @@ namespace Channels.Samples
             listener.OnConnection(async connection =>
             {
                 // Wait for data
-                await connection.Input;
-
-                // Get the buffer
-                var input = connection.Input.Read();
+                var input = await connection.Input;
 
                 if (input.IsEmpty && connection.Input.Completion.IsCompleted)
                 {
@@ -171,13 +168,11 @@ namespace Channels.Samples
 
         private static async Task CopyCompletedAsync(IReadableChannel input, IWritableChannel channel)
         {
-            await input;
+            var inputBuffer = await input;
 
             do
             {
                 var fin = input.Completion.IsCompleted;
-
-                var inputBuffer = input.Read();
 
                 try
                 {

@@ -70,12 +70,10 @@ namespace Channels.Networking.Libuv
             {
                 while (true)
                 {
-                    await _output;
+                    var buffer = await _output;
 
                     // Make sure we're on the libuv thread
                     await _thread;
-
-                    var buffer = _output.Read();
 
                     if (buffer.IsEmpty && _output.Completion.IsCompleted)
                     {

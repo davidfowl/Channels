@@ -31,7 +31,7 @@ namespace Channels
             {
                 var fin = input.Completion.IsCompleted;
 
-                var inputBuffer = input.Read();
+                var inputBuffer = input.GetResult();
                 var sliced = inputBuffer.Slice(0, count);
                 sliced.CopyTo(buffer, offset);
                 int actual = sliced.Length;
@@ -54,11 +54,9 @@ namespace Channels
         {
             while (true)
             {
-                await input;
+                var inputBuffer = await input;
 
                 var fin = input.Completion.IsCompleted;
-
-                var inputBuffer = input.Read();
 
                 try
                 {
@@ -83,11 +81,9 @@ namespace Channels
         {
             while (true)
             {
-                await input;
+                var inputBuffer = await input;
 
                 var fin = input.Completion.IsCompleted;
-
-                var inputBuffer = input.Read();
 
                 try
                 {
@@ -113,11 +109,10 @@ namespace Channels
         {
             while (true)
             {
-                await input;
+                var inputBuffer = await input;
 
                 var fin = input.Completion.IsCompleted;
 
-                var inputBuffer = input.Read();
                 var sliced = inputBuffer.Slice(0, count);
                 sliced.CopyTo(buffer, offset);
                 int actual = sliced.Length;

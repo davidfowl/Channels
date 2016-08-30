@@ -8,12 +8,10 @@ namespace Channels
     {
         // Make it awaitable
         bool IsCompleted { get; }
-        void GetResult();
+        ReadableBuffer GetResult();
         IReadableChannel GetAwaiter();
 
         Task Completion { get; }
-
-        ReadableBuffer Read();
 
         void CompleteReading(Exception exception = null);
     }

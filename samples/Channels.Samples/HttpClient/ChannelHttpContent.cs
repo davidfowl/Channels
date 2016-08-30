@@ -25,11 +25,10 @@ namespace Channels.Samples
 
             while (remaining > 0)
             {
-                await _output;
+                var inputBuffer = await _output;
 
                 var fin = _output.Completion.IsCompleted;
 
-                var inputBuffer = _output.Read();
                 var consumed = inputBuffer.Start;
 
                 try

@@ -58,9 +58,8 @@ namespace Channels.Samples.Http
 
             while (true)
             {
-                await _input;
+                var buffer = await _input;
 
-                var buffer = _input.Read();
                 var consumed = buffer.Start;
                 bool needMoreData = true;
 
