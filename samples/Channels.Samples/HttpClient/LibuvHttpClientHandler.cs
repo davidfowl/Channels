@@ -137,7 +137,7 @@ namespace Channels.Samples
                         throw new InvalidOperationException();
                     }
 
-                    response.StatusCode = (HttpStatusCode)responseLine.Slice(0, delim).ReadUInt32();
+                    response.StatusCode = (HttpStatusCode)responseLine.Slice(0, delim).GetInt32();
                     responseLine = responseLine.Slice(delim).Slice(1);
 
                     delim = responseLine.IndexOf(ref _vectorSpaces);
