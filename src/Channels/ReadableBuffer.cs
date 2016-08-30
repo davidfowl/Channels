@@ -28,13 +28,13 @@ namespace Channels
         public ReadCursor Start => _start;
         public ReadCursor End => _end;
 
-        public ReadableBuffer(MemoryPoolChannel channel, ReadCursor start, ReadCursor end) :
+        internal ReadableBuffer(MemoryPoolChannel channel, ReadCursor start, ReadCursor end) :
             this(channel, start, end, isOwner: false)
         {
 
         }
 
-        public ReadableBuffer(MemoryPoolChannel channel, ReadCursor start, ReadCursor end, bool isOwner)
+        internal ReadableBuffer(MemoryPoolChannel channel, ReadCursor start, ReadCursor end, bool isOwner)
         {
             _channel = channel;
             _start = start;
