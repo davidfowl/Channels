@@ -38,7 +38,7 @@ namespace Channels.Samples.Http
 
         public void SetHeader(ref ReadableBuffer key, ref ReadableBuffer value)
         {
-            _headerSlices[key.GetAsciiString()] = value.Clone();
+            _headerSlices[key.GetAsciiString()] = value.Preserve();
         }
 
         private void SetHeader(string key, StringValues value)

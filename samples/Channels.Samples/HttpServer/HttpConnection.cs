@@ -94,7 +94,7 @@ namespace Channels.Samples.Http
                         }
 
                         var method = startLine.Slice(0, delim);
-                        Method = method.Clone();
+                        Method = method.Preserve();
 
                         // Skip ' '
                         startLine = startLine.Slice(delim).Slice(1);
@@ -106,7 +106,7 @@ namespace Channels.Samples.Http
                         }
 
                         var path = startLine.Slice(0, delim);
-                        Path = path.Clone();
+                        Path = path.Preserve();
 
                         // Skip ' '
                         startLine = startLine.Slice(delim).Slice(1);
@@ -118,7 +118,7 @@ namespace Channels.Samples.Http
                         }
 
                         var httpVersion = startLine.Slice(0, delim);
-                        HttpVersion = httpVersion.Clone();
+                        HttpVersion = httpVersion.Preserve();
 
                         _state = ParsingState.Headers;
                         consumed = startLine.End;

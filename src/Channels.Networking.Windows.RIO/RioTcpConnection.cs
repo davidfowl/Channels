@@ -100,7 +100,7 @@ namespace Channels.Networking.Windows.RIO
 
                     await PreviousSendingComplete;
 
-                    _sendingBuffer = buffer.Clone();
+                    _sendingBuffer = buffer.Preserve();
 
                     await SendAsync(current, endOfMessage: true);
                 }

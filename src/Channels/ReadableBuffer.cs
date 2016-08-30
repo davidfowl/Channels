@@ -121,7 +121,7 @@ namespace Channels
             return _start.Peek();
         }
 
-        public ReadableBuffer Clone()
+        public ReadableBuffer Preserve()
         {
             var begin = _start;
             var end = _end;

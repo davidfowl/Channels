@@ -81,9 +81,9 @@ namespace Channels.Networking.Libuv
                     }
 
                     // Up the reference count of the buffer so that we own the disposal of it
-                    var cloned = buffer.Clone();
-                    _outgoing.Enqueue(cloned);
-                    writeReq.Write(_handle, ref cloned, _writeCallback, this);
+                    var outgoingBuffer = buffer.Preserve();
+                    _outgoing.Enqueue(outgoingBuffer);
+                    writeReq.Write(_handle, ref outgoingBuffer, _writeCallback, this);
 
                     buffer.Consumed();
                 }
