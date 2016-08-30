@@ -1,6 +1,9 @@
 os: Visual Studio 2015
 build: off
 
+environment:
+  DOTNET_BUILD_VERSION: %APPVEYOR_BUILD_NUMBER%
+
 before_test:
   - dotnet --info
   - dotnet restore
@@ -11,9 +14,9 @@ test_script:
 
 after_test:
   # Build and pack source
-  - dotnet pack -c Release src/Channels --version-suffix %APPVEYOR_BUILD_NUMBER%
-  - dotnet pack -c Release src/Channels.Networking.Libuv
-  - dotnet pack -c Release src/Channels.Networking.Windows.RIO
+  - dotnet pack -c Release src/Channels
+  - dotnet pack -c Release src/Channels.Networking.Libuv --version-suffix %APPVEYOR_BUILD_NUMBER%
+  - dotnet pack -c Release src/Channels.Networking.Windows.RIO --version-suffix %APPVEYOR_BUILD_NUMBER%
 
 artifacts:
   path: '**/*.nupkg'
