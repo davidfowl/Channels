@@ -8,7 +8,7 @@ namespace Channels.Text.Primitives
     public static class ReadableBufferExtensions
     {
         private static readonly Encoding Utf8Encoding = Encoding.UTF8;
-        private static object Utf8Decoder;
+        private static Decoder Utf8Decoder;
 
         public static ReadableBuffer TrimStart(this ReadableBuffer buffer)
         {
@@ -105,7 +105,7 @@ namespace Channels.Text.Primitives
                 return Utf8Encoding.GetString(buffer.FirstSpan.Array, buffer.FirstSpan.Offset, buffer.FirstSpan.Length);
             }
             // try to re-use a shared decoder; note that in heavy usage, we might need to allocate another
-            var decoder = (Decoder)Interlocked.Exchange(ref Utf8Decoder, null);
+            var decoder = Interlocked.Exchange(ref Utf8Decoder, null);
             if (decoder == null) decoder = Utf8Encoding.GetDecoder();
             else decoder.Reset();
 
