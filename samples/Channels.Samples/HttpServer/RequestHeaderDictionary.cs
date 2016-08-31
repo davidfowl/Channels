@@ -10,8 +10,7 @@ namespace Channels.Samples.Http
 {
     public class RequestHeaderDictionary : IHeaderDictionary
     {
-        private Dictionary<string, ReadableBuffer> _headerSlices = new Dictionary<string, ReadableBuffer>();
-        private HeaderDictionary _headers = new HeaderDictionary();
+        private Dictionary<string, HeaderValue> _headers = new Dictionary<string, HeaderValue>();
 
         public StringValues this[string key]
         {
@@ -28,22 +27,28 @@ namespace Channels.Samples.Http
             }
         }
 
-        public int Count => _headerSlices.Count;
+        public int Count => _headers.Count;
 
         public bool IsReadOnly => false;
 
-        public ICollection<string> Keys => _headerSlices.Keys;
+        public ICollection<string> Keys => _headers.Keys;
 
-        public ICollection<StringValues> Values => _headerSlices.Values.Select(v => new StringValues(v.GetUtf8String())).ToList();
+        public ICollection<StringValues> Values => _headers.Values.Select(v => v.GetValue()).ToList();
 
         public void SetHeader(ref ReadableBuffer key, ref ReadableBuffer value)
         {
-            _headerSlices[key.GetAsciiString()] = value.Preserve();
+            _headers[key.GetAsciiString()] = new HeaderValue
+            {
+                Raw = value.Preserve()
+            };
         }
 
         private void SetHeader(string key, StringValues value)
         {
-            _headers[key] = value;
+            _headers[key] = new HeaderValue
+            {
+                Value = value
+            };
         }
 
         public void Add(KeyValuePair<string, StringValues> item)
@@ -68,7 +73,7 @@ namespace Channels.Samples.Http
 
         public bool ContainsKey(string key)
         {
-            return _headers.ContainsKey(key) || _headerSlices.ContainsKey(key);
+            return _headers.ContainsKey(key);
         }
 
         public void CopyTo(KeyValuePair<string, StringValues>[] array, int arrayIndex)
@@ -78,25 +83,17 @@ namespace Channels.Samples.Http
 
         public void Reset()
         {
-            foreach (var pair in _headerSlices)
+            foreach (var pair in _headers)
             {
-                pair.Value.Dispose();
+                pair.Value.Raw?.Dispose();
             }
 
-            _headerSlices.Clear();
+            _headers.Clear();
         }
 
         public IEnumerator<KeyValuePair<string, StringValues>> GetEnumerator()
         {
-            foreach (var pair in _headerSlices)
-            {
-                if (!_headers.ContainsKey(pair.Key))
-                {
-                    _headers[pair.Key] = pair.Value.GetAsciiString();
-                }
-            }
-
-            return _headers.GetEnumerator();
+            return _headers.Select(h => new KeyValuePair<string, StringValues>(h.Key, h.Value.GetValue())).GetEnumerator();
         }
 
         public bool Remove(KeyValuePair<string, StringValues> item)
@@ -111,16 +108,10 @@ namespace Channels.Samples.Http
 
         public bool TryGetValue(string key, out StringValues value)
         {
-            if (_headers.TryGetValue(key, out value))
+            HeaderValue headerValue;
+            if (_headers.TryGetValue(key, out headerValue))
             {
-                return true;
-            }
-
-            ReadableBuffer buffer;
-            if (_headerSlices.TryGetValue(key, out buffer))
-            {
-                value = buffer.GetAsciiString();
-                _headers[key] = value;
+                value = headerValue.GetValue();
                 return true;
             }
 
@@ -130,6 +121,27 @@ namespace Channels.Samples.Http
         IEnumerator IEnumerable.GetEnumerator()
         {
             return GetEnumerator();
+        }
+
+        private struct HeaderValue
+        {
+            public ReadableBuffer? Raw;
+            public StringValues? Value;
+
+            public StringValues GetValue()
+            {
+                if (!Value.HasValue)
+                {
+                    if (!Raw.HasValue)
+                    {
+                        return StringValues.Empty;
+                    }
+
+                    Value = Raw.Value.GetAsciiString();
+                }
+
+                return Value.Value;
+            }
         }
     }
 }
