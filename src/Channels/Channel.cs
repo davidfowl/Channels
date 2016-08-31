@@ -136,7 +136,7 @@ namespace Channels
             }
         }
 
-        private void Complete(bool dispatch = false)
+        private void Complete()
         {
             var awaitableState = Interlocked.Exchange(
                 ref _awaitableState,
@@ -145,14 +145,7 @@ namespace Channels
             if (!ReferenceEquals(awaitableState, _awaitableIsCompleted) &&
                 !ReferenceEquals(awaitableState, _awaitableIsNotCompleted))
             {
-                if (dispatch)
-                {
-                    Task.Run(awaitableState);
-                }
-                else
-                {
-                    awaitableState();
-                }
+                awaitableState();
             }
         }
 
@@ -281,7 +274,8 @@ namespace Channels
             else if (ReferenceEquals(awaitableState, _awaitableIsCompleted))
             {
                 // Dispatch here to avoid stack diving
-                Task.Run(continuation);
+                // Task.Run(continuation);
+                continuation();
             }
             else
             {
