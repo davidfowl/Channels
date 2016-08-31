@@ -213,7 +213,7 @@ namespace Channels.Networking.Windows.RIO
                 if (bytesTransferred > 0)
                 {
                     _buffer.CommitBytes((int)bytesTransferred);
-                    _input.WriteAsync(_buffer);
+                    _buffer.FlushAsync();
 
                     ProcessReceives();
                 }

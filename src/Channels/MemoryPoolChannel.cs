@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Channels
 {
-    public class MemoryPoolChannel : IReadableChannel, IWritableChannel, IDisposable
+    public class MemoryPoolChannel : IReadableChannel, IWritableChannel
     {
         private static readonly Action _awaitableIsCompleted = () => { };
         private static readonly Action _awaitableIsNotCompleted = () => { };
@@ -97,7 +97,7 @@ namespace Channels
             }
         }
 
-        public Task WriteAsync(WritableBuffer buffer)
+        internal Task WriteAsync(WritableBuffer buffer)
         {
             lock (_sync)
             {
@@ -166,12 +166,12 @@ namespace Channels
             return new ReadableBuffer(this, new ReadCursor(_head), new ReadCursor(_tail, _tail?.End ?? 0));
         }
 
-        public void EndRead(ReadCursor end)
+        internal void EndRead(ReadCursor end)
         {
             EndRead(end, end);
         }
 
-        public void EndRead(
+        internal void EndRead(
             ReadCursor consumed,
             ReadCursor examined)
         {
@@ -317,7 +317,7 @@ namespace Channels
             return Read();
         }
 
-        public void Dispose()
+        private void Dispose()
         {
             Debug.Assert(_completedWriting, "Not completed writing");
             Debug.Assert(_completedReading, "Not completed reading");

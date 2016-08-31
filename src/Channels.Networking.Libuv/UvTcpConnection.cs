@@ -165,7 +165,7 @@ namespace Channels.Networking.Libuv
             }
             else
             {
-                var task = _input.WriteAsync(_inputBuffer);
+                var task = _inputBuffer.FlushAsync();
 
                 if (task.IsFaulted)
                 {
