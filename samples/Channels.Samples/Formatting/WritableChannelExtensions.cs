@@ -40,9 +40,9 @@ namespace Channels.Samples.Formatting
             _writableBuffer.CommitBytes(bytes);
         }
 
-        public void ResizeBuffer()
+        public void ResizeBuffer(int desiredFreeBytesHint = -1)
         {
-            _writableBuffer.Ensure(2048);
+            _writableBuffer.Ensure(desiredFreeBytesHint == -1 ? 2048 : desiredFreeBytesHint);
         }
     }
 }
