@@ -79,7 +79,7 @@ namespace Channels.Networking.Windows.RIO
             {
                 var buffer = await _output;
 
-                if (buffer.IsEmpty && _output.Completion.IsCompleted)
+                if (buffer.IsEmpty && _output.WriterCompleted.IsCompleted)
                 {
                     break;
                 }
@@ -210,16 +210,16 @@ namespace Channels.Networking.Windows.RIO
             // Receives
             if (requestCorrelation >= 0)
             {
-                if (bytesTransferred > 0)
+                if (bytesTransferred == 0 || _input.ReaderCompleted.IsCompleted)
+                {
+                    _input.CompleteWriting();
+                }
+                else
                 {
                     _buffer.CommitBytes((int)bytesTransferred);
                     _buffer.FlushAsync();
 
                     ProcessReceives();
-                }
-                else
-                {
-                    _input.CompleteWriting();
                 }
             }
             else

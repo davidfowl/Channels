@@ -77,7 +77,7 @@ namespace Channels
             }
         }
 
-        public static async Task CopyToAsync(this IReadableChannel input, IWritableChannel channel)
+        public static async Task CopyToAsync(this IReadableChannel input, IWritableChannel output)
         {
             while (true)
             {
@@ -92,7 +92,7 @@ namespace Channels
                         return;
                     }
 
-                    var buffer = channel.Alloc();
+                    var buffer = output.Alloc();
 
                     buffer.Append(ref inputBuffer);
 

@@ -29,7 +29,7 @@ namespace Channels
         private int _producingState;
         private object _sync = new object();
         private readonly TaskCompletionSource<object> _readingTcs = new TaskCompletionSource<object>();
-        private TaskCompletionSource<object> _writeTcs;
+        private readonly TaskCompletionSource<object> _writingTcs = new TaskCompletionSource<object>();
 
         private Action _startReadingCallback;
         private Action _disposeCallback;
@@ -50,7 +50,12 @@ namespace Channels
             _disposeCallback = disposeCallback;
         }
 
-        public Task Completion => _readingTcs.Task;
+        public Task WriterCompleted => _readingTcs.Task;
+        public Task ReaderCompleted => _writingTcs.Task;
+
+        Task IReadableChannel.Completion => _readingTcs.Task;
+
+        Task IWritableChannel.Completion => _writingTcs.Task;
 
         public bool IsCompleted => ReferenceEquals(_awaitableState, _awaitableIsCompleted);
 
@@ -109,7 +114,7 @@ namespace Channels
                 if (buffer.IsDefault)
                 {
                     // REVIEW: Should we signal the completion?
-                    return _writeTcs?.Task ?? _completedTask;
+                    return _completedTask;
                 }
 
                 if (_head == null)
@@ -132,7 +137,7 @@ namespace Channels
 
                 Complete();
 
-                return _writeTcs?.Task ?? _completedTask;
+                return _completedTask;
             }
         }
 
@@ -183,7 +188,7 @@ namespace Channels
 
                 if (!examined.IsDefault &&
                     examined.IsEnd &&
-                    Completion.Status == TaskStatus.WaitingForActivation)
+                    WriterCompleted.Status == TaskStatus.WaitingForActivation)
                 {
                     Interlocked.CompareExchange(
                         ref _awaitableState,
@@ -237,18 +242,18 @@ namespace Channels
             {
                 _completedReading = true;
 
+                if (error != null)
+                {
+                    _writingTcs.TrySetResult(error);
+                }
+                else
+                {
+                    _writingTcs.TrySetResult(null);
+                }
+
                 if (_completedWriting)
                 {
                     Dispose();
-                }
-                else if (error != null)
-                {
-                    // No need to allocate the tcs if the writer is already complete
-                    if (_writeTcs == null)
-                    {
-                        _writeTcs = new TaskCompletionSource<object>();
-                        _writeTcs.TrySetException(error);
-                    }
                 }
             }
         }

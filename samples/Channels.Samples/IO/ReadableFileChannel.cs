@@ -47,15 +47,20 @@ namespace Channels.Samples.IO
             var buffer = operation.BoxedBuffer.Value;
 
             buffer.CommitBytes((int)numBytes);
-            buffer.FlushAsync();
+            var task = buffer.FlushAsync();
 
-            if (numBytes == 0)
+            if (numBytes == 0 || operation.Channel.ReaderCompleted.IsCompleted)
             {
                 operation.Channel.CompleteWriting();
             }
-            else
+            else if (task.IsCompleted)
             {
                 operation.Read();
+            }
+            else
+            {
+                // Keep reading once we get the completion
+                task.ContinueWith((t, s) => ((ReadOperation)s).Read(), operation);
             }
         }
 

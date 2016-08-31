@@ -14,7 +14,7 @@ namespace Channels
             _channel = new Channel(pool);
         }
 
-        public Task Completion => _channel.Completion;
+        public Task Completion => ((IReadableChannel)_channel).Completion;
 
         public bool IsCompleted => _channel.IsCompleted;
 

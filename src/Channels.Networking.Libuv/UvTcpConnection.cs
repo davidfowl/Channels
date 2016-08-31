@@ -57,7 +57,7 @@ namespace Channels.Networking.Libuv
             _input = _thread.ChannelFactory.CreateChannel();
             _output = _thread.ChannelFactory.CreateChannel();
 
-            ProcessReads();
+            StartReading();
             _sendingTask = ProcessWrites();
         }
 
@@ -75,7 +75,7 @@ namespace Channels.Networking.Libuv
                     // Make sure we're on the libuv thread
                     await _thread;
 
-                    if (buffer.IsEmpty && _output.Completion.IsCompleted)
+                    if (buffer.IsEmpty && _output.WriterCompleted.IsCompleted)
                     {
                         break;
                     }
@@ -117,7 +117,7 @@ namespace Channels.Networking.Libuv
             connection._connectionCompleted?.TrySetResult(null);
         }
 
-        private void ProcessReads()
+        private void StartReading()
         {
             _handle.ReadStart(_allocCallback, _readCallback, this);
         }
@@ -159,7 +159,7 @@ namespace Channels.Networking.Libuv
 
                 _input.CompleteWriting(error);
             }
-            else if (readCount == 0)
+            else if (readCount == 0 || _input.ReaderCompleted.IsCompleted)
             {
                 _input.CompleteWriting();
             }
@@ -167,13 +167,13 @@ namespace Channels.Networking.Libuv
             {
                 var task = _inputBuffer.FlushAsync();
 
-                if (task.IsFaulted)
+                if (!task.IsCompleted)
                 {
-                    // TODO: Stop producing forever
-                }
-                else if (!task.IsCompleted)
-                {
-                    // TODO: Pause reading until the task completes
+                    // If there's back pressure
+                    handle.ReadStop();
+
+                    // Resume reading when task continues
+                    task.ContinueWith((t, state) => ((UvTcpConnection)state).StartReading(), this);
                 }
             }
         }
