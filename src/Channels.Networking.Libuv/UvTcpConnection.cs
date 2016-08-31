@@ -40,8 +40,8 @@ namespace Channels.Networking.Libuv
 
         private readonly Queue<ReadableBuffer> _outgoing = new Queue<ReadableBuffer>(1);
 
-        protected readonly MemoryPoolChannel _input;
-        protected readonly MemoryPoolChannel _output;
+        protected readonly Channel _input;
+        protected readonly Channel _output;
         private readonly UvThread _thread;
         private readonly UvTcpHandle _handle;
 

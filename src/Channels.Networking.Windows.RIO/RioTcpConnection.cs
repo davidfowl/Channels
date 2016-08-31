@@ -30,8 +30,8 @@ namespace Channels.Networking.Windows.RIO
 
         private long _previousSendCorrelation = RestartSendCorrelations;
 
-        private readonly MemoryPoolChannel _input;
-        private readonly MemoryPoolChannel _output;
+        private readonly Channel _input;
+        private readonly Channel _output;
 
         private readonly SemaphoreSlim _outgoingSends = new SemaphoreSlim(RioTcpServer.MaxWritesPerSocket);
         private readonly SemaphoreSlim _previousSendsComplete = new SemaphoreSlim(1);

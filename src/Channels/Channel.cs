@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Channels
 {
-    public class MemoryPoolChannel : IReadableChannel, IWritableChannel
+    public class Channel : IReadableChannel, IWritableChannel
     {
         private static readonly Action _awaitableIsCompleted = () => { };
         private static readonly Action _awaitableIsNotCompleted = () => { };
@@ -34,7 +34,7 @@ namespace Channels
         private Action _startReadingCallback;
         private Action _disposeCallback;
 
-        public MemoryPoolChannel(MemoryPool pool)
+        public Channel(MemoryPool pool)
         {
             _pool = pool;
             _awaitableState = _awaitableIsNotCompleted;

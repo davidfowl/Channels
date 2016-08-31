@@ -10,6 +10,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		.travis.yml = .travis.yml
 		appveyor.yml = appveyor.yml
 		global.json = global.json
+		NuGet.config = NuGet.config
 	EndProjectSection
 EndProject
 Project("{8BB2217D-0F2D-49D1-97BC-3654ED321F3B}") = "Channels", "src\Channels\Channels.xproj", "{D6B28FC7-8D6D-4E9E-962F-9505D7C0E958}"

@@ -16,7 +16,7 @@ namespace Channels
         private readonly ReadCursor _end;
         private readonly int _length;
         private readonly bool _isOwner;
-        private readonly MemoryPoolChannel _channel;
+        private readonly Channel _channel;
         private bool _disposed;
 
         public int Length => _length;
@@ -29,13 +29,13 @@ namespace Channels
         public ReadCursor Start => _start;
         public ReadCursor End => _end;
 
-        internal ReadableBuffer(MemoryPoolChannel channel, ReadCursor start, ReadCursor end) :
+        internal ReadableBuffer(Channel channel, ReadCursor start, ReadCursor end) :
             this(channel, start, end, isOwner: false)
         {
 
         }
 
-        internal ReadableBuffer(MemoryPoolChannel channel, ReadCursor start, ReadCursor end, bool isOwner)
+        internal ReadableBuffer(Channel channel, ReadCursor start, ReadCursor end, bool isOwner)
         {
             _channel = channel;
             _start = start;

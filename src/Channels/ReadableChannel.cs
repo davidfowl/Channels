@@ -7,11 +7,11 @@ namespace Channels
 {
     public abstract class ReadableChannel : IReadableChannel
     {
-        protected MemoryPoolChannel _channel;
+        protected Channel _channel;
 
         public ReadableChannel(MemoryPool pool)
         {
-            _channel = new MemoryPoolChannel(pool);
+            _channel = new Channel(pool);
         }
 
         public Task Completion => _channel.Completion;

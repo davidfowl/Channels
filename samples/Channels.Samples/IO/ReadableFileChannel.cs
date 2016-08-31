@@ -79,7 +79,7 @@ namespace Channels.Samples.IO
 
             public unsafe NativeOverlapped* Overlapped { get; set; }
 
-            public MemoryPoolChannel Channel { get; set; }
+            public Channel Channel { get; set; }
 
             public Box<WritableBuffer> BoxedBuffer { get; set; }
 

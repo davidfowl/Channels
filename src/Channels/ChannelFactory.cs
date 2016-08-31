@@ -19,7 +19,7 @@ namespace Channels
             _pool = pool;
         }
 
-        public MemoryPoolChannel CreateChannel() => new MemoryPoolChannel(_pool);
+        public Channel CreateChannel() => new Channel(_pool);
 
         public IReadableChannel MakeReadableChannel(Stream stream)
         {
@@ -28,7 +28,7 @@ namespace Channels
                 throw new InvalidOperationException();
             }
 
-            var channel = new MemoryPoolChannel(_pool);
+            var channel = new Channel(_pool);
 
             channel.OnStartReading(() =>
             {
@@ -47,7 +47,7 @@ namespace Channels
                 throw new InvalidOperationException();
             }
 
-            var channel = new MemoryPoolChannel(_pool);
+            var channel = new Channel(_pool);
 
             channel.CopyToAsync(stream).ContinueWith((task) =>
             {
@@ -66,7 +66,7 @@ namespace Channels
 
         public IWritableChannel MakeWriteableChannel(IWritableChannel channel, Func<IReadableChannel, IWritableChannel, Task> consume)
         {
-            var newChannel = new MemoryPoolChannel(_pool);
+            var newChannel = new Channel(_pool);
 
             consume(newChannel, channel).ContinueWith(t =>
             {
@@ -77,7 +77,7 @@ namespace Channels
 
         public IReadableChannel MakeReadableChannel(IReadableChannel channel, Func<IReadableChannel, IWritableChannel, Task> produce)
         {
-            var newChannel = new MemoryPoolChannel(_pool);
+            var newChannel = new Channel(_pool);
 
             // TODO: Avoid closure
             newChannel.OnStartReading(() =>

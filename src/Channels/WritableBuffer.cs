@@ -11,7 +11,7 @@ namespace Channels
     public struct WritableBuffer
     {
         private MemoryPool _pool;
-        private MemoryPoolChannel _channel;
+        private Channel _channel;
 
         private MemoryBlockSegment _tail;
         private int _tailIndex;
@@ -19,7 +19,7 @@ namespace Channels
         private MemoryBlockSegment _head;
         private int _headIndex;
 
-        internal WritableBuffer(MemoryPoolChannel channel, MemoryPool pool, MemoryBlockSegment segment)
+        internal WritableBuffer(Channel channel, MemoryPool pool, MemoryBlockSegment segment)
         {
             _channel = channel;
             _pool = pool;
