@@ -33,8 +33,8 @@ namespace Channels.Samples.Http
             IPAddress ip;
             int port;
             GetIp(address, out ip, out port);
-            // Task.Run(() => StartAcceptingLibuvConnections(application, ip, port));
-            Task.Run(() => StartAcceptingRIOConnections(application, ip, port));
+            Task.Run(() => StartAcceptingLibuvConnections(application, ip, port));
+            // Task.Run(() => StartAcceptingRIOConnections(application, ip, port));
             // Task.Run(() => StartAcceptingConnections(application, ip, port));
         }
 

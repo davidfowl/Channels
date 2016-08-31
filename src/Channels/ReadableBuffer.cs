@@ -5,6 +5,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace Channels
 {
@@ -118,7 +119,12 @@ namespace Channels
 
         public int Peek()
         {
-            return _start.Peek();
+            if (IsEmpty)
+            {
+                return -1;
+            }
+
+            return FirstSpan.Array[FirstSpan.Offset];
         }
 
         public ReadableBuffer Preserve()
@@ -140,6 +146,27 @@ namespace Channels
             return new ReadableBuffer(_channel, begin, end, isOwner: true);
         }
 
+        public unsafe void CopyTo(byte* destination, int length)
+        {
+            if (length < Length)
+            {
+                throw new ArgumentOutOfRangeException();
+            }
+
+            var remaining = (uint)Length;
+            foreach (var span in this)
+            {
+                if (remaining == 0)
+                {
+                    break;
+                }
+
+                var count = (uint)Math.Min(remaining, span.Length);
+                Unsafe.CopyBlock(destination, (byte*)span.BufferPtr, count);
+                remaining -= count;
+            }
+        }
+
         public void CopyTo(byte[] data)
         {
             CopyTo(data, 0);
@@ -152,8 +179,11 @@ namespace Channels
                 throw new ArgumentOutOfRangeException();
             }
 
-            var begin = _start;
-            begin.CopyTo(data, offset, Length);
+            foreach (var span in this)
+            {
+                Buffer.BlockCopy(span.Array, span.Offset, data, offset, span.Length);
+                offset += span.Length;
+            }
         }
 
         public byte[] ToArray()

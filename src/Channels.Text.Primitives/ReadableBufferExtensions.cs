@@ -30,34 +30,29 @@ namespace Channels.Text.Primitives
 
         public unsafe static uint GetInt32(this ReadableBuffer buffer)
         {
-            var span = default(ReadOnlySpan<byte>);
+            var textSpan = default(ReadOnlySpan<byte>);
 
             if (buffer.IsSingleSpan)
             {
                 // It fits!
-                span = new ReadOnlySpan<byte>(buffer.FirstSpan.Array, buffer.FirstSpan.Offset, buffer.FirstSpan.Length);
+                textSpan = new ReadOnlySpan<byte>(buffer.FirstSpan.Array, buffer.FirstSpan.Offset, buffer.FirstSpan.Length);
             }
             else if (buffer.Length < 128) // REVIEW: What's a good number
             {
                 var target = stackalloc byte[128];
-                var temp = new Span<byte>(target, buffer.Length);
-                foreach (var bs in buffer)
-                {
-                    var s = new ReadOnlySpan<byte>((byte*)bs.BufferPtr, bs.Length);
-                    s.TryCopyTo(temp);
-                    temp = temp.Slice(s.Length);
-                }
 
-                span = new ReadOnlySpan<byte>(target, buffer.Length);
+                buffer.CopyTo(target, length: 128);
+
+                textSpan = new ReadOnlySpan<byte>(target, buffer.Length);
             }
             else
             {
                 // Heap allocated copy to parse into array (should be rare)
-                span = new ReadOnlySpan<byte>(buffer.ToArray());
+                textSpan = new ReadOnlySpan<byte>(buffer.ToArray());
             }
 
             uint value;
-            var utf8Buffer = new Utf8String(span);
+            var utf8Buffer = new Utf8String(textSpan);
             if (!InvariantParser.TryParse(utf8Buffer, out value))
             {
                 throw new InvalidOperationException();
