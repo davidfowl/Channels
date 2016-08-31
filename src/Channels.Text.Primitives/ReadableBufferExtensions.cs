@@ -28,7 +28,7 @@ namespace Channels.Text.Primitives
             return buffer;
         }
 
-        public unsafe static uint GetInt32(this ReadableBuffer buffer)
+        public unsafe static uint GetUInt32(this ReadableBuffer buffer)
         {
             var textSpan = default(ReadOnlySpan<byte>);
 
