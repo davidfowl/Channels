@@ -32,5 +32,11 @@
 
   "frameworks": {
     "netcoreapp1.0": { }
+  },
+
+  "runtimeOptions": {
+    "configProperties": {
+      "System.GC.Server": true
+    }
   }
 }

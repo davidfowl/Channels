@@ -53,7 +53,15 @@ namespace Channels.Samples.Http
         private void StartAcceptingRIOConnections<TContext>(IHttpApplication<TContext> application, IPAddress ip, int port)
         {
             var addressBytes = ip.GetAddressBytes();
-            _rioTcpServer = new RioTcpServer((ushort)port, addressBytes[0], addressBytes[1], addressBytes[2], addressBytes[3]);
+
+            try
+            {
+                _rioTcpServer = new RioTcpServer((ushort)port, addressBytes[0], addressBytes[1], addressBytes[2], addressBytes[3]);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+            }
 
             while (true)
             {

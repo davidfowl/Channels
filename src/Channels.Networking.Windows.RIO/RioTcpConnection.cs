@@ -2,8 +2,6 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Channels.Networking.Windows.RIO.Internal;
@@ -53,7 +51,7 @@ namespace Channels.Networking.Windows.RIO
 
             _requestQueue = requestQueue;
 
-            rioThread.Connections.TryAdd(connectionId, this);
+            rioThread.AddConnection(connectionId, this);
 
             ProcessReceives();
             _sendTask = ProcessSends();
@@ -189,7 +187,7 @@ namespace Channels.Networking.Windows.RIO
             return sendCorrelation - 1;
         }
 
-        private void SendCompleting(long sendCorrelation)
+        public void SendComplete(long sendCorrelation)
         {
             CompleteSend();
 
@@ -199,33 +197,30 @@ namespace Channels.Networking.Windows.RIO
             }
         }
 
+        public void ReceiveBeginComplete(uint bytesTransferred)
+        {
+            if (bytesTransferred == 0 || _input.ReaderCompleted.IsCompleted)
+            {
+                _input.CompleteWriting();
+            }
+            else
+            {
+                _buffer.CommitBytes((int)bytesTransferred);
+                _buffer.Commit();
+
+                ProcessReceives();
+            }
+        }
+
+        public void ReceiveEndComplete()
+        {
+            _buffer.FlushAsync();
+        }
+
         private RioBufferSegment GetSegmentFromSpan(BufferSpan span)
         {
             var bufferId = _rioThread.GetBufferId(span.BufferBasePtr);
             return new RioBufferSegment(bufferId, (uint)span.Offset, (uint)span.Length);
-        }
-
-        public void Complete(int status, long requestCorrelation, uint bytesTransferred)
-        {
-            // Receives
-            if (requestCorrelation >= 0)
-            {
-                if (bytesTransferred == 0 || _input.ReaderCompleted.IsCompleted)
-                {
-                    _input.CompleteWriting();
-                }
-                else
-                {
-                    _buffer.CommitBytes((int)bytesTransferred);
-                    _buffer.FlushAsync();
-
-                    ProcessReceives();
-                }
-            }
-            else
-            {
-                SendCompleting(requestCorrelation);
-            }
         }
 
         private static void ThrowError(ErrorType type)
@@ -262,8 +257,7 @@ namespace Channels.Networking.Windows.RIO
         {
             if (!_disposedValue)
             {
-                RioTcpConnection connection;
-                _rioThread.Connections.TryRemove(_connectionId, out connection);
+                _rioThread.RemoveConnection(_connectionId);
                 RioImports.closesocket(_socket);
 
                 _disposedValue = true;
