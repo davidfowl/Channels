@@ -123,9 +123,9 @@ namespace Channels
 
         public ReadableBuffer Slice(ReadCursor start, int length)
         {
-            var begin = start;
-            var actual = begin.Seek(length);
-            return Slice(begin, actual);
+            var end = start;
+            end.Seek(length);
+            return Slice(start, end);
         }
 
         public ReadableBuffer Slice(ReadCursor start)
