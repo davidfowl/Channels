@@ -12,15 +12,15 @@ namespace Channels
     public struct ReadableBuffer : IDisposable, IEnumerable<BufferSpan>
     {
         private readonly BufferSpan _span;
-        private readonly ReadCursor _start;
-        private readonly ReadCursor _end;
-        private readonly int _length;
         private readonly bool _isOwner;
         private readonly Channel _channel;
-        private bool _disposed;
 
-        public int Length => _length;
-        public bool IsEmpty => _length == 0;
+        private ReadCursor _start;
+        private ReadCursor _end;
+        private int _length;
+
+        public int Length => _length >= 0 ? _length : GetLength();
+        public bool IsEmpty => Length == 0;
 
         public bool IsSingleSpan => _start.Segment.Block == _end.Segment.Block;
 
@@ -41,13 +41,11 @@ namespace Channels
             _start = start;
             _end = end;
             _isOwner = isOwner;
-            _disposed = false;
 
             var begin = start;
             begin.TryGetBuffer(end, out _span);
 
-            begin = start;
-            _length = begin.GetLength(end);
+            _length = -1;
         }
 
         private ReadableBuffer(ref ReadableBuffer buffer)
@@ -66,7 +64,6 @@ namespace Channels
             _start = begin;
             _end = end;
             _isOwner = true;
-            _disposed = false;
             _span = buffer._span;
 
             _length = buffer._length;
@@ -201,14 +198,17 @@ namespace Channels
             return buffer;
         }
 
+        private int GetLength()
+        {
+            var begin = _start;
+            var length = begin.GetLength(_end);
+            _length = length;
+            return length;
+        }
+
         public void Dispose()
         {
             if (!_isOwner)
-            {
-                return;
-            }
-
-            if (_disposed)
             {
                 return;
             }
@@ -219,8 +219,8 @@ namespace Channels
             while (true)
             {
                 var returnSegment = returnStart;
-                returnStart = returnStart.Next;
-                returnSegment.Dispose();
+                returnStart = returnStart?.Next;
+                returnSegment?.Dispose();
 
                 if (returnSegment == returnEnd)
                 {
@@ -228,7 +228,8 @@ namespace Channels
                 }
             }
 
-            _disposed = true;
+            _start = default(ReadCursor);
+            _end = default(ReadCursor);
         }
 
         public void Consumed()
