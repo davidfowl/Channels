@@ -12,13 +12,12 @@ namespace Channels
     public struct ReadableBuffer : IDisposable, IEnumerable<BufferSpan>
     {
         private readonly BufferSpan _span;
-        private readonly ReadCursor _start;
-        private readonly ReadCursor _end;
         private readonly bool _isOwner;
         private readonly Channel _channel;
 
+        private ReadCursor _start;
+        private ReadCursor _end;
         private int _length;
-        private bool _disposed;
 
         public int Length => _length >= 0 ? _length : GetLength();
         public bool IsEmpty => Length == 0;
@@ -42,7 +41,6 @@ namespace Channels
             _start = start;
             _end = end;
             _isOwner = isOwner;
-            _disposed = false;
 
             var begin = start;
             begin.TryGetBuffer(end, out _span);
@@ -66,7 +64,6 @@ namespace Channels
             _start = begin;
             _end = end;
             _isOwner = true;
-            _disposed = false;
             _span = buffer._span;
 
             _length = buffer._length;
@@ -216,19 +213,14 @@ namespace Channels
                 return;
             }
 
-            if (_disposed)
-            {
-                return;
-            }
-
             var returnStart = _start.Segment;
             var returnEnd = _end.Segment;
 
             while (true)
             {
                 var returnSegment = returnStart;
-                returnStart = returnStart.Next;
-                returnSegment.Dispose();
+                returnStart = returnStart?.Next;
+                returnSegment?.Dispose();
 
                 if (returnSegment == returnEnd)
                 {
@@ -236,7 +228,8 @@ namespace Channels
                 }
             }
 
-            _disposed = true;
+            _start = default(ReadCursor);
+            _end = default(ReadCursor);
         }
 
         public void Consumed()
