@@ -14,7 +14,7 @@ namespace Channels.Networking.Libuv
         private readonly UvThread _thread;
 
         private UvTcpHandle _listenSocket;
-        private Action<UvTcpServerConnection> _callback;
+        private Action<UvTcpConnection> _callback;
 
         public UvTcpListener(UvThread thread, IPEndPoint endpoint)
         {
@@ -22,7 +22,7 @@ namespace Channels.Networking.Libuv
             _endpoint = endpoint;
         }
 
-        public void OnConnection(Action<UvTcpServerConnection> callback)
+        public void OnConnection(Action<UvTcpConnection> callback)
         {
             _callback = callback;
         }
@@ -64,7 +64,7 @@ namespace Channels.Networking.Libuv
                 acceptSocket.Init(listener._thread.Loop, UvThread._queueCloseCallback);
                 acceptSocket.NoDelay(true);
                 listenSocket.Accept(acceptSocket);
-                var connection = new UvTcpServerConnection(listener._thread, acceptSocket);
+                var connection = new UvTcpConnection(listener._thread, acceptSocket);
                 listener._callback?.Invoke(connection);
             }
             catch (UvException)

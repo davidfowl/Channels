@@ -6,31 +6,7 @@ using Channels.Networking.Libuv.Interop;
 
 namespace Channels.Networking.Libuv
 {
-    public class UvTcpClientConnection : UvTcpConnection
-    {
-        public UvTcpClientConnection(UvThread thread, UvTcpHandle handle) :
-            base(thread, handle)
-        {
-
-        }
-
-        public IWritableChannel Input => _output;
-        public IReadableChannel Output => _input;
-    }
-
-    public class UvTcpServerConnection : UvTcpConnection
-    {
-        public UvTcpServerConnection(UvThread thread, UvTcpHandle handle) :
-            base(thread, handle)
-        {
-
-        }
-
-        public IReadableChannel Input => _input;
-        public IWritableChannel Output => _output;
-    }
-
-    public abstract class UvTcpConnection
+    public class UvTcpConnection
     {
         private const int EOF = -4095;
 
@@ -60,6 +36,10 @@ namespace Channels.Networking.Libuv
             StartReading();
             _sendingTask = ProcessWrites();
         }
+
+        public IWritableChannel Output => _output;
+
+        public IReadableChannel Input => _input;
 
         private async Task ProcessWrites()
         {

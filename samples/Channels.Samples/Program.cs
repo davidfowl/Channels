@@ -153,7 +153,7 @@ namespace Channels.Samples
 
             while (true)
             {
-                var buffer = connection.Input.Alloc();
+                var buffer = connection.Output.Alloc();
 
                 WritableBufferExtensions.WriteAsciiString(ref buffer, "GET / HTTP/1.1");
                 WritableBufferExtensions.WriteAsciiString(ref buffer, "\r\n\r\n");
@@ -161,7 +161,7 @@ namespace Channels.Samples
                 await buffer.FlushAsync();
 
                 // Write the client output to the console
-                await CopyCompletedAsync(connection.Output, consoleOutput);
+                await CopyCompletedAsync(connection.Input, consoleOutput);
 
                 await Task.Delay(1000);
             }

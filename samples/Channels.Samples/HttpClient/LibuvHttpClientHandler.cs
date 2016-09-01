@@ -37,7 +37,7 @@ namespace Channels.Samples
             var state = _connectionPool.GetOrAdd(key, k => GetConnection(request));
             var connection = await state.ConnectionTask;
 
-            var requestBuffer = connection.Input.Alloc();
+            var requestBuffer = connection.Output.Alloc();
             WritableBufferExtensions.WriteAsciiString(ref requestBuffer, $"{request.Method} {path} HTTP/1.1");
             WriteHeaders(request.Headers, ref requestBuffer);
 
@@ -53,7 +53,7 @@ namespace Channels.Samples
                 // Copy the body to the input channel
                 var body = await request.Content.ReadAsStreamAsync();
 
-                await body.CopyToAsync(connection.Input);
+                await body.CopyToAsync(connection.Output);
             }
             else
             {
@@ -61,7 +61,7 @@ namespace Channels.Samples
             }
 
             var response = new HttpResponseMessage();
-            response.Content = new ChannelHttpContent(connection.Output);
+            response.Content = new ChannelHttpContent(connection.Input);
 
             await ProduceResponse(state, connection, response);
 
@@ -71,12 +71,12 @@ namespace Channels.Samples
             return response;
         }
 
-        private static async Task ProduceResponse(ConnectionState state, UvTcpClientConnection connection, HttpResponseMessage response)
+        private static async Task ProduceResponse(ConnectionState state, UvTcpConnection connection, HttpResponseMessage response)
         {
             // TODO: pipelining support!
             while (true)
             {
-                var responseBuffer = await connection.Output;
+                var responseBuffer = await connection.Input;
 
                 var consumed = responseBuffer.Start;
 
@@ -101,7 +101,7 @@ namespace Channels.Samples
                         state.Consumed = default(ReadCursor);
                     }
 
-                    if (responseBuffer.IsEmpty && connection.Output.Completion.IsCompleted)
+                    if (responseBuffer.IsEmpty && connection.Input.Completion.IsCompleted)
                     {
                         break;
                     }
@@ -227,7 +227,7 @@ namespace Channels.Samples
                 catch (Exception ex)
                 {
                     // Close the connection
-                    connection.Input.CompleteWriting(ex);
+                    connection.Output.CompleteWriting(ex);
                     break;
                 }
                 finally
@@ -278,7 +278,7 @@ namespace Channels.Samples
             return state;
         }
 
-        private async Task<UvTcpClientConnection> ConnectAsync(HttpRequestMessage request)
+        private async Task<UvTcpConnection> ConnectAsync(HttpRequestMessage request)
         {
             var addresses = await Dns.GetHostAddressesAsync(request.RequestUri.Host);
             var port = request.RequestUri.Port;
@@ -292,7 +292,7 @@ namespace Channels.Samples
         {
             foreach (var state in _connectionPool)
             {
-                state.Value.ConnectionTask.GetAwaiter().GetResult().Input.CompleteWriting();
+                state.Value.ConnectionTask.GetAwaiter().GetResult().Output.CompleteWriting();
             }
 
             _thread.Dispose();
@@ -302,7 +302,7 @@ namespace Channels.Samples
 
         private class ConnectionState
         {
-            public Task<UvTcpClientConnection> ConnectionTask { get; set; }
+            public Task<UvTcpConnection> ConnectionTask { get; set; }
 
             public int PreviousContentLength { get; set; }
 

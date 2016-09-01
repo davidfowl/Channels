@@ -10,7 +10,7 @@ namespace Channels.Networking.Libuv
         private static readonly Action<UvConnectRequest, int, Exception, object> _connectCallback = OnConnection;
         private static readonly Action<object> _startConnect = state => ((UvTcpClient)state).DoConnect();
 
-        private readonly TaskCompletionSource<UvTcpClientConnection> _connectTcs = new TaskCompletionSource<UvTcpClientConnection>();
+        private readonly TaskCompletionSource<UvTcpConnection> _connectTcs = new TaskCompletionSource<UvTcpConnection>();
         private readonly IPEndPoint _ipEndPoint;
         private readonly UvThread _thread;
 
@@ -22,7 +22,7 @@ namespace Channels.Networking.Libuv
             _ipEndPoint = endPoint;
         }
 
-        public async Task<UvTcpClientConnection> ConnectAsync()
+        public async Task<UvTcpConnection> ConnectAsync()
         {
             _thread.Post(_startConnect, this);
 
@@ -48,7 +48,7 @@ namespace Channels.Networking.Libuv
         {
             var client = (UvTcpClient)state;
 
-            var connection = new UvTcpClientConnection(client._thread, client._connectSocket);
+            var connection = new UvTcpConnection(client._thread, client._connectSocket);
 
             client._connectTcs.TrySetResult(connection);
         }
