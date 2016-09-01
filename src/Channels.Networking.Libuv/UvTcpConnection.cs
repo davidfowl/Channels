@@ -87,6 +87,9 @@ namespace Channels.Networking.Libuv
                 writeReq.Dispose();
 
                 _handle.Dispose();
+
+                // We'll never call the callback after disposing the handle
+                _input.CompleteWriting();
             }
         }
 
