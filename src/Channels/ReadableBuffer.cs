@@ -50,6 +50,34 @@ namespace Channels
             _length = begin.GetLength(end);
         }
 
+        private ReadableBuffer(ReadableBuffer buffer)
+        {
+            _channel = buffer._channel;
+
+            var begin = buffer._start;
+            var end = buffer._end;
+
+            var segmentHead = MemoryBlockSegment.Clone(begin, end);
+            var segmentTail = segmentHead;
+
+            while (segmentTail.Next != null)
+            {
+                segmentTail = segmentTail.Next;
+            }
+
+            begin = new ReadCursor(segmentHead);
+            end = new ReadCursor(segmentTail, segmentTail.End);
+
+            _start = begin;
+            _end = end;
+            _isOwner = true;
+            _disposed = false;
+
+            begin.TryGetBuffer(end, out _span);
+
+            _length = buffer._length;
+        }
+
         public ReadCursor IndexOf(ref Vector<byte> byte0Vector)
         {
             var begin = _start;
@@ -129,21 +157,7 @@ namespace Channels
 
         public ReadableBuffer Preserve()
         {
-            var begin = _start;
-            var end = _end;
-
-            var segmentHead = MemoryBlockSegment.Clone(begin, end);
-            var segmentTail = segmentHead;
-
-            while (segmentTail.Next != null)
-            {
-                segmentTail = segmentTail.Next;
-            }
-
-            begin = new ReadCursor(segmentHead);
-            end = new ReadCursor(segmentTail, segmentTail.End);
-
-            return new ReadableBuffer(_channel, begin, end, isOwner: true);
+            return new ReadableBuffer(this);
         }
 
         public unsafe void CopyTo(byte* destination, int length)
