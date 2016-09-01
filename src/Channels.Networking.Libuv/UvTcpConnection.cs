@@ -50,7 +50,7 @@ namespace Channels.Networking.Libuv
             {
                 while (true)
                 {
-                    var buffer = await _output;
+                    var buffer = await _output.ReadAsync();
 
                     // Make sure we're on the libuv thread
                     await _thread;

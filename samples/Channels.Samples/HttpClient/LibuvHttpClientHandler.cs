@@ -76,7 +76,7 @@ namespace Channels.Samples
             // TODO: pipelining support!
             while (true)
             {
-                var responseBuffer = await connection.Input;
+                var responseBuffer = await connection.Input.ReadAsync();
 
                 var consumed = responseBuffer.Start;
 

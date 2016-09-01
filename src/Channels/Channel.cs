@@ -258,12 +258,12 @@ namespace Channels
             }
         }
 
-        public IReadableChannel GetAwaiter()
+        public ChannelAwaitable ReadAsync()
         {
-            return this;
+            return new ChannelAwaitable(this);
         }
 
-        public void OnCompleted(Action continuation)
+        internal void OnCompleted(Action continuation)
         {
             Interlocked.Exchange(ref _startReadingCallback, null)?.Invoke();
 
@@ -295,12 +295,12 @@ namespace Channels
             }
         }
 
-        public void UnsafeOnCompleted(Action continuation)
+        internal void UnsafeOnCompleted(Action continuation)
         {
             OnCompleted(continuation);
         }
 
-        public ReadableBuffer GetResult()
+        internal ReadableBuffer GetResult()
         {
             if (!IsCompleted)
             {

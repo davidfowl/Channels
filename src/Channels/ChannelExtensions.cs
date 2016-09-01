@@ -2,7 +2,6 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 
@@ -27,11 +26,18 @@ namespace Channels
     {
         public static ValueTask<int> ReadAsync(this IReadableChannel input, byte[] buffer, int offset, int count)
         {
-            while (input.IsCompleted)
+            while (true)
             {
+                var awaiter = input.ReadAsync();
+
+                if (!awaiter.IsCompleted)
+                {
+                    break;
+                }
+
                 var fin = input.Completion.IsCompleted;
 
-                var inputBuffer = input.GetResult();
+                var inputBuffer = awaiter.GetResult();
                 var sliced = inputBuffer.Slice(0, count);
                 sliced.CopyTo(buffer, offset);
                 int actual = sliced.Length;
@@ -54,7 +60,7 @@ namespace Channels
         {
             while (true)
             {
-                var inputBuffer = await input;
+                var inputBuffer = await input.ReadAsync();
 
                 var fin = input.Completion.IsCompleted;
 
@@ -81,7 +87,7 @@ namespace Channels
         {
             while (true)
             {
-                var inputBuffer = await input;
+                var inputBuffer = await input.ReadAsync();
 
                 var fin = input.Completion.IsCompleted;
 
@@ -109,7 +115,7 @@ namespace Channels
         {
             while (true)
             {
-                var inputBuffer = await input;
+                var inputBuffer = await input.ReadAsync();
 
                 var fin = input.Completion.IsCompleted;
 

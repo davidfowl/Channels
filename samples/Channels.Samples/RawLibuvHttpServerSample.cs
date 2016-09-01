@@ -24,7 +24,7 @@ namespace Channels.Samples
             listener.OnConnection(async connection =>
             {
                 // Wait for data
-                var input = await connection.Input;
+                var input = await connection.Input.ReadAsync();
 
                 if (input.IsEmpty && connection.Input.Completion.IsCompleted)
                 {
