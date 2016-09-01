@@ -2,7 +2,6 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
-using System.Diagnostics;
 using System.Text;
 
 namespace Channels
@@ -80,14 +79,15 @@ namespace Channels
             return Encoding.UTF8.GetString(Block.Array, Start, End - Start);
         }
 
-        public static MemoryBlockSegment Clone(ReadCursor beginBuffer, ReadCursor endBuffer)
+        public static MemoryBlockSegment Clone(ReadCursor beginBuffer, ReadCursor endBuffer, out MemoryBlockSegment lastBlockSegment)
         {
             var beginOrig = beginBuffer.Segment;
             var endOrig = endBuffer.Segment;
 
             if (beginOrig == endOrig)
             {
-                return new MemoryBlockSegment(beginOrig.Block, beginBuffer.Index, endBuffer.Index);
+                lastBlockSegment = new MemoryBlockSegment(beginOrig.Block, beginBuffer.Index, endBuffer.Index);
+                return lastBlockSegment;
             }
 
             var beginClone = new MemoryBlockSegment(beginOrig.Block, beginBuffer.Index, beginOrig.End);
@@ -103,7 +103,8 @@ namespace Channels
                 beginOrig = beginOrig.Next;
             }
 
-            endClone.Next = new MemoryBlockSegment(endOrig.Block, endOrig.Start, endBuffer.Index);
+            lastBlockSegment = new MemoryBlockSegment(endOrig.Block, endOrig.Start, endBuffer.Index);
+            endClone.Next = lastBlockSegment;
 
             return beginClone;
         }

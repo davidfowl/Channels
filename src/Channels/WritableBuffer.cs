@@ -60,7 +60,6 @@ namespace Channels
             var segment = _tail;
             var block = _tail.Block;
             var blockIndex = _tailIndex;
-            var remaining = count;
             var bytesLeftInBlock = block.Data.Offset + block.Data.Count - blockIndex;
 
             // If inadequate bytes left or if the segment is readonly
@@ -142,12 +141,8 @@ namespace Channels
 
         public void Append(ref ReadableBuffer buffer)
         {
-            var clonedBegin = MemoryBlockSegment.Clone(buffer.Start, buffer.End);
-            var clonedEnd = clonedBegin;
-            while (clonedEnd.Next != null)
-            {
-                clonedEnd = clonedEnd.Next;
-            }
+            MemoryBlockSegment clonedEnd;
+            var clonedBegin = MemoryBlockSegment.Clone(buffer.Start, buffer.End, out clonedEnd);
 
             if (_tail == null)
             {

@@ -57,13 +57,8 @@ namespace Channels
             var begin = buffer._start;
             var end = buffer._end;
 
-            var segmentHead = MemoryBlockSegment.Clone(begin, end);
-            var segmentTail = segmentHead;
-
-            while (segmentTail.Next != null)
-            {
-                segmentTail = segmentTail.Next;
-            }
+            MemoryBlockSegment segmentTail;
+            var segmentHead = MemoryBlockSegment.Clone(begin, end, out segmentTail);
 
             begin = new ReadCursor(segmentHead);
             end = new ReadCursor(segmentTail, segmentTail.End);
