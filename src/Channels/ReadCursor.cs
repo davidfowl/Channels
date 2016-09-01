@@ -527,15 +527,41 @@ namespace Channels
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal bool TryGetBuffer(ReadCursor end, out BufferSpan span)
         {
-            span = default(BufferSpan);
-
             if (IsDefault)
             {
+                span = default(BufferSpan);
                 return false;
             }
 
+            var segment = _segment;
+            var index = _index;
+
+            if (end.Segment == segment)
+            {
+                var following = end.Index - index;
+
+                if (following > 0)
+                {
+                    span = new BufferSpan(segment, index, following);
+
+                    _index = index + following;
+                    return true;
+                }
+
+                span = default(BufferSpan);
+                return false;
+            }
+            else
+            {
+                return TryGetBufferMultiBlock(end, out span);
+            }
+        }
+
+        private bool TryGetBufferMultiBlock(ReadCursor end, out BufferSpan span)
+        {
             var segment = _segment;
             var index = _index;
 
@@ -566,6 +592,7 @@ namespace Channels
 
                 if (wasLastBlock)
                 {
+                    span = default(BufferSpan);
                     return false;
                 }
                 else
