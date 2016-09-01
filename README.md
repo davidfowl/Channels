@@ -42,6 +42,7 @@ You can access CI builds of channels using the following myget source:
 <configuration>
   <packageSources>
     <add key="Channels" value="https://www.myget.org/F/channels/api/v3/index.json" />
+    <add key="dotnet-corefxlab" value="https://dotnet.myget.org/F/dotnet-corefxlab/api/v3/index.json" />
   </packageSources>
 </configuration>
 ```
