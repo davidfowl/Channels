@@ -1,13 +1,10 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Numerics;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace Channels
 {
-    public struct ReadCursor
+    public struct ReadCursor : IEquatable<ReadCursor>
     {
         private static readonly int _vectorSpan = Vector<byte>.Count;
 
@@ -576,11 +573,23 @@ namespace Channels
             return Encoding.UTF8.GetString(Segment.Block.Array, Index, Segment.End - Index);
         }
 
+        public bool Equals(ReadCursor other)
+        {
+            return other._segment == _segment && other._index == _index;
+        }
+
         public override bool Equals(object obj)
         {
-            var other = ((ReadCursor)obj);
+            return Equals((ReadCursor)obj);
+        }
 
-            return other._segment == _segment && other._index == _index;
+        public override int GetHashCode()
+        {
+            var h1 = _segment.GetHashCode();
+            var h2 = _index.GetHashCode();
+
+            var shift5 = ((uint)h1 << 5) | ((uint)h1 >> 27);
+            return ((int)shift5 + h1) ^ h2;
         }
     }
 }
