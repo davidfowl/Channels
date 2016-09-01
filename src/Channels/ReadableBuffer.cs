@@ -50,7 +50,7 @@ namespace Channels
             _length = begin.GetLength(end);
         }
 
-        private ReadableBuffer(ReadableBuffer buffer)
+        private ReadableBuffer(ref ReadableBuffer buffer)
         {
             _channel = buffer._channel;
 
@@ -67,8 +67,7 @@ namespace Channels
             _end = end;
             _isOwner = true;
             _disposed = false;
-
-            begin.TryGetBuffer(end, out _span);
+            _span = buffer._span;
 
             _length = buffer._length;
         }
@@ -152,7 +151,7 @@ namespace Channels
 
         public ReadableBuffer Preserve()
         {
-            return new ReadableBuffer(this);
+            return new ReadableBuffer(ref this);
         }
 
         public unsafe void CopyTo(byte* destination, int length)
