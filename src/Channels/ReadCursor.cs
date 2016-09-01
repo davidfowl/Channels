@@ -585,7 +585,7 @@ namespace Channels
 
         public override int GetHashCode()
         {
-            var h1 = _segment.GetHashCode();
+            var h1 = _segment?.GetHashCode() ?? 0;
             var h2 = _index.GetHashCode();
 
             var shift5 = ((uint)h1 << 5) | ((uint)h1 >> 27);
