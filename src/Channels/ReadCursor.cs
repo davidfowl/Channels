@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -34,35 +36,47 @@ namespace Channels
 
         public bool IsEnd
         {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
             {
-                if (_segment == null)
+                var segment = _segment;
+
+                if (segment == null)
                 {
                     return true;
                 }
-                else if (_index < _segment.End)
+                else if (_index < segment.End)
                 {
                     return false;
                 }
+                else if (segment.Next == null)
+                {
+                    return true;
+                }
                 else
                 {
-                    var segment = _segment.Next;
-                    while (segment != null)
-                    {
-                        if (segment.Start < segment.End)
-                        {
-                            return false; // subsequent block has data - IsEnd is false
-                        }
-                        segment = segment.Next;
-                    }
-                    return true;
+                    return IsEndMultiBlock();
                 }
             }
         }
 
+        private bool IsEndMultiBlock()
+        {
+            var segment = _segment.Next;
+            while (segment != null)
+            {
+                if (segment.Start < segment.End)
+                {
+                    return false; // subsequent block has data - IsEnd is false
+                }
+                segment = segment.Next;
+            }
+            return true;
+        }
+
         internal int Seek(int bytes)
         {
-            if (_segment == null || IsEnd)
+            if (IsEnd)
             {
                 return 0;
             }
