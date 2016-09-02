@@ -10,7 +10,9 @@
   },
 
   "dependencies": {
-    "Channels": "0.1.0-*"
+    "Channels": {
+      "target": "project"
+    }
   },
 
   "frameworks": {
