@@ -21,7 +21,7 @@ namespace Channels.Networking.Libuv
         private readonly UvThread _thread;
         private readonly UvTcpHandle _handle;
 
-        private TaskCompletionSource<object> _connectionCompleted;
+        private TaskCompletionSource<object> _drainWrites;
         private Task _sendingTask;
         private WritableBuffer _inputBuffer;
 
@@ -43,29 +43,35 @@ namespace Channels.Networking.Libuv
 
         private async Task ProcessWrites()
         {
-            var writeReq = new UvWriteReq();
-            writeReq.Init(_thread.Loop);
-
             try
             {
                 while (true)
                 {
                     var buffer = await _output.ReadAsync();
 
-                    // Make sure we're on the libuv thread
-                    await _thread;
-
-                    if (buffer.IsEmpty && _output.WriterCompleted.IsCompleted)
+                    try
                     {
-                        break;
+                        // Make sure we're on the libuv thread
+                        await _thread;
+
+                        if (buffer.IsEmpty && _output.WriterCompleted.IsCompleted)
+                        {
+                            break;
+                        }
+
+                        if (!buffer.IsEmpty)
+                        {
+                            var writeReq = _thread.WriteReqPool.Allocate();
+                            writeReq.Write(_handle, ref buffer, _writeCallback, this);
+
+                            // Preserve this buffer for disposal after the write completes
+                            _outgoing.Enqueue(buffer.Preserve());
+                        }
                     }
-
-                    // Up the reference count of the buffer so that we own the disposal of it
-                    var outgoingBuffer = buffer.Preserve();
-                    _outgoing.Enqueue(outgoingBuffer);
-                    writeReq.Write(_handle, ref outgoingBuffer, _writeCallback, this);
-
-                    buffer.Consumed();
+                    finally
+                    {
+                        buffer.Consumed();
+                    }
                 }
             }
             catch (Exception ex)
@@ -76,15 +82,13 @@ namespace Channels.Networking.Libuv
             {
                 _output.CompleteReading();
 
-                // There's pending writes happening
+                // Drain the pending writes
                 if (_outgoing.Count > 0)
                 {
-                    _connectionCompleted = new TaskCompletionSource<object>();
+                    _drainWrites = new TaskCompletionSource<object>();
 
-                    await _connectionCompleted.Task;
+                    await _drainWrites.Task;
                 }
-
-                writeReq.Dispose();
 
                 _handle.Dispose();
 
@@ -96,8 +100,22 @@ namespace Channels.Networking.Libuv
         private static void WriteCallback(UvWriteReq req, int status, Exception ex, object state)
         {
             var connection = ((UvTcpConnection)state);
-            connection._outgoing.Dequeue().Dispose();
-            connection._connectionCompleted?.TrySetResult(null);
+
+            var buffer = connection._outgoing.Dequeue();
+
+            // Dispose the preserved buffer
+            buffer.Dispose();
+
+            // Return the WriteReq
+            connection._thread.WriteReqPool.Return(req);
+
+            if (connection._drainWrites != null)
+            {
+                if (connection._outgoing.Count == 0)
+                {
+                    connection._drainWrites.TrySetResult(null);
+                }
+            }
         }
 
         private void StartReading()
@@ -118,6 +136,7 @@ namespace Channels.Networking.Libuv
                 // there is no data to be read right now.
                 // See the note at http://docs.libuv.org/en/v1.x/stream.html#c.uv_read_cb.
                 // We need to clean up whatever was allocated by OnAlloc.
+                _inputBuffer.FlushAsync();
                 return;
             }
 

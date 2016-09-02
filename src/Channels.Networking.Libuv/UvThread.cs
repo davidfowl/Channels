@@ -21,7 +21,7 @@ namespace Channels.Networking.Libuv
 
         public UvThread()
         {
-
+            WriteReqPool = new WriteReqPool(this);
         }
 
         public Uv Uv { get; private set; }
@@ -29,6 +29,8 @@ namespace Channels.Networking.Libuv
         public UvLoopHandle Loop { get; private set; }
 
         public ChannelFactory ChannelFactory { get; private set; } = new ChannelFactory();
+
+        public WriteReqPool WriteReqPool { get; }
 
         public void Post(Action<object> callback, object state)
         {
@@ -89,6 +91,8 @@ namespace Channels.Networking.Libuv
 
             if (_stopping)
             {
+                WriteReqPool.Dispose();
+
                 _postHandle.Unreference();
             }
         }
