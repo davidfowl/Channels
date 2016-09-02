@@ -24,7 +24,11 @@ namespace Channels
 
         public bool IsSingleSpan => _start.Segment.Block == _end.Segment.Block;
 
-        public BufferSpan FirstSpan => _span ?? GetBuffer();
+        public BufferSpan FirstSpan
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _span ?? GetBuffer(); }
+        }
 
         public ReadCursor Start => _start;
         public ReadCursor End => _end;
@@ -204,6 +208,9 @@ namespace Channels
             return length;
         }
 
+        // We do not want this to be inlined into FirstSpan
+        // or taht method then becomes uninlinable
+        [MethodImpl(MethodImplOptions.NoInlining)]
         private BufferSpan GetBuffer()
         {
             BufferSpan span;
