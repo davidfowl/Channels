@@ -11,10 +11,10 @@ namespace Channels
 {
     public struct ReadableBuffer : IDisposable, IEnumerable<BufferSpan>
     {
-        private readonly BufferSpan _span;
         private readonly bool _isOwner;
         private readonly Channel _channel;
 
+        private BufferSpan? _span;
         private ReadCursor _start;
         private ReadCursor _end;
         private int _length;
@@ -24,7 +24,11 @@ namespace Channels
 
         public bool IsSingleSpan => _start.Segment.Block == _end.Segment.Block;
 
-        public BufferSpan FirstSpan => _span;
+        public BufferSpan FirstSpan
+        {
+            [MethodImpl(MethodImplOptions.AggressiveInlining)]
+            get { return _span ?? GetBuffer(); }
+        }
 
         public ReadCursor Start => _start;
         public ReadCursor End => _end;
@@ -42,9 +46,7 @@ namespace Channels
             _end = end;
             _isOwner = isOwner;
 
-            var begin = start;
-            begin.TryGetBuffer(end, out _span);
-
+            _span = null;
             _length = -1;
         }
 
@@ -204,6 +206,18 @@ namespace Channels
             var length = begin.GetLength(_end);
             _length = length;
             return length;
+        }
+
+        // We do not want this to be inlined into FirstSpan
+        // or taht method then becomes uninlinable
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private BufferSpan GetBuffer()
+        {
+            BufferSpan span;
+            var begin = _start;
+            begin.TryGetBuffer(_end, out span);
+            _span = span;
+            return span;
         }
 
         public void Dispose()
