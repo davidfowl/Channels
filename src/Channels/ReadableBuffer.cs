@@ -143,7 +143,8 @@ namespace Channels
                 return -1;
             }
 
-            return FirstSpan.Array[FirstSpan.Offset];
+            var span = FirstSpan;
+            return span.Array[span.Offset];
         }
 
         public ReadableBuffer Preserve()
