@@ -74,7 +74,8 @@ namespace Channels.Networking.Libuv.Interop
 
                 if (nBuffers == 1)
                 {
-                    pBuffers[0] = Libuv.buf_init(buffer.FirstSpan.BufferPtr, buffer.FirstSpan.Length);
+                    var span = buffer.FirstSpan;
+                    pBuffers[0] = Libuv.buf_init(span.BufferPtr, span.Length);
                 }
                 else
                 {

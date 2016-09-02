@@ -35,7 +35,8 @@ namespace Channels.Text.Primitives
             if (buffer.IsSingleSpan)
             {
                 // It fits!
-                textSpan = new ReadOnlySpan<byte>(buffer.FirstSpan.Array, buffer.FirstSpan.Offset, buffer.FirstSpan.Length);
+                var span = buffer.FirstSpan;
+                textSpan = new ReadOnlySpan<byte>(span.Array, span.Offset, span.Length);
             }
             else if (buffer.Length < 128) // REVIEW: What's a good number
             {
@@ -97,7 +98,8 @@ namespace Channels.Text.Primitives
 
             if (buffer.IsSingleSpan)
             {
-                return Utf8Encoding.GetString(buffer.FirstSpan.Array, buffer.FirstSpan.Offset, buffer.FirstSpan.Length);
+                var span = buffer.FirstSpan;
+                return Utf8Encoding.GetString(span.Array, span.Offset, span.Length);
             }
             // try to re-use a shared decoder; note that in heavy usage, we might need to allocate another
             var decoder = Interlocked.Exchange(ref Utf8Decoder, null);
