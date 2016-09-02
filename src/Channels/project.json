@@ -1,5 +1,5 @@
 ﻿{
-  "version": "0.1.0-beta-*",
+  "version": "0.2.0-beta-*",
   "description": "An abstraction for doing efficient asynchronous IO",
   "packOptions": {
     "projectUrl": "https://github.com/davidfowl/Channels"
