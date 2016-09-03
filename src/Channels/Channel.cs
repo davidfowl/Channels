@@ -159,18 +159,23 @@ namespace Channels
 
         internal Task CompleteWriteAsync()
         {
-            Complete();
+            Action awaitableState;
+
+            lock (_sync)
+            {
+                awaitableState = Interlocked.Exchange(
+                    ref _awaitableState,
+                    _awaitableIsCompleted);
+            }
+
+            Complete(awaitableState);
 
             // Apply back pressure here
             return _completedTask;
         }
 
-        private void Complete()
+        private void Complete(Action awaitableState)
         {
-            var awaitableState = Interlocked.Exchange(
-                ref _awaitableState,
-                _awaitableIsCompleted);
-
             if (!ReferenceEquals(awaitableState, _awaitableIsCompleted) &&
                 !ReferenceEquals(awaitableState, _awaitableIsNotCompleted))
             {
@@ -202,9 +207,12 @@ namespace Channels
             PooledBufferSegment returnStart = null;
             PooledBufferSegment returnEnd = null;
 
+            var consumedNone = consumed.IsDefault;
+            var examinedNone = examined.IsDefault;
+
             lock (_sync)
             {
-                if (!consumed.IsDefault)
+                if (!consumedNone)
                 {
                     returnStart = _head;
                     returnEnd = consumed.Segment;
@@ -212,8 +220,8 @@ namespace Channels
                     _head.Start = consumed.Index;
                 }
 
-                if (!examined.IsDefault &&
-                    examined.IsEnd &&
+                if (!examinedNone &&
+                    examined.IsEnd && // can this be hoisted? May cause race?
                     Reading.Status == TaskStatus.WaitingForActivation)
                 {
                     Interlocked.CompareExchange(
@@ -268,7 +276,7 @@ namespace Channels
                 _readingTcs.TrySetResult(null);
             }
 
-            Complete();
+            Complete(Interlocked.Exchange(ref _awaitableState, _awaitableIsCompleted));
         }
 
         void IReadableChannel.Complete(Exception exception) => CompleteReader(exception);
