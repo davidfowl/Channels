@@ -18,13 +18,7 @@ namespace Channels
         /// <summary>
         /// The managed memory allocated in the large object heap.
         /// </summary>
-        public byte[] Array;
-
-        /// <summary>
-        /// The native memory pointer of the pinned Array. All block native addresses are pointers into the memory 
-        /// ranging from ArrayPtr to ArrayPtr + Array.Length
-        /// </summary>
-        public IntPtr ArrayPtr;
+        public Span<byte> Data;
 
         /// <summary>
         /// True as long as the blocks from this slab are to be considered returnable to the pool. In order to shrink the 
@@ -43,7 +37,7 @@ namespace Channels
         /// </summary>
         private bool _disposedValue = false; // To detect redundant calls
 
-        public static MemoryPoolSlab Create(int length)
+        public unsafe static MemoryPoolSlab Create(int length)
         {
             // allocate and pin requested memory length
             var array = new byte[length];
@@ -52,9 +46,8 @@ namespace Channels
             // allocate and return slab tracking object
             return new MemoryPoolSlab
             {
-                Array = array,
+                Data = new Span<byte>(array, 0, length),
                 _gcHandle = gcHandle,
-                ArrayPtr = gcHandle.AddrOfPinnedObject(),
                 IsActive = true,
             };
         }
@@ -75,7 +68,7 @@ namespace Channels
                 _gcHandle.Free();
 
                 // set large fields to null.
-                Array = null;
+                Data = default(Span<byte>);
 
                 _disposedValue = true;
             }

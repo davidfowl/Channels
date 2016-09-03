@@ -31,7 +31,7 @@ namespace Channels.Samples.Formatting
         {
             get
             {
-                return new Span<byte>(_writableBuffer.Memory.Array, _writableBuffer.Memory.Offset, _writableBuffer.Memory.Length);
+                return _writableBuffer.Memory;
             }
         }
 
