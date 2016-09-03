@@ -12,7 +12,10 @@ namespace Channels.Networking.Libuv
     {
         internal static Action<Action<IntPtr>, IntPtr> _queueCloseCallback = QueueCloseHandle;
 
-        private readonly Thread _thread = new Thread(OnStart);
+        private readonly Thread _thread = new Thread(OnStart)
+        {
+            Name = "Libuv event loop"
+        };
         private readonly ManualResetEventSlim _running = new ManualResetEventSlim();
         private readonly LockFreeWorkQueue<Work> _workQueue = new LockFreeWorkQueue<Work>();
 
