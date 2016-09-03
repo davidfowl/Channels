@@ -114,7 +114,7 @@ namespace Channels.Text.Primitives
             else
             {
                 // Heap allocated copy to parse into array (should be rare)
-                return new Utf8String(new ReadOnlySpan<byte>(buffer.ToArray())).ToString();
+                return new Utf8String(buffer.ToArray()).ToString();
             }
         }
     }
