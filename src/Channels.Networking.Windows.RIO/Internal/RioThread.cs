@@ -2,7 +2,7 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
-using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Threading;
@@ -12,6 +12,7 @@ namespace Channels.Networking.Windows.RIO.Internal
 {
     internal unsafe class RioThread
     {
+        const int maxResults = 1024;
         const string Kernel_32 = "Kernel32";
         const long INVALID_HANDLE_VALUE = -1;
 
@@ -19,12 +20,16 @@ namespace Channels.Networking.Windows.RIO.Internal
         private readonly int _id;
         private readonly IntPtr _completionPort;
         private readonly IntPtr _completionQueue;
-        private readonly ConcurrentDictionary<long, RioTcpConnection> _connections = new ConcurrentDictionary<long, RioTcpConnection>();
-        private readonly ConcurrentDictionary<IntPtr, IntPtr> _bufferIdMappings = new ConcurrentDictionary<IntPtr, IntPtr>();
-        private readonly Thread _thread;
-        private readonly MemoryPool _memoryPool = new MemoryPool();
-        private readonly ChannelFactory _channelFactory;
+        private readonly Thread _completionThread;
+        private readonly object _notify;
+        private readonly Thread _notifyThread;
         private readonly CancellationToken _token;
+        private readonly Queue<NotifyBatch> _notifyBatches;
+        private readonly Queue<NotifyBatch> _processedBatches;
+
+        private ChannelFactory _channelFactory;
+        private Dictionary<long, RioTcpConnection> _connections;
+        private Dictionary<IntPtr, IntPtr> _bufferIdMappings;
 
         public IntPtr ReceiveCompletionQueue => _completionQueue;
 
@@ -34,94 +39,292 @@ namespace Channels.Networking.Windows.RIO.Internal
 
         public ChannelFactory ChannelFactory => _channelFactory;
 
-        public ConcurrentDictionary<long, RioTcpConnection> Connections => _connections;
-
         public RioThread(int id, CancellationToken token, IntPtr completionPort, IntPtr completionQueue, RegisteredIO rio)
         {
             _id = id;
             _rio = rio;
             _token = token;
-            _memoryPool = new MemoryPool();
-            _memoryPool.RegisterSlabAllocationCallback(OnSlabAllocated);
-            _memoryPool.RegisterSlabDeallocationCallback(OnSlabDeallocated);
-            _channelFactory = new ChannelFactory(_memoryPool);
-            _connections = new ConcurrentDictionary<long, RioTcpConnection>();
-            _thread = new Thread(OnThreadStart);
-            _thread.Name = "RIOThread " + id;
-            _thread.IsBackground = true;
+
+            if (CpuInfo.LogicalProcessorCount > CpuInfo.PhysicalCoreCount)
+            {
+                _completionThread = new Thread(RunLogicalCompletions)
+                {
+                    Name = $"RIO Completion Thread {id:00}",
+                    IsBackground = true
+                };
+
+                _notifyBatches = new Queue<NotifyBatch>(16);
+                _notify = new object();
+
+                _notifyThread = new Thread(RunNotifies)
+                {
+                    Name = $"RIO Notify Thread {id:00}",
+                    IsBackground = true
+                };
+                _processedBatches = new Queue<NotifyBatch>(16);
+            }
+            else
+            {
+                _completionThread = new Thread(RunPhysicalCompletions)
+                {
+                    Name = $"RIO Completion Thread {id:00}",
+                    IsBackground = true
+                };
+            }
+
             _completionPort = completionPort;
             _completionQueue = completionQueue;
+        }
+
+        public void AddConnection(long key, RioTcpConnection value)
+        {
+            lock (_connections)
+            {
+                _connections.Add(key, value);
+            }
+        }
+
+        public void RemoveConnection(long key)
+        {
+            lock (_connections)
+            {
+                _connections.Remove(key);
+            }
         }
 
         public IntPtr GetBufferId(IntPtr address)
         {
             IntPtr bufferId;
-            if (_bufferIdMappings.TryGetValue(address, out bufferId))
+            lock (_bufferIdMappings)
             {
-                return bufferId;
+                if (_bufferIdMappings.TryGetValue(address, out bufferId))
+                {
+                    return bufferId;
+                }
             }
             return IntPtr.Zero;
         }
 
         private void OnSlabAllocated(MemoryPoolSlab slab)
         {
-            var bufferId = _rio.RioRegisterBuffer(slab.ArrayPtr, (uint)slab.Array.Length);
+            lock (_bufferIdMappings)
+            {
+                var bufferId = _rio.RioRegisterBuffer(slab.ArrayPtr, (uint) slab.Array.Length);
 
-            _bufferIdMappings[slab.ArrayPtr] = bufferId;
+                _bufferIdMappings[slab.ArrayPtr] = bufferId;
+            }
         }
 
         private void OnSlabDeallocated(MemoryPoolSlab slab)
         {
             IntPtr bufferId;
-            if (_bufferIdMappings.TryRemove(slab.ArrayPtr, out bufferId))
+            lock (_bufferIdMappings)
             {
-                _rio.DeregisterBuffer(bufferId);
-            }
-            else
-            {
-                Debug.Assert(false, "Unknown buffer id!");
+                if (_bufferIdMappings.TryGetValue(slab.ArrayPtr, out bufferId))
+                {
+                    _rio.DeregisterBuffer(bufferId);
+                    _bufferIdMappings.Remove(slab.ArrayPtr);
+                }
+                else
+                {
+                    Debug.Assert(false, "Unknown buffer id!");
+                }
             }
         }
 
         public void Start()
         {
-            _thread.Start(this);
+            _completionThread.Start(this);
+            _notifyThread?.Start(this);
         }
 
-        private static void OnThreadStart(object state)
+        private static void RunLogicalCompletions(object state)
         {
-            const int maxResults = 1024;
 
             var thread = ((RioThread)state);
-            var rio = thread._rio;
-            var token = thread._token;
+#if NET451
+            Thread.BeginThreadAffinity();
+#endif
+            var nativeThread = GetCurrentThread();
+            var affinity = GetAffinity(thread._id);
+            nativeThread.ProcessorAffinity = new IntPtr((long)affinity);
 
-            RioRequestResult* results = stackalloc RioRequestResult[maxResults];
-            uint bytes, key;
-            NativeOverlapped* overlapped;
+            thread._connections = new Dictionary<long, RioTcpConnection>();
+            thread._bufferIdMappings = new Dictionary<IntPtr, IntPtr>();
 
-            var completionPort = thread.CompletionPort;
-            var completionQueue = thread.ReceiveCompletionQueue;
+            var memoryPool = new MemoryPool();
+            memoryPool.RegisterSlabAllocationCallback((slab) => thread.OnSlabAllocated(slab));
+            memoryPool.RegisterSlabDeallocationCallback((slab) => thread.OnSlabDeallocated(slab));
+            thread._channelFactory = new ChannelFactory(memoryPool);
 
-            uint count;
+            thread.ProcessLogicalCompletions();
 
-            while (!token.IsCancellationRequested)
+#if NET451
+            Thread.EndThreadAffinity();
+#endif
+        }
+
+        private static void RunPhysicalCompletions(object state)
+        {
+
+            var thread = ((RioThread)state);
+#if NET451
+            Thread.BeginThreadAffinity();
+#endif
+            var nativeThread = GetCurrentThread();
+            var affinity = GetAffinity(thread._id);
+            nativeThread.ProcessorAffinity = new IntPtr((long)affinity);
+
+            thread._connections = new Dictionary<long, RioTcpConnection>();
+            thread._bufferIdMappings = new Dictionary<IntPtr, IntPtr>();
+
+            var memoryPool = new MemoryPool();
+            memoryPool.RegisterSlabAllocationCallback((slab) => thread.OnSlabAllocated(slab));
+            memoryPool.RegisterSlabDeallocationCallback((slab) => thread.OnSlabDeallocated(slab));
+            thread._channelFactory = new ChannelFactory(memoryPool);
+
+            thread.ProcessPhysicalCompletions();
+
+#if NET451
+            Thread.EndThreadAffinity();
+#endif
+        }
+
+        private static void RunNotifies(object state)
+        {
+
+            var thread = ((RioThread)state);
+#if NET451
+            Thread.BeginThreadAffinity();
+#endif
+            var nativeThread = GetCurrentThread();
+            var affinity = GetPairedAffinity(thread._id);
+            nativeThread.ProcessorAffinity = new IntPtr((long)affinity);
+
+            thread.ProcessNotifies();
+#if NET451
+            Thread.EndThreadAffinity();
+#endif
+        }
+
+        private struct NotifyBatch
+        {
+            public RioTcpConnection[] ConnectionsToSignal;
+            public uint Count;
+        }
+
+        private void ProcessNotifies()
+        {
+            while (!_token.IsCancellationRequested)
             {
-                rio.Notify(completionQueue);
-                var success = GetQueuedCompletionStatus(completionPort, out bytes, out key, out overlapped, -1);
+                NotifyBatch batch;
+                lock (_notify)
+                {
+                    if (_notifyBatches.Count == 0)
+                    {
+                        Monitor.Wait(_notify);
+                    }
+
+                    batch = _notifyBatches.Dequeue();
+                }
+
+                var count = batch.Count;
+                var connectionsToSignal = batch.ConnectionsToSignal;
+
+                Notify(connectionsToSignal, count);
+
+                lock (_processedBatches)
+                {
+                    _processedBatches.Enqueue(batch);
+                }
+            }
+        }
+
+        private static void Notify(RioTcpConnection[] connectionsToSignal, uint count)
+        {
+            for (var i = 0; i < connectionsToSignal.Length; i++)
+            {
+                if (i >= count)
+                {
+                    break;
+                }
+
+                var connection = connectionsToSignal[i];
+
+                if (connection != null)
+                {
+                    connection.ReceiveEndComplete();
+                    connectionsToSignal[i] = null;
+                }
+            }
+        }
+
+
+        private void ProcessLogicalCompletions()
+        {
+            RioRequestResult* results = stackalloc RioRequestResult[maxResults];
+
+            _rio.Notify(ReceiveCompletionQueue);
+            while (!_token.IsCancellationRequested)
+            {
+                NativeOverlapped* overlapped;
+                uint bytes, key;
+                var success = GetQueuedCompletionStatus(CompletionPort, out bytes, out key, out overlapped, -1);
                 if (success)
                 {
-                    while ((count = rio.DequeueCompletion(completionQueue, (IntPtr)results, maxResults)) > 0)
+                    var activatedNotify = false;
+                    while (true)
                     {
-                        for (var i = 0; i < count; i++)
+                        var count = _rio.DequeueCompletion(ReceiveCompletionQueue, (IntPtr) results, maxResults);
+                        if (count == 0)
                         {
-                            var result = results[i];
-
-                            RioTcpConnection connection;
-                            if (thread._connections.TryGetValue(result.ConnectionCorrelation, out connection))
+                            if (!activatedNotify)
                             {
-                                connection.Complete(result.Status, result.RequestCorrelation, result.BytesTransferred);
+                                activatedNotify = true;
+                                _rio.Notify(ReceiveCompletionQueue);
+                                continue;
                             }
+
+                            break;
+                        }
+
+                        var gotBatch = false;
+                        var batch = default(NotifyBatch);
+                        lock (_processedBatches)
+                        {
+                            if (_processedBatches.Count > 0)
+                            {
+                                batch = _processedBatches.Dequeue();
+                                batch.Count = count;
+                                gotBatch = true;
+                            }
+                        }
+
+                        if (!gotBatch)
+                        {
+                            batch = new NotifyBatch()
+                            {
+                                ConnectionsToSignal = new RioTcpConnection[maxResults],
+                                Count = count
+                            };
+                        }
+
+                        var connectionsToSignal = batch.ConnectionsToSignal;
+
+                        Complete(results, count, connectionsToSignal);
+
+                        lock (_notify)
+                        {
+                            _notifyBatches.Enqueue(batch);
+
+                            Monitor.Pulse(_notify);
+                        }
+
+                        if (!activatedNotify)
+                        {
+                            activatedNotify = true;
+                            _rio.Notify(ReceiveCompletionQueue);
+                            
                         }
                     }
                 }
@@ -130,7 +333,92 @@ namespace Channels.Networking.Windows.RIO.Internal
                     var error = GetLastError();
                     if (error != 258)
                     {
-                        throw new Exception(string.Format("ERROR: GetQueuedCompletionStatusEx returned {0}", error));
+                        throw new Exception($"ERROR: GetQueuedCompletionStatusEx returned {error}");
+                    }
+                }
+            }
+        }
+
+        private unsafe void Complete(RioRequestResult* results, uint count, RioTcpConnection[] connectionsToSignal)
+        {
+            for (var i = 0; i < count; i++)
+            {
+                var result = results[i];
+
+                RioTcpConnection connection;
+                bool found;
+                lock (_connections)
+                {
+                    found = _connections.TryGetValue(result.ConnectionCorrelation, out connection);
+                }
+
+                if (found)
+                {
+                    if (result.RequestCorrelation >= 0)
+                    {
+                        connection.ReceiveBeginComplete(result.BytesTransferred);
+                        connectionsToSignal[i] = connection;
+                    }
+                    else
+                    {
+                        connection.SendComplete(result.RequestCorrelation);
+                        connectionsToSignal[i] = null;
+                    }
+                }
+                else
+                {
+                    connectionsToSignal[i] = null;
+                }
+            }
+        }
+
+        private void ProcessPhysicalCompletions()
+        {
+            RioRequestResult* results = stackalloc RioRequestResult[maxResults];
+            var connectionsToSignal = new RioTcpConnection[maxResults];
+
+            _rio.Notify(ReceiveCompletionQueue);
+            while (!_token.IsCancellationRequested)
+            {
+                NativeOverlapped* overlapped;
+                uint bytes, key;
+                var success = GetQueuedCompletionStatus(CompletionPort, out bytes, out key, out overlapped, -1);
+                if (success)
+                {
+                    var activatedNotify = false;
+                    while (true)
+                    {
+                        var count = _rio.DequeueCompletion(ReceiveCompletionQueue, (IntPtr)results, maxResults);
+                        if (count == 0)
+                        {
+                            if (!activatedNotify)
+                            {
+                                activatedNotify = true;
+                                _rio.Notify(ReceiveCompletionQueue);
+                                continue;
+                            }
+
+                            break;
+                        }
+
+                        Complete(results, count, connectionsToSignal);
+
+                        Notify(connectionsToSignal, count);
+
+                        if (!activatedNotify)
+                        {
+                            activatedNotify = true;
+                            _rio.Notify(ReceiveCompletionQueue);
+
+                        }
+                    }
+                }
+                else
+                {
+                    var error = GetLastError();
+                    if (error != 258)
+                    {
+                        throw new Exception($"ERROR: GetQueuedCompletionStatusEx returned {error}");
                     }
                 }
             }
@@ -141,5 +429,79 @@ namespace Channels.Networking.Windows.RIO.Internal
 
         [DllImport(Kernel_32, SetLastError = true)]
         private static extern long GetLastError();
+
+        [DllImport("kernel32.dll")]
+        private static extern int GetCurrentThreadId();
+
+        private static ProcessThread GetCurrentThread()
+        {
+            var id = GetCurrentThreadId();
+            var processThreads = Process.GetCurrentProcess().Threads;
+
+            for (var i = 0; i < processThreads.Count; i++)
+            {
+                var thread = processThreads[i];
+                if (thread.Id == id)
+                {
+                    return thread;
+                }
+            }
+
+            return null;
+        }
+
+        private static ulong GetAffinity(int threadId)
+        {
+            const int lshift = sizeof(ulong)*8 - 1;
+
+            var bitMask = CpuInfo.PhysicalCoreMask;
+            var coreId = 0;
+
+            for (var i = 0; i <= lshift; i++)
+            {
+                var bitTest = 1UL << i;
+
+                if ((bitMask & bitTest) == bitTest)
+                {
+                    if (coreId == threadId)
+                    {
+                        return bitTest;
+                    }
+                    coreId++;
+                }
+            }
+
+            unchecked
+            {
+                return (ulong) -1;
+            }
+        }
+
+        private static ulong GetPairedAffinity(int threadId)
+        {
+            const int lshift = sizeof(ulong) * 8 - 1;
+
+            var bitMask = CpuInfo.SecondaryCoreMask;
+            var coreId = 0;
+
+            for (var i = 0; i <= lshift; i++)
+            {
+                var bitTest = 1UL << i;
+
+                if ((bitMask & bitTest) == bitTest)
+                {
+                    if (coreId == threadId)
+                    {
+                        return bitTest;
+                    }
+                    coreId++;
+                }
+            }
+
+            unchecked
+            {
+                return (ulong)-1;
+            }
+        }
     }
 }
