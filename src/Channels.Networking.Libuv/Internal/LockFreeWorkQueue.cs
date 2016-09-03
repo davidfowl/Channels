@@ -1,7 +1,6 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using System.Threading;
 
 namespace Channels.Networking.Libuv.Internal
@@ -13,54 +12,87 @@ namespace Channels.Networking.Libuv.Internal
 
         public void Add(T value)
         {
-            var node = new Node();
+            Node node = new Node(), oldHead;
             node.Value = value;
 
-            while (true)
+            do
             {
-                var oldHead = Head;
+                oldHead = Head;
                 node.Next = Head;
                 node.Count = 1 + (oldHead?.Count ?? 0);
-
-                if (Interlocked.CompareExchange(ref Head, node, oldHead) == oldHead)
-                {
-                    break;
-                }
-            }
+            } while (Interlocked.CompareExchange(ref Head, node, oldHead) != oldHead);
         }
 
-        public T[] GetAndClear()
+
+        public Enumerable GetAndClear()
         {
+            // swap out the head
             var node = Interlocked.Exchange(ref Head, null);
 
-            if (node == null)
+            // we now have a detatched head, but we're backwards
+            // note: 0/1 are a trivial case
+            if (node == null || node.Count == 1)
             {
-                return EmptyArray<T>.Instance;
+                return new Enumerable(node);
             }
-
-            // TODO: Don't allocate here
-            var values = new T[node.Count];
-            int at = node.Count - 1;
-
+            // otherwise, we need to reverse the linked-list
+            // note: use the iterative method to avoid a stack-dive
+            Node prev = null;
+            int count = 1; // rebuild the counts
             while (node != null)
             {
-                values[at--] = node.Value;
-                node = node.Next;
+                var next = node.Next;
+                node.Next = prev;
+                node.Count = count++;
+                prev = node;
+                node = next;
             }
-
-            return values;
+            return new Enumerable(prev);
         }
 
-        private class Node
+        internal class Node // need internal for Enumerator / Enumerable
         {
             public T Value;
             public Node Next;
             public int Count;
         }
-
-        private static class EmptyArray<TArray>
+        public struct Enumerable : IEnumerable<T>
         {
-            public static TArray[] Instance = new TArray[0];
+            private Node node;
+            public int Count => node?.Count ?? 0;
+            internal Enumerable(Node node)
+            {
+                this.node = node;
+            }
+            public Enumerator GetEnumerator() => new Enumerator(node);
+            IEnumerator<T> IEnumerable<T>.GetEnumerator() => GetEnumerator();
+            IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
+        }
+        public struct Enumerator : IEnumerator<T>
+        {
+            void IDisposable.Dispose() { }
+            private Node next;
+            private T current;
+            internal Enumerator(Node node)
+            {
+                this.current = default(T);
+                this.next = node;
+            }
+            object IEnumerator.Current => current;
+            public T Current => current;
+            public bool MoveNext()
+            {
+                if (next == null)
+                {
+                    current = default(T);
+                    return false;
+                }
+                current = next.Value;
+                next = next.Next;
+                return true;
+            }
+            public void Reset() { throw new NotSupportedException(); }
         }
     }
 }
