@@ -13,6 +13,7 @@ namespace Channels.Networking.Windows.RIO.Internal.Winsock
 
         public RioReceive RioReceive;
         public RioSend Send;
+        public RioSendCommit RioSendCommit;
 
         public RioNotify Notify;
 

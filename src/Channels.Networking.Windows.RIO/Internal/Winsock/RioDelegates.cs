@@ -21,6 +21,10 @@ namespace Channels.Networking.Windows.RIO.Internal.Winsock
 
     [SuppressUnmanagedCodeSecurity]
     [UnmanagedFunctionPointer(CallingConvention.StdCall, SetLastError = true)]
+    public unsafe delegate bool RioSendCommit([In] IntPtr socketQueue, [In] RioBufferSegment* rioBuffer, [In] UInt32 dataBufferCount, [In] RioSendFlags flags, [In] long requestCorrelation);
+
+    [SuppressUnmanagedCodeSecurity]
+    [UnmanagedFunctionPointer(CallingConvention.StdCall, SetLastError = true)]
     public delegate bool RioReceive([In] IntPtr socketQueue, [In] ref RioBufferSegment rioBuffer, [In] UInt32 dataBufferCount, [In] RioReceiveFlags flags, [In] long requestCorrelation);
 
     [SuppressUnmanagedCodeSecurity]

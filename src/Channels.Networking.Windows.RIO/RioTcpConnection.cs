@@ -38,6 +38,7 @@ namespace Channels.Networking.Windows.RIO
 
         private ReadableBuffer _sendingBuffer;
         private WritableBuffer _buffer;
+        private InvalidOperationException _error;
 
         internal RioTcpConnection(IntPtr socket, long connectionId, IntPtr requestQueue, RioThread rioThread, RegisteredIO rio)
         {
@@ -149,12 +150,30 @@ namespace Channels.Networking.Windows.RIO
 
         private void Send(RioBufferSegment segment, bool flushSends)
         {
+            if (_error != null)
+            {
+                ThrowError();
+            }
+
             var sendCorrelation = flushSends ? CompleteSendCorrelation() : PartialSendCorrelation;
-            var sendFlags = flushSends ? MessageEnd : MessagePart;
+            var sendFlags = flushSends ? RioSendFlags.Defer : MessagePart;
 
             if (!_rio.Send(_requestQueue, ref segment, 1, sendFlags, sendCorrelation))
             {
                 ThrowError(ErrorType.Send);
+            }
+
+            if (flushSends)
+            {
+                ThreadPool.QueueUserWorkItem((o) => ((RioTcpConnection)o).CommitSend(), this);
+            }
+        }
+
+        private unsafe void CommitSend()
+        {
+            if (!_rio.RioSendCommit(_requestQueue, null, 0, RioSendFlags.CommitOnly, 0))
+            {
+                _error = GetError(ErrorType.Send);
             }
         }
 
@@ -225,6 +244,16 @@ namespace Channels.Networking.Windows.RIO
 
         private static void ThrowError(ErrorType type)
         {
+            throw GetError(type);
+        }
+
+        private void ThrowError()
+        {
+            throw _error;
+        }
+
+        private static InvalidOperationException GetError(ErrorType type)
+        {
             var errorNo = RioImports.WSAGetLastError();
 
             string errorMessage;
@@ -250,7 +279,7 @@ namespace Channels.Networking.Windows.RIO
                     break;
             }
 
-            throw new InvalidOperationException(errorMessage);
+            return new InvalidOperationException(errorMessage);
         }
 
         private void Dispose(bool disposing)

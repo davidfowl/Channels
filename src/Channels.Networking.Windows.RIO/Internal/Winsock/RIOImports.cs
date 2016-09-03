@@ -80,6 +80,7 @@ namespace Channels.Networking.Windows.RIO.Internal.Winsock
 
             rioFunctions.RioReceive = Marshal.GetDelegateForFunctionPointer<RioReceive>(rio.RIOReceive);
             rioFunctions.Send = Marshal.GetDelegateForFunctionPointer<RioSend>(rio.RIOSend);
+            rioFunctions.RioSendCommit = Marshal.GetDelegateForFunctionPointer<RioSendCommit>(rio.RIOSend);
 
             rioFunctions.CloseCompletionQueue = Marshal.GetDelegateForFunctionPointer<RioCloseCompletionQueue>(rio.RIOCloseCompletionQueue);
             rioFunctions.DeregisterBuffer = Marshal.GetDelegateForFunctionPointer<RioDeregisterBuffer>(rio.RIODeregisterBuffer);
