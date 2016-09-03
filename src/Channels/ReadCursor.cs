@@ -528,11 +528,11 @@ namespace Channels
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal bool TryGetBuffer(ReadCursor end, out BufferSpan span)
+        internal bool TryGetBuffer(ReadCursor end, out Span<byte> span)
         {
             if (IsDefault)
             {
-                span = default(BufferSpan);
+                span = default(Span<byte>);
                 return false;
             }
 
@@ -545,13 +545,13 @@ namespace Channels
 
                 if (following > 0)
                 {
-                    span = new BufferSpan(segment, index, following);
+                    span = new Span<byte>(segment.Block.Array, index, following);
 
                     _index = index + following;
                     return true;
                 }
 
-                span = default(BufferSpan);
+                span = default(Span<byte>);
                 return false;
             }
             else
@@ -560,7 +560,7 @@ namespace Channels
             }
         }
 
-        private bool TryGetBufferMultiBlock(ReadCursor end, out BufferSpan span)
+        private bool TryGetBufferMultiBlock(ReadCursor end, out Span<byte> span)
         {
             var segment = _segment;
             var index = _index;
@@ -592,7 +592,7 @@ namespace Channels
 
                 if (wasLastBlock)
                 {
-                    span = default(BufferSpan);
+                    span = default(Span<byte>);
                     return false;
                 }
                 else
@@ -602,7 +602,7 @@ namespace Channels
                 }
             }
 
-            span = new BufferSpan(segment, index, following);
+            span = new Span<byte>(segment.Block.Array, index, following);
 
             _segment = segment;
             _index = index + following;

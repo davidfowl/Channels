@@ -92,9 +92,11 @@ namespace Channels.Networking.Windows.RIO.Internal
             }
         }
 
-        public IntPtr GetBufferId(IntPtr address)
+        public IntPtr GetBufferId(IntPtr address, out long startAddress)
         {
             var id = IntPtr.Zero;
+            startAddress = 0;
+
             lock (_bufferIdMappings)
             {
                 var addressLong = address.ToInt64();
@@ -105,6 +107,7 @@ namespace Channels.Networking.Windows.RIO.Internal
                     if (addressLong >= mapping.Start && addressLong <= mapping.End)
                     {
                         id = mapping.Id;
+                        startAddress = mapping.Start;
                         break;
                     }
                 }

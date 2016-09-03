@@ -45,7 +45,7 @@ namespace Channels
 
         internal bool IsDefault => _tail == null;
 
-        public BufferSpan Memory => new BufferSpan(_tail, _tail.End, _tail.Block.Data.Offset + _tail.Block.Data.Count - _tail.End);
+        public Span<byte> Memory => new Span<byte>(_tail.Block.Array, _tail.End, _tail.Block.Data.Offset + _tail.Block.Data.Count - _tail.End);
 
         public void Ensure(int count)
         {

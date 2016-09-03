@@ -15,7 +15,7 @@ namespace Channels.Text.Primitives
 
             fixed (char* s = value)
             {
-                int written = ASCIIEncoding.GetBytes(s, value.Length, (byte*)buffer.Memory.BufferPtr, value.Length);
+                int written = ASCIIEncoding.GetBytes(s, value.Length, (byte*)buffer.Memory.UnsafePointer, value.Length);
                 buffer.CommitBytes(written);
             }
         }
@@ -26,7 +26,7 @@ namespace Channels.Text.Primitives
             {
                 var byteCount = Utf8Encoding.GetByteCount(value);
                 buffer.Ensure(byteCount);
-                int written = Utf8Encoding.GetBytes(s, value.Length, (byte*)buffer.Memory.BufferPtr, byteCount);
+                int written = Utf8Encoding.GetBytes(s, value.Length, (byte*)buffer.Memory.UnsafePointer, byteCount);
                 buffer.CommitBytes(written);
             }
         }

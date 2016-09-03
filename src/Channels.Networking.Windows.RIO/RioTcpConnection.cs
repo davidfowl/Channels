@@ -109,7 +109,7 @@ namespace Channels.Networking.Windows.RIO
             _output.CompleteReading();
         }
 
-        private Task SendAsync(BufferSpan span, bool endOfMessage)
+        private Task SendAsync(Span<byte> span, bool endOfMessage)
         {
             if (!IsReadyToSend)
             {
@@ -128,7 +128,7 @@ namespace Channels.Networking.Windows.RIO
             return _completedTask;
         }
 
-        private async Task SendAsyncAwaited(BufferSpan span, bool endOfMessage)
+        private async Task SendAsyncAwaited(Span<byte> span, bool endOfMessage)
         {
             await ReadyToSend;
 
@@ -217,10 +217,18 @@ namespace Channels.Networking.Windows.RIO
             _buffer.FlushAsync();
         }
 
-        private RioBufferSegment GetSegmentFromSpan(BufferSpan span)
+        private unsafe RioBufferSegment GetSegmentFromSpan(Span<byte> span)
         {
-            var bufferId = _rioThread.GetBufferId(span.BufferPtr);
-            return new RioBufferSegment(bufferId, (uint)span.Offset, (uint)span.Length);
+            IntPtr spanPtr = (IntPtr)span.UnsafePointer;
+            long startAddress;
+            long spanAddress = spanPtr.ToInt64();
+            var bufferId = _rioThread.GetBufferId(spanPtr, out startAddress);
+
+            checked
+            {
+                var offset = (uint)(spanAddress - startAddress);
+                return new RioBufferSegment(bufferId, offset, (uint)span.Length);
+            }
         }
 
         private static void ThrowError(ErrorType type)

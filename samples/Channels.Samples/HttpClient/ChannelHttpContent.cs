@@ -42,7 +42,19 @@ namespace Channels.Samples
 
                     foreach (var span in data)
                     {
-                        await stream.WriteAsync(span.Array, span.Offset, span.Length);
+                        ArraySegment<byte> buffer;
+
+                        unsafe
+                        {
+                            if (!span.TryGetArray(null, out buffer))
+                            {
+                                // Fall back to copies if this was native memory and we were unable to get
+                                //  something we could write
+                                buffer = new ArraySegment<byte>(span.CreateArray());
+                            }
+                        }
+
+                        await stream.WriteAsync(buffer.Array, buffer.Offset, buffer.Count);
                     }
 
                     consumed = data.End;

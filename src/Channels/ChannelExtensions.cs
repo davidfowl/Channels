@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Threading.Tasks;
 
@@ -73,7 +74,20 @@ namespace Channels
 
                     foreach (var span in inputBuffer)
                     {
-                        await stream.WriteAsync(span.Array, span.Offset, span.Length);
+                        ArraySegment<byte> buffer;
+
+                        unsafe
+                        {
+                            if (!span.TryGetArray(null, out buffer))
+                            {
+                                // Fall back to copies if this was native memory and we were unable to get
+                                //  something we could write
+                                buffer = new ArraySegment<byte>(span.CreateArray());
+                            }
+                        }
+
+                        await stream.WriteAsync(buffer.Array, buffer.Offset, span.Length);
+
                     }
                 }
                 finally
