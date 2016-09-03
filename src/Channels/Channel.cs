@@ -102,7 +102,7 @@ namespace Channels
             }
         }
 
-        internal Task WriteAsync(WritableBuffer buffer)
+        internal void Append(WritableBuffer buffer)
         {
             lock (_sync)
             {
@@ -114,7 +114,7 @@ namespace Channels
                 if (buffer.IsDefault)
                 {
                     // REVIEW: Should we signal the completion?
-                    return _completedTask;
+                    return;
                 }
 
                 if (_head == null)
@@ -134,9 +134,16 @@ namespace Channels
                 // Always update tail to the buffer's tail
                 _tail = buffer.Tail;
                 _tail.End = buffer.TailIndex;
+            }
+        }
 
+        internal Task CompleteWriteAsync()
+        {
+            lock (_sync)
+            {
                 Complete();
 
+                // Apply back pressure here
                 return _completedTask;
             }
         }

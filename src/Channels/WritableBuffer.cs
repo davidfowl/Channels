@@ -19,6 +19,8 @@ namespace Channels
         private MemoryBlockSegment _head;
         private int _headIndex;
 
+        private bool _comitted;
+
         internal WritableBuffer(Channel channel, MemoryPool pool, MemoryBlockSegment segment)
         {
             _channel = channel;
@@ -29,6 +31,8 @@ namespace Channels
 
             _head = segment;
             _headIndex = _tailIndex;
+
+            _comitted = false;
         }
 
         internal MemoryBlockSegment Head => _head;
@@ -79,11 +83,6 @@ namespace Channels
                 _tail = segment;
                 _tailIndex = blockIndex;
             }
-        }
-
-        public Task FlushAsync()
-        {
-            return _channel.WriteAsync(this);
         }
 
         public void Write(byte[] data, int offset, int count)
@@ -160,6 +159,22 @@ namespace Channels
 
             _tail = clonedEnd;
             _tailIndex = clonedEnd.End;
+        }
+
+        public void Commit()
+        {
+            if (!_comitted)
+            {
+                _channel.Append(this);
+
+                _comitted = true;
+            }
+        }
+
+        public Task FlushAsync()
+        {
+            Commit();
+            return _channel.CompleteWriteAsync();
         }
 
         public void CommitBytes(int bytesWritten)
