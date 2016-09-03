@@ -76,7 +76,9 @@ namespace Channels
             // TODO: Make this configurable for channel creation
             const int bufferSize = 4096;
 
-            if (Interlocked.CompareExchange(ref _producingState, 1, 0) != 0)
+            // Don't need to compare exchange as the "incorrect" current value 
+            // would is the value we are setting it to, so its just leaving it the same
+            if (Interlocked.Exchange(ref _producingState, 1) != 0)
             {
                 throw new InvalidOperationException("Already producing.");
             }
@@ -112,25 +114,28 @@ namespace Channels
                     _tail.Next = segment;
                     _tail = segment;
                 }
-
-                return new WritableBuffer(this, _pool, segment, bufferSize);
             }
+
+            return new WritableBuffer(this, _pool, segment, bufferSize);
         }
 
         internal void Append(WritableBuffer buffer)
         {
+            // Don't need to compare exchange as the "incorrect" current value 
+            // would is the value we are setting it to, so its just leaving it the same
+            if (Interlocked.Exchange(ref _producingState, 0) != 1)
+            {
+                throw new InvalidOperationException("No ongoing producing operation to complete.");
+            }
+
+            if (buffer.IsDefault)
+            {
+                // REVIEW: Should we signal the completion?
+                return;
+            }
+
             lock (_sync)
             {
-                if (Interlocked.CompareExchange(ref _producingState, 0, 1) != 1)
-                {
-                    throw new InvalidOperationException("No ongoing producing operation to complete.");
-                }
-
-                if (buffer.IsDefault)
-                {
-                    // REVIEW: Should we signal the completion?
-                    return;
-                }
 
                 if (_head == null)
                 {
@@ -154,13 +159,10 @@ namespace Channels
 
         internal Task CompleteWriteAsync()
         {
-            lock (_sync)
-            {
-                Complete();
+            Complete();
 
-                // Apply back pressure here
-                return _completedTask;
-            }
+            // Apply back pressure here
+            return _completedTask;
         }
 
         private void Complete()
@@ -178,7 +180,9 @@ namespace Channels
 
         private ReadableBuffer Read()
         {
-            if (Interlocked.CompareExchange(ref _consumingState, 1, 0) != 0)
+            // Don't need to compare exchange as the "incorrect" current value 
+            // would is the value we are setting it to, so its just leaving it the same
+            if (Interlocked.Exchange(ref _consumingState, 1) != 0)
             {
                 throw new InvalidOperationException("Already consuming.");
             }
@@ -226,7 +230,9 @@ namespace Channels
                 returnSegment.Dispose();
             }
 
-            if (Interlocked.CompareExchange(ref _consumingState, 0, 1) != 1)
+            // Don't need to compare exchange as the "incorrect" current value 
+            // would is the value we are setting it to, so its just leaving it the same
+            if (Interlocked.Exchange(ref _consumingState, 0) != 1)
             {
                 throw new InvalidOperationException("No ongoing consuming operation to complete.");
             }
