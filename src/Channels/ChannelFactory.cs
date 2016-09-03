@@ -29,15 +29,15 @@ namespace Channels
             }
 
             var channel = new Channel(_pool);
-
-            channel.OnStartReading(() =>
-            {
-                stream.CopyToAsync(channel).ContinueWith(task =>
-                {
-                });
-            });
-
+            ExecuteCopyToAsync(channel, stream);
             return channel;
+        }
+
+        private async void ExecuteCopyToAsync(Channel channel, Stream stream)
+        {
+            await channel.ReadingStarted;
+
+            await stream.CopyToAsync(channel);
         }
 
         public IWritableChannel MakeWriteableChannel(Stream stream)
@@ -78,16 +78,15 @@ namespace Channels
         public IReadableChannel MakeReadableChannel(IReadableChannel channel, Func<IReadableChannel, IWritableChannel, Task> produce)
         {
             var newChannel = new Channel(_pool);
-
-            // TODO: Avoid closure
-            newChannel.OnStartReading(() =>
-            {
-                produce(channel, newChannel).ContinueWith(t =>
-                {
-                });
-            });
-
+            Execute(channel, newChannel, produce);
             return newChannel;
+        }
+
+        private async void Execute(IReadableChannel channel, Channel newChannel, Func<IReadableChannel, IWritableChannel, Task> produce)
+        {
+            await newChannel.ReadingStarted;
+
+            await produce(channel, newChannel);
         }
 
         public void Dispose() => _pool.Dispose();

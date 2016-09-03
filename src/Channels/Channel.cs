@@ -28,11 +28,12 @@ namespace Channels
         private int _consumingState;
         private int _producingState;
         private object _sync = new object();
+
+        // REVIEW: This object might be getting a little big :)
         private readonly TaskCompletionSource<object> _readingTcs = new TaskCompletionSource<object>();
         private readonly TaskCompletionSource<object> _writingTcs = new TaskCompletionSource<object>();
-
-        private Action _startReadingCallback;
-        private Action _disposeCallback;
+        private readonly TaskCompletionSource<object> _startingReadingTcs = new TaskCompletionSource<object>();
+        private readonly TaskCompletionSource<object> _disposedTcs = new TaskCompletionSource<object>();
 
         public Channel(MemoryPool pool)
         {
@@ -40,15 +41,9 @@ namespace Channels
             _awaitableState = _awaitableIsNotCompleted;
         }
 
-        public void OnStartReading(Action callback)
-        {
-            _startReadingCallback = callback;
-        }
+        public Task ChannelComplete => _disposedTcs.Task;
 
-        public void OnDispose(Action disposeCallback)
-        {
-            _disposeCallback = disposeCallback;
-        }
+        public Task ReadingStarted => _startingReadingTcs.Task;
 
         public Task WriterCompleted => _readingTcs.Task;
         public Task ReaderCompleted => _writingTcs.Task;
@@ -272,7 +267,7 @@ namespace Channels
 
         internal void OnCompleted(Action continuation)
         {
-            Interlocked.Exchange(ref _startReadingCallback, null)?.Invoke();
+            _startingReadingTcs.TrySetResult(null);
 
             var awaitableState = Interlocked.CompareExchange(
                 ref _awaitableState,
@@ -343,7 +338,7 @@ namespace Channels
                 _head = null;
                 _tail = null;
 
-                Interlocked.Exchange(ref _disposeCallback, null)?.Invoke();
+                _disposedTcs.TrySetResult(null);
             }
         }
     }

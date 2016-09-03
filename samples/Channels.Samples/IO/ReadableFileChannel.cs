@@ -31,8 +31,11 @@ namespace Channels.Samples.IO
             var overlapped = new PreAllocatedOverlapped(IOCallback, readOperation, null);
             readOperation.PreAllocatedOverlapped = overlapped;
 
-            _channel.OnStartReading(readOperation.Read);
-            _channel.OnDispose(readOperation.Dispose);
+            _channel.ReadingStarted.ContinueWith((t, state) =>
+            {
+                ((ReadOperation)state).Read();
+            }, 
+            readOperation);
         }
 
         public unsafe static void IOCallback(uint errorCode, uint numBytes, NativeOverlapped* pOverlapped)
@@ -52,6 +55,9 @@ namespace Channels.Samples.IO
             if (numBytes == 0 || operation.Channel.ReaderCompleted.IsCompleted)
             {
                 operation.Channel.CompleteWriting();
+
+                // The operation can be disposed when there's nothing more to produce
+                operation.Dispose();
             }
             else if (task.IsCompleted)
             {
