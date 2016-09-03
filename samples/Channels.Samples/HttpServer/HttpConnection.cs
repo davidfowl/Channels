@@ -12,14 +12,6 @@ namespace Channels.Samples.Http
         private static readonly byte[] _http11Bytes = Encoding.UTF8.GetBytes("HTTP/1.1 ");
         private static readonly byte[] _chunkedEndBytes = Encoding.UTF8.GetBytes("0\r\n\r\n");
 
-        private static Vector<byte> _vectorCRs = new Vector<byte>((byte)'\r');
-        private static Vector<byte> _vectorLFs = new Vector<byte>((byte)'\n');
-        private static Vector<byte> _vectorColons = new Vector<byte>((byte)':');
-        private static Vector<byte> _vectorSpaces = new Vector<byte>((byte)' ');
-        private static Vector<byte> _vectorTabs = new Vector<byte>((byte)'\t');
-        private static Vector<byte> _vectorQuestionMarks = new Vector<byte>((byte)'?');
-        private static Vector<byte> _vectorPercentages = new Vector<byte>((byte)'%');
-
         private readonly IReadableChannel _input;
         private readonly IWritableChannel _output;
         private readonly IHttpApplication<TContext> _application;
@@ -75,7 +67,7 @@ namespace Channels.Samples.Http
                     if (_state == ParsingState.StartLine)
                     {
                         // Find \n
-                        var delim = buffer.IndexOf(ref _vectorLFs);
+                        var delim = buffer.IndexOf(ref CommonVectors.LF);
                         if (delim.IsEnd)
                         {
                             continue;
@@ -87,7 +79,7 @@ namespace Channels.Samples.Http
                         // Move the buffer to the rest
                         buffer = buffer.Slice(delim).Slice(1);
 
-                        delim = startLine.IndexOf(ref _vectorSpaces);
+                        delim = startLine.IndexOf(ref CommonVectors.Space);
                         if (delim.IsEnd)
                         {
                             throw new Exception();
@@ -99,7 +91,7 @@ namespace Channels.Samples.Http
                         // Skip ' '
                         startLine = startLine.Slice(delim).Slice(1);
 
-                        delim = startLine.IndexOf(ref _vectorSpaces);
+                        delim = startLine.IndexOf(ref CommonVectors.Space);
                         if (delim.IsEnd)
                         {
                             throw new Exception();
@@ -111,7 +103,7 @@ namespace Channels.Samples.Http
                         // Skip ' '
                         startLine = startLine.Slice(delim).Slice(1);
 
-                        delim = startLine.IndexOf(ref _vectorCRs);
+                        delim = startLine.IndexOf(ref CommonVectors.CR);
                         if (delim.IsEnd)
                         {
                             throw new Exception();
@@ -163,7 +155,7 @@ namespace Channels.Samples.Http
 
                         // End of the header
                         // \n
-                        var delim = buffer.IndexOf(ref _vectorLFs);
+                        var delim = buffer.IndexOf(ref CommonVectors.LF);
                         if (delim.IsEnd)
                         {
                             break;
@@ -173,7 +165,7 @@ namespace Channels.Samples.Http
                         buffer = buffer.Slice(delim).Slice(1);
 
                         // :
-                        delim = headerPair.IndexOf(ref _vectorColons);
+                        delim = headerPair.IndexOf(ref CommonVectors.Colon);
                         if (delim.IsEnd)
                         {
                             throw new Exception();
@@ -183,7 +175,7 @@ namespace Channels.Samples.Http
                         headerPair = headerPair.Slice(delim).Slice(1);
 
                         // \r
-                        delim = headerPair.IndexOf(ref _vectorCRs);
+                        delim = headerPair.IndexOf(ref CommonVectors.CR);
                         if (delim.IsEnd)
                         {
                             // Bad request

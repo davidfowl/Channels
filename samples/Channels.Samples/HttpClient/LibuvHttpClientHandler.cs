@@ -15,11 +15,6 @@ namespace Channels.Samples
 {
     public class LibuvHttpClientHandler : HttpClientHandler
     {
-        private static Vector<byte> _vectorCRs = new Vector<byte>((byte)'\r');
-        private static Vector<byte> _vectorLFs = new Vector<byte>((byte)'\n');
-        private static Vector<byte> _vectorSpaces = new Vector<byte>((byte)' ');
-        private static Vector<byte> _vectorColons = new Vector<byte>((byte)':');
-
         private readonly UvThread _thread = new UvThread();
 
         private ConcurrentDictionary<string, ConnectionState> _connectionPool = new ConcurrentDictionary<string, ConnectionState>();
@@ -106,7 +101,7 @@ namespace Channels.Samples
                         break;
                     }
 
-                    var delim = responseBuffer.IndexOf(ref _vectorLFs);
+                    var delim = responseBuffer.IndexOf(ref CommonVectors.LF);
 
                     if (delim.IsEnd)
                     {
@@ -116,7 +111,7 @@ namespace Channels.Samples
                     var responseLine = responseBuffer.Slice(0, delim);
                     responseBuffer = responseBuffer.Slice(delim).Slice(1);
 
-                    delim = responseLine.IndexOf(ref _vectorSpaces);
+                    delim = responseLine.IndexOf(ref CommonVectors.Space);
 
                     if (delim.IsEnd)
                     {
@@ -129,7 +124,7 @@ namespace Channels.Samples
                     var httpVersion = responseLine.Slice(0, delim);
                     responseLine = responseLine.Slice(delim).Slice(1);
 
-                    delim = responseLine.IndexOf(ref _vectorSpaces);
+                    delim = responseLine.IndexOf(ref CommonVectors.Space);
 
                     if (delim.IsEnd)
                     {
@@ -140,7 +135,7 @@ namespace Channels.Samples
                     response.StatusCode = (HttpStatusCode)responseLine.Slice(0, delim).GetUInt32();
                     responseLine = responseLine.Slice(delim).Slice(1);
 
-                    delim = responseLine.IndexOf(ref _vectorSpaces);
+                    delim = responseLine.IndexOf(ref CommonVectors.Space);
 
                     if (delim.IsEnd)
                     {
@@ -184,7 +179,7 @@ namespace Channels.Samples
 
                         // End of the header
                         // \n
-                        delim = responseBuffer.IndexOf(ref _vectorLFs);
+                        delim = responseBuffer.IndexOf(ref CommonVectors.LF);
                         if (delim.IsEnd)
                         {
                             break;
@@ -194,7 +189,7 @@ namespace Channels.Samples
                         responseBuffer = responseBuffer.Slice(delim).Slice(1);
 
                         // :
-                        delim = headerPair.IndexOf(ref _vectorColons);
+                        delim = headerPair.IndexOf(ref CommonVectors.Colon);
                         if (delim.IsEnd)
                         {
                             throw new Exception();
@@ -204,7 +199,7 @@ namespace Channels.Samples
                         headerPair = headerPair.Slice(delim).Slice(1);
 
                         // \r
-                        delim = headerPair.IndexOf(ref _vectorCRs);
+                        delim = headerPair.IndexOf(ref CommonVectors.CR);
                         if (delim.IsEnd)
                         {
                             // Bad request
