@@ -219,7 +219,7 @@ namespace Channels.Networking.Windows.RIO
 
         private RioBufferSegment GetSegmentFromSpan(BufferSpan span)
         {
-            var bufferId = _rioThread.GetBufferId(span.BufferBasePtr);
+            var bufferId = _rioThread.GetBufferId(span.BufferPtr);
             return new RioBufferSegment(bufferId, (uint)span.Offset, (uint)span.Length);
         }
 

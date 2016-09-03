@@ -19,8 +19,6 @@ namespace Channels
 
         public byte[] Array => _segment.Block.Array;
 
-        public IntPtr BufferBasePtr => _segment.Block.Slab.ArrayPtr;
-
         public IntPtr BufferPtr => _segment.Block.DataArrayPtr + _offset;
 
         public int Length => _length;
