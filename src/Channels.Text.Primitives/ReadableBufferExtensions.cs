@@ -129,10 +129,11 @@ namespace Channels.Text.Primitives
                 return null;
             }
 
+            ReadOnlySpan<byte> textSpan;
+
             if (buffer.IsSingleSpan)
             {
-                var span = buffer.FirstSpan;
-                return new Utf8String(span).ToString();
+                textSpan = buffer.FirstSpan;
             }
             else if (buffer.Length < 128) // REVIEW: What's a good number
             {
@@ -140,13 +141,15 @@ namespace Channels.Text.Primitives
 
                 buffer.CopyTo(target, length: 128);
 
-                return new Utf8String(new ReadOnlySpan<byte>(target, buffer.Length)).ToString();
+                textSpan = new ReadOnlySpan<byte>(target, buffer.Length);
             }
             else
             {
                 // Heap allocated copy to parse into array (should be rare)
-                return new Utf8String(buffer.ToArray()).ToString();
+                textSpan = new ReadOnlySpan<byte>(buffer.ToArray());
             }
+
+            return new Utf8String(textSpan).ToString();
         }
     }
 }
