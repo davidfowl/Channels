@@ -30,15 +30,12 @@ namespace Channels.Text.Primitives
 
         public unsafe static uint GetUInt32(this ReadableBuffer buffer)
         {
-            var textSpan = default(ReadOnlySpan<byte>);
+            ReadOnlySpan<byte> textSpan;
 
             if (buffer.IsSingleSpan)
             {
                 // It fits!
-                var span = buffer.FirstSpan;
-
-                // Is there a better way to do this?
-                textSpan = new ReadOnlySpan<byte>(span.UnsafePointer, span.Length);
+                textSpan = buffer.FirstSpan;
             }
             else if (buffer.Length < 128) // REVIEW: What's a good number
             {
