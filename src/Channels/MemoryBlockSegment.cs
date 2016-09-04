@@ -78,8 +78,14 @@ namespace Channels
         /// <returns></returns>
         public override string ToString()
         {
-            // return Encoding.UTF8.GetString(Block.Array, Start, End - Start);
-            return null;
+            var builder = new StringBuilder();
+            var data = Block.Data.Slice(Start, Length);
+
+            for (int i = 0; i < Length; i++)
+            {
+                builder.Append((char)data[i]);
+            }
+            return builder.ToString();
         }
 
         public static MemoryBlockSegment Clone(ReadCursor beginBuffer, ReadCursor endBuffer, out MemoryBlockSegment lastBlockSegment)

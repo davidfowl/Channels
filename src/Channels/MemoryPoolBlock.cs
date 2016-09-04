@@ -88,8 +88,7 @@ namespace Channels
             var builder = new StringBuilder();
             for (int i = 0; i < Data.Length; i++)
             {
-                builder.Append(Data[i].ToString("X2"));
-                builder.Append(" ");
+                builder.Append((char)Data[i]);
             }
             return builder.ToString();
         }
