@@ -304,11 +304,9 @@ namespace Channels
                 throw new NotSupportedException();
             }
         }
-
-        public unsafe bool Equals(byte[] value, int offset, int count)
+        public unsafe bool StartsWith(byte[] value, int offset, int count)
         {
-            if (Length != count) return false; // just nope
-
+            if (Length < count) return false; // just nope
             fixed (byte* basePtr = value)
             {
                 var ptr = basePtr + offset;
@@ -319,11 +317,18 @@ namespace Channels
 
                 foreach (var span in this)
                 {
-                    if (!Equals((byte*)span.BufferPtr, ptr, span.Length)) return false;
-                    ptr += span.Length;
+                    int batch = Math.Min(span.Length, count);
+                    if (!Equals((byte*)span.BufferPtr, ptr, batch)) return false;
+                    ptr += batch;
+                    count -= batch;
+                    if (count == 0) break; // checked what we wanted; ignore any remainder
                 }
                 return true;
             }
+        }
+        public unsafe bool Equals(byte[] value, int offset, int count)
+        {
+            return Length == count && StartsWith(value, offset, count);            
         }
         static readonly int
             VectorWidth = Vector<byte>.Count,
@@ -350,7 +355,8 @@ namespace Channels
                     {
                         do
                         {
-                            if (Unsafe.Read<Vector<byte>>(a) != Unsafe.Read<Vector<byte>>(b)) return false;
+                            if (!Unsafe.Read<Vector<byte>>(a).Equals(
+                                Unsafe.Read<Vector<byte>>(b))) return false;
                             a += VectorWidth;
                             b += VectorWidth;
                         } while (--chunks != 0);
