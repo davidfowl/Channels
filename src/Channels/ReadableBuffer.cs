@@ -5,11 +5,16 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace Channels
 {
     public struct ReadableBuffer : IDisposable, IEnumerable<Span<byte>>
     {
+        private static readonly int VectorWidth = Vector<byte>.Count;
+        private static readonly int VectorShift = (int)Math.Log(VectorWidth, 2);
+        private static readonly int VectorRemainderMask = ~(~0 << VectorShift);
+
         private readonly Span<byte> _span;
         private readonly bool _isOwner;
         private readonly Channel _channel;
@@ -309,36 +314,48 @@ namespace Channels
                 throw new NotSupportedException();
             }
         }
+
         public unsafe bool StartsWith(byte[] value, int offset, int count)
         {
-            if (Length < count) return false; // just nope
+            if (Length < count)
+            {
+                // just nope
+                return false;
+            }
+
             fixed (byte* basePtr = value)
             {
                 var ptr = basePtr + offset;
                 if (IsSingleSpan)
                 {
-                    return Equals((byte*)FirstSpan.BufferPtr, ptr, count);
+                    return Equals((byte*)FirstSpan.UnsafePointer, ptr, count);
                 }
 
                 foreach (var span in this)
                 {
                     int batch = Math.Min(span.Length, count);
-                    if (!Equals((byte*)span.BufferPtr, ptr, batch)) return false;
+                    if (!Equals((byte*)span.UnsafePointer, ptr, batch))
+                    {
+                        return false;
+                    }
                     ptr += batch;
                     count -= batch;
-                    if (count == 0) break; // checked what we wanted; ignore any remainder
+                    if (count == 0)
+                    {
+                        // checked what we wanted; ignore any remainder
+                        break;
+                    }
                 }
+
                 return true;
             }
         }
+
         public unsafe bool Equals(byte[] value, int offset, int count)
         {
-            return Length == count && StartsWith(value, offset, count);            
+            return Length == count && StartsWith(value, offset, count);
         }
-        static readonly int
-            VectorWidth = Vector<byte>.Count,
-            VectorShift = (int)Math.Log(VectorWidth, 2),
-            VectorRemainderMask = ~(~0 << VectorShift);
+
         private static unsafe bool Equals(byte* a, byte* b, int count)
         {
             switch (count)
@@ -360,13 +377,20 @@ namespace Channels
                     {
                         do
                         {
-                            if (!Unsafe.Read<Vector<byte>>(a).Equals(
-                                Unsafe.Read<Vector<byte>>(b))) return false;
+                            var vecA = Unsafe.Read<Vector<byte>>(a);
+                            var vecB = Unsafe.Read<Vector<byte>>(b);
+                            if (!vecA.Equals(vecB))
+                            {
+                                return false;
+                            }
+
                             a += VectorWidth;
                             b += VectorWidth;
                         } while (--chunks != 0);
+
                         count &= VectorRemainderMask;
                     }
+
                     // qword chunks
                     chunks = count >> 3;
                     if (chunks != 0)
@@ -374,13 +398,21 @@ namespace Channels
                         ulong* a8 = (ulong*)a, b8 = (ulong*)b;
                         do
                         {
-                            if (*a8++ != *b8++) return false;
-                        } while (--chunks != 0);
+                            if (*a8++ != *b8++)
+                            {
+                                return false;
+                            }
+                        }
+                        while (--chunks != 0);
                         a = (byte*)a8;
                         b = (byte*)b8;
                     }
+
                     // if we're checking a multiple of 8, we're done
-                    if ((count & 7) == 0) return true;
+                    if ((count & 7) == 0)
+                    {
+                        return true;
+                    }
 
                     // now check the last qword, noting that we have enough space
                     // to look backwards (because we're in the > 8 default case)
