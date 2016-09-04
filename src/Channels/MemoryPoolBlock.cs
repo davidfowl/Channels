@@ -12,27 +12,17 @@ namespace Channels
     public class MemoryPoolBlock
     {
         /// <summary>
-        /// Native address of the first byte of this block's Data memory. It is null for one-time-use memory, or copied from 
-        /// the Slab's ArrayPtr for a slab-block segment. The byte it points to corresponds to Data.Array[0], and in practice you will always
-        /// use the DataArrayPtr + Start or DataArrayPtr + End, which point to the start of "active" bytes, or point to just after the "active" bytes.
-        /// </summary>
-        public readonly IntPtr DataArrayPtr;
-
-        internal unsafe readonly byte* DataFixedPtr;
-
-        /// <summary>
         /// The array segment describing the range of memory this block is tracking. The caller which has leased this block may only read and
         /// modify the memory in this range.
         /// </summary>
-        public ArraySegment<byte> Data;
+        public Span<byte> Data;
 
         /// <summary>
         /// This object cannot be instantiated outside of the static Create method
         /// </summary>
-        unsafe protected MemoryPoolBlock(IntPtr dataArrayPtr)
+        unsafe protected MemoryPoolBlock(Span<byte> data)
         {
-            DataArrayPtr = dataArrayPtr;
-            DataFixedPtr = (byte*)dataArrayPtr.ToPointer();
+            Data = data;
             _referenceCount = 1;
         }
 
@@ -45,11 +35,6 @@ namespace Channels
         /// Back-reference to the slab from which this block was taken, or null if it is one-time-use memory.
         /// </summary>
         public MemoryPoolSlab Slab { get; private set; }
-
-        /// <summary>
-        /// Convenience accessor
-        /// </summary>
-        public byte[] Array => Data.Array;
 
         private int _referenceCount;
 
@@ -65,9 +50,8 @@ namespace Channels
 #endif
             if (Slab != null && Slab.IsActive)
             {
-                Pool.Return(new MemoryPoolBlock(DataArrayPtr)
+                Pool.Return(new MemoryPoolBlock(Data)
                 {
-                    Data = Data,
                     Pool = Pool,
                     Slab = Slab,
                 });
@@ -75,14 +59,12 @@ namespace Channels
         }
 
         internal static MemoryPoolBlock Create(
-            ArraySegment<byte> data,
-            IntPtr dataPtr,
+            Span<byte> data,
             MemoryPool pool,
             MemoryPoolSlab slab)
         {
-            return new MemoryPoolBlock(dataPtr)
+            return new MemoryPoolBlock(data)
             {
-                Data = data,
                 Pool = pool,
                 Slab = slab,
             };
@@ -104,9 +86,9 @@ namespace Channels
         public override string ToString()
         {
             var builder = new StringBuilder();
-            for (int i = 0; i < Data.Count; i++)
+            for (int i = 0; i < Data.Length; i++)
             {
-                builder.Append(Array[i + Data.Offset].ToString("X2"));
+                builder.Append(Data[i].ToString("X2"));
                 builder.Append(" ");
             }
             return builder.ToString();

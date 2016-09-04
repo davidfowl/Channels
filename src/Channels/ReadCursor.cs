@@ -145,7 +145,11 @@ namespace Channels
                     wasLastBlock = segment.Next == null;
                     following = segment.End - index;
                 }
-                array = segment.Block.Array;
+
+                ArraySegment<byte> rawArray;
+                segment.Block.Data.TryGetArray(null, out rawArray);
+                array = rawArray.Array;
+
                 while (following > 0)
                 {
                     // Need unit tests to test Vector path
@@ -154,27 +158,27 @@ namespace Channels
                     if (Vector.IsHardwareAccelerated)
                     {
 #endif
-                    if (following >= _vectorSpan)
-                    {
-                        var byte0Equals = Vector.Equals(new Vector<byte>(array, index), byte0Vector);
-
-                        if (byte0Equals.Equals(Vector<byte>.Zero))
+                        if (following >= _vectorSpan)
                         {
-                            following -= _vectorSpan;
-                            index += _vectorSpan;
-                            continue;
-                        }
+                            var byte0Equals = Vector.Equals(new Vector<byte>(array, rawArray.Offset + index), byte0Vector);
 
-                        _segment = segment;
-                        _index = index + FindFirstEqualByte(ref byte0Equals);
-                        return byte0;
-                    }
-                    // Need unit tests to test Vector path
+                            if (byte0Equals.Equals(Vector<byte>.Zero))
+                            {
+                                following -= _vectorSpan;
+                                index += _vectorSpan;
+                                continue;
+                            }
+
+                            _segment = segment;
+                            _index = index + FindFirstEqualByte(ref byte0Equals);
+                            return byte0;
+                        }
+                        // Need unit tests to test Vector path
 #if !DEBUG
                     }
 #endif
 
-                    var pCurrent = (segment.Block.DataFixedPtr + index);
+                    var pCurrent = ((byte*)segment.Block.Data.UnsafePointer + index);
                     var pEnd = pCurrent + following;
                     do
                     {
@@ -226,7 +230,10 @@ namespace Channels
                     wasLastBlock = segment.Next == null;
                     following = segment.End - index;
                 }
-                array = segment.Block.Array;
+                ArraySegment<byte> rawArray;
+                segment.Block.Data.TryGetArray(null, out rawArray);
+                array = rawArray.Array;
+
                 while (following > 0)
                 {
 
@@ -236,44 +243,44 @@ namespace Channels
                     if (Vector.IsHardwareAccelerated)
                     {
 #endif
-                    if (following >= _vectorSpan)
-                    {
-                        var data = new Vector<byte>(array, index);
-                        var byte0Equals = Vector.Equals(data, byte0Vector);
-                        var byte1Equals = Vector.Equals(data, byte1Vector);
-
-                        if (!byte0Equals.Equals(Vector<byte>.Zero))
+                        if (following >= _vectorSpan)
                         {
-                            byte0Index = FindFirstEqualByte(ref byte0Equals);
-                        }
-                        if (!byte1Equals.Equals(Vector<byte>.Zero))
-                        {
-                            byte1Index = FindFirstEqualByte(ref byte1Equals);
-                        }
+                            var data = new Vector<byte>(array, rawArray.Offset + index);
+                            var byte0Equals = Vector.Equals(data, byte0Vector);
+                            var byte1Equals = Vector.Equals(data, byte1Vector);
 
-                        if (byte0Index == int.MaxValue && byte1Index == int.MaxValue)
-                        {
-                            following -= _vectorSpan;
-                            index += _vectorSpan;
-                            continue;
+                            if (!byte0Equals.Equals(Vector<byte>.Zero))
+                            {
+                                byte0Index = FindFirstEqualByte(ref byte0Equals);
+                            }
+                            if (!byte1Equals.Equals(Vector<byte>.Zero))
+                            {
+                                byte1Index = FindFirstEqualByte(ref byte1Equals);
+                            }
+
+                            if (byte0Index == int.MaxValue && byte1Index == int.MaxValue)
+                            {
+                                following -= _vectorSpan;
+                                index += _vectorSpan;
+                                continue;
+                            }
+
+                            _segment = segment;
+
+                            if (byte0Index < byte1Index)
+                            {
+                                _index = index + byte0Index;
+                                return byte0;
+                            }
+
+                            _index = index + byte1Index;
+                            return byte1;
                         }
-
-                        _segment = segment;
-
-                        if (byte0Index < byte1Index)
-                        {
-                            _index = index + byte0Index;
-                            return byte0;
-                        }
-
-                        _index = index + byte1Index;
-                        return byte1;
-                    }
-                    // Need unit tests to test Vector path
+                        // Need unit tests to test Vector path
 #if !DEBUG
                     }
 #endif
-                    var pCurrent = (segment.Block.DataFixedPtr + index);
+                    var pCurrent = ((byte*)segment.Block.Data.UnsafePointer + index);
                     var pEnd = pCurrent + following;
                     do
                     {
@@ -333,7 +340,11 @@ namespace Channels
                     wasLastBlock = segment.Next == null;
                     following = segment.End - index;
                 }
-                array = segment.Block.Array;
+
+                ArraySegment<byte> rawArray;
+                segment.Block.Data.TryGetArray(null, out rawArray);
+                array = rawArray.Array;
+
                 while (following > 0)
                 {
                     // Need unit tests to test Vector path
@@ -342,71 +353,71 @@ namespace Channels
                     if (Vector.IsHardwareAccelerated)
                     {
 #endif
-                    if (following >= _vectorSpan)
-                    {
-                        var data = new Vector<byte>(array, index);
-                        var byte0Equals = Vector.Equals(data, byte0Vector);
-                        var byte1Equals = Vector.Equals(data, byte1Vector);
-                        var byte2Equals = Vector.Equals(data, byte2Vector);
+                        if (following >= _vectorSpan)
+                        {
+                            var data = new Vector<byte>(array, rawArray.Offset + index);
+                            var byte0Equals = Vector.Equals(data, byte0Vector);
+                            var byte1Equals = Vector.Equals(data, byte1Vector);
+                            var byte2Equals = Vector.Equals(data, byte2Vector);
 
-                        if (!byte0Equals.Equals(Vector<byte>.Zero))
-                        {
-                            byte0Index = FindFirstEqualByte(ref byte0Equals);
-                        }
-                        if (!byte1Equals.Equals(Vector<byte>.Zero))
-                        {
-                            byte1Index = FindFirstEqualByte(ref byte1Equals);
-                        }
-                        if (!byte2Equals.Equals(Vector<byte>.Zero))
-                        {
-                            byte2Index = FindFirstEqualByte(ref byte2Equals);
-                        }
-
-                        if (byte0Index == int.MaxValue && byte1Index == int.MaxValue && byte2Index == int.MaxValue)
-                        {
-                            following -= _vectorSpan;
-                            index += _vectorSpan;
-                            continue;
-                        }
-
-                        _segment = segment;
-
-                        int toReturn, toMove;
-                        if (byte0Index < byte1Index)
-                        {
-                            if (byte0Index < byte2Index)
+                            if (!byte0Equals.Equals(Vector<byte>.Zero))
                             {
-                                toReturn = byte0;
-                                toMove = byte0Index;
+                                byte0Index = FindFirstEqualByte(ref byte0Equals);
+                            }
+                            if (!byte1Equals.Equals(Vector<byte>.Zero))
+                            {
+                                byte1Index = FindFirstEqualByte(ref byte1Equals);
+                            }
+                            if (!byte2Equals.Equals(Vector<byte>.Zero))
+                            {
+                                byte2Index = FindFirstEqualByte(ref byte2Equals);
+                            }
+
+                            if (byte0Index == int.MaxValue && byte1Index == int.MaxValue && byte2Index == int.MaxValue)
+                            {
+                                following -= _vectorSpan;
+                                index += _vectorSpan;
+                                continue;
+                            }
+
+                            _segment = segment;
+
+                            int toReturn, toMove;
+                            if (byte0Index < byte1Index)
+                            {
+                                if (byte0Index < byte2Index)
+                                {
+                                    toReturn = byte0;
+                                    toMove = byte0Index;
+                                }
+                                else
+                                {
+                                    toReturn = byte2;
+                                    toMove = byte2Index;
+                                }
                             }
                             else
                             {
-                                toReturn = byte2;
-                                toMove = byte2Index;
+                                if (byte1Index < byte2Index)
+                                {
+                                    toReturn = byte1;
+                                    toMove = byte1Index;
+                                }
+                                else
+                                {
+                                    toReturn = byte2;
+                                    toMove = byte2Index;
+                                }
                             }
-                        }
-                        else
-                        {
-                            if (byte1Index < byte2Index)
-                            {
-                                toReturn = byte1;
-                                toMove = byte1Index;
-                            }
-                            else
-                            {
-                                toReturn = byte2;
-                                toMove = byte2Index;
-                            }
-                        }
 
-                        _index = index + toMove;
-                        return toReturn;
-                    }
-                    // Need unit tests to test Vector path
+                            _index = index + toMove;
+                            return toReturn;
+                        }
+                        // Need unit tests to test Vector path
 #if !DEBUG
                     }
 #endif
-                    var pCurrent = (segment.Block.DataFixedPtr + index);
+                    var pCurrent = ((byte*)segment.Block.Data.UnsafePointer + index);
                     var pEnd = pCurrent + following;
                     do
                     {
@@ -545,7 +556,7 @@ namespace Channels
 
                 if (following > 0)
                 {
-                    span = new Span<byte>(segment.Block.Array, index, following);
+                    span = segment.Block.Data.Slice(index, following);
 
                     _index = index + following;
                     return true;
@@ -602,7 +613,7 @@ namespace Channels
                 }
             }
 
-            span = new Span<byte>(segment.Block.Array, index, following);
+            span = segment.Block.Data.Slice(index, following);
 
             _segment = segment;
             _index = index + following;
@@ -611,7 +622,8 @@ namespace Channels
 
         public override string ToString()
         {
-            return Encoding.UTF8.GetString(Segment.Block.Array, Index, Segment.End - Index);
+            // return Encoding.UTF8.GetString(Segment.Block.Array, Index, Segment.End - Index);
+            return null;
         }
 
         public bool Equals(ReadCursor other)
