@@ -70,7 +70,7 @@ namespace Channels.Text.Primitives
             if (buffer.IsSingleSpan)
             {
                 // It fits!
-                addr = (byte*)buffer.FirstSpan.BufferPtr;
+                addr = (byte*)buffer.FirstSpan.UnsafePointer;
             }
             else if (len < 128) // REVIEW: What's a good number
             {
