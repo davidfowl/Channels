@@ -304,5 +304,78 @@ namespace Channels
                 throw new NotSupportedException();
             }
         }
+
+        public unsafe bool Equals(byte[] value, int offset, int count)
+        {
+            if (Length != count) return false; // just nope
+
+            fixed (byte* basePtr = value)
+            {
+                var ptr = basePtr + offset;
+                if (IsSingleSpan)
+                {
+                    return Equals((byte*)FirstSpan.BufferPtr, ptr, count);
+                }
+
+                foreach (var span in this)
+                {
+                    if (!Equals((byte*)span.BufferPtr, ptr, span.Length)) return false;
+                    ptr += span.Length;
+                }
+                return true;
+            }
+        }
+        static readonly int
+            VectorWidth = Vector<byte>.Count,
+            VectorShift = (int)Math.Log(VectorWidth, 2),
+            VectorRemainderMask = ~(~0 << VectorShift);
+        private static unsafe bool Equals(byte* a, byte* b, int count)
+        {
+            switch (count)
+            {
+                case 0: return true;
+                // special-case 1-7 - can't use qword checks
+                case 1: return *a == *b;
+                case 2: return *(ushort*)a == *(ushort*)b;
+                case 3: return *(ushort*)a == *(ushort*)b && a[2] == b[2];
+                case 4: return *(uint*)a == *(uint*)b;
+                case 5: return *(uint*)a == *(uint*)b && a[4] == b[4];
+                case 6: return *(uint*)a == *(uint*)b && *(ushort*)(a + 4) == *(ushort*)(b + 4);
+                case 7: return *(uint*)a == *(uint*)b && *(uint*)(a + 3) == *(uint*)(b + 3);
+                // special case a single qword, for simplicity and performance
+                case 8: return *(ulong*)a == *(ulong*)b;
+                default:
+                    int chunks;
+                    if (Vector.IsHardwareAccelerated && (chunks = count >> VectorShift) != 0)
+                    {
+                        do
+                        {
+                            if (Unsafe.Read<Vector<byte>>(a) != Unsafe.Read<Vector<byte>>(b)) return false;
+                            a += VectorWidth;
+                            b += VectorWidth;
+                        } while (--chunks != 0);
+                        count &= VectorRemainderMask;
+                    }
+                    // qword chunks
+                    chunks = count >> 3;
+                    if (chunks != 0)
+                    {
+                        ulong* a8 = (ulong*)a, b8 = (ulong*)b;
+                        do
+                        {
+                            if (*a8++ != *b8++) return false;
+                        } while (--chunks != 0);
+                        a = (byte*)a8;
+                        b = (byte*)b8;
+                    }
+                    // if we're checking a multiple of 8, we're done
+                    if ((count & 7) == 0) return true;
+
+                    // now check the last qword, noting that we have enough space
+                    // to look backwards (because we're in the > 8 default case)
+                    int delta = 8 - (count & 7);
+                    return *(ulong*)(a - delta) == *(ulong*)(b - delta);
+            }
+        }
     }
 }
