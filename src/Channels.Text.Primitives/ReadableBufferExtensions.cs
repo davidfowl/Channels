@@ -60,6 +60,40 @@ namespace Channels.Text.Primitives
             }
             return value;
         }
+        public unsafe static ulong GetUInt64(this ReadableBuffer buffer)
+        {
+            byte* addr;
+            ulong value;
+            int consumed, len = buffer.Length;
+            if (buffer.IsSingleSpan)
+            {
+                // It fits!
+                addr = (byte*)buffer.FirstSpan.BufferPtr;
+            }
+            else if (len < 128) // REVIEW: What's a good number
+            {
+                var target = stackalloc byte[len];
+                buffer.CopyTo(target, len);
+                addr = target; // memory allocated via stackalloc is valid and
+                // intact until the end of the method; we don't need to worry about scope
+            }
+            else
+            {
+                // Heap allocated copy to parse into array (should be rare)
+                var arr = buffer.ToArray();
+                if (!InvariantParser.TryParse(arr, 0, FormattingData.InvariantUtf8, Format.Parsed.HexUppercase, out value, out consumed))
+                {
+                    throw new InvalidOperationException();
+                }
+                return value;
+            }
+
+            if (!InvariantParser.TryParse(addr, 0, len, FormattingData.InvariantUtf8, Format.Parsed.HexUppercase, out value, out consumed))
+            {
+                throw new InvalidOperationException();
+            }
+            return value;
+        }
 
         public unsafe static string GetAsciiString(this ReadableBuffer buffer)
         {
