@@ -66,7 +66,7 @@ namespace Channels
             if (_tail != null && !_tail.ReadOnly)
             {
                 // Try to return the tail so the calling code can append to it
-                int remaining = _tail.Block.Data.Offset + _tail.Block.Data.Count - _tail.End;
+                int remaining = _tail.Block.Data.Length - _tail.End;
 
                 if (minimumSize <= remaining)
                 {

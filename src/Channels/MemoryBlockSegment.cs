@@ -43,13 +43,15 @@ namespace Channels
         /// </summary>
         public bool ReadOnly;
 
+        public int Length => End - Start;
+
 
         // Leasing ctor
         public MemoryBlockSegment(MemoryPoolBlock block)
         {
             Block = block;
-            Start = block.Data.Offset;
-            End = block.Data.Offset;
+            Start = 0;
+            End = 0;
         }
 
         // Cloning ctor
@@ -76,7 +78,14 @@ namespace Channels
         /// <returns></returns>
         public override string ToString()
         {
-            return Encoding.UTF8.GetString(Block.Array, Start, End - Start);
+            var builder = new StringBuilder();
+            var data = Block.Data.Slice(Start, Length);
+
+            for (int i = 0; i < Length; i++)
+            {
+                builder.Append((char)data[i]);
+            }
+            return builder.ToString();
         }
 
         public static MemoryBlockSegment Clone(ReadCursor beginBuffer, ReadCursor endBuffer, out MemoryBlockSegment lastBlockSegment)

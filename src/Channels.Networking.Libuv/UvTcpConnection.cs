@@ -185,10 +185,10 @@ namespace Channels.Networking.Libuv
             return ((UvTcpConnection)state).OnAlloc(handle, status);
         }
 
-        private Uv.uv_buf_t OnAlloc(UvStreamHandle handle, int status)
+        private unsafe Uv.uv_buf_t OnAlloc(UvStreamHandle handle, int status)
         {
             _inputBuffer = _input.Alloc(2048);
-            return handle.Libuv.buf_init(_inputBuffer.Memory.BufferPtr, _inputBuffer.Memory.Length);
+            return handle.Libuv.buf_init((IntPtr)_inputBuffer.Memory.UnsafePointer, _inputBuffer.Memory.Length);
         }
     }
 }

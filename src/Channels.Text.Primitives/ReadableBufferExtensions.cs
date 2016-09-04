@@ -36,7 +36,9 @@ namespace Channels.Text.Primitives
             {
                 // It fits!
                 var span = buffer.FirstSpan;
-                textSpan = new ReadOnlySpan<byte>(span.Array, span.Offset, span.Length);
+
+                // Is there a better way to do this?
+                textSpan = new ReadOnlySpan<byte>(span.UnsafePointer, span.Length);
             }
             else if (buffer.Length < 128) // REVIEW: What's a good number
             {
@@ -77,7 +79,7 @@ namespace Channels.Text.Primitives
 
                 foreach (var span in buffer)
                 {
-                    if (!AsciiUtilities.TryGetAsciiString((byte*)span.BufferPtr, output + offset, span.Length))
+                    if (!AsciiUtilities.TryGetAsciiString((byte*)span.UnsafePointer, output + offset, span.Length))
                     {
                         throw new InvalidOperationException();
                     }
@@ -89,7 +91,7 @@ namespace Channels.Text.Primitives
             return asciiString;
         }
 
-        public static string GetUtf8String(this ReadableBuffer buffer)
+        public static unsafe string GetUtf8String(this ReadableBuffer buffer)
         {
             if (buffer.IsEmpty)
             {
@@ -99,41 +101,21 @@ namespace Channels.Text.Primitives
             if (buffer.IsSingleSpan)
             {
                 var span = buffer.FirstSpan;
-                return Utf8Encoding.GetString(span.Array, span.Offset, span.Length);
+                return new Utf8String(span).ToString();
             }
-            // try to re-use a shared decoder; note that in heavy usage, we might need to allocate another
-            var decoder = Interlocked.Exchange(ref Utf8Decoder, null);
-            if (decoder == null) decoder = Utf8Encoding.GetDecoder();
-            else decoder.Reset();
-
-            var length = buffer.Length;
-            var charLength = length; // worst case is 1 byte per char
-            var chars = new char[charLength];
-            var charIndex = 0;
-
-            int bytesUsed = 0;
-            int charsUsed = 0;
-            bool completed;
-
-            foreach (var span in buffer)
+            else if (buffer.Length < 128) // REVIEW: What's a good number
             {
-                decoder.Convert(
-                    span.Array,
-                    span.Offset,
-                    span.Length,
-                    chars,
-                    charIndex,
-                    charLength - charIndex,
-                    false, // a single character could span two spans
-                    out bytesUsed,
-                    out charsUsed,
-                    out completed);
+                var target = stackalloc byte[128];
 
-                charIndex += charsUsed;
+                buffer.CopyTo(target, length: 128);
+
+                return new Utf8String(new ReadOnlySpan<byte>(target, buffer.Length)).ToString();
             }
-            // make the decoder available for re-use
-            Interlocked.CompareExchange(ref Utf8Decoder, decoder, null);
-            return new string(chars, 0, charIndex);
+            else
+            {
+                // Heap allocated copy to parse into array (should be rare)
+                return new Utf8String(buffer.ToArray()).ToString();
+            }
         }
     }
 }

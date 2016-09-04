@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
@@ -16,7 +17,16 @@ namespace Channels
 
                 try
                 {
-                    int bytesRead = await stream.ReadAsync(buffer.Memory.Array, buffer.Memory.Offset, buffer.Memory.Length);
+                    ArraySegment<byte> data;
+                    unsafe
+                    {
+                        if (!buffer.Memory.TryGetArray(null, out data))
+                        {
+                            Debug.Assert(false, "This should never fail. We always allocate managed memory");
+                        }
+                    }
+
+                    int bytesRead = await stream.ReadAsync(data.Array, data.Offset, data.Count);
 
                     if (bytesRead == 0)
                     {

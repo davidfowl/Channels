@@ -100,7 +100,7 @@ namespace Channels.Samples.IO
             {
                 var buffer = Channel.Alloc(2048);
 
-                var data = buffer.Memory.BufferPtr;
+                var data = (IntPtr)buffer.Memory.UnsafePointer;
                 var count = buffer.Memory.Length;
 
                 var overlapped = ThreadPoolBoundHandle.AllocateNativeOverlapped(PreAllocatedOverlapped);

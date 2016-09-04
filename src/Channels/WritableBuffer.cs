@@ -45,7 +45,7 @@ namespace Channels
 
         internal bool IsDefault => _tail == null;
 
-        public BufferSpan Memory => new BufferSpan(_tail, _tail.End, _tail.Block.Data.Offset + _tail.Block.Data.Count - _tail.End);
+        public Span<byte> Memory => _tail.Block.Data.Slice(_tail.End, _tail.Block.Data.Length - _tail.End);
 
         public void Ensure(int count)
         {
@@ -64,7 +64,7 @@ namespace Channels
             var segment = _tail;
             var block = _tail.Block;
             var blockIndex = _tailIndex;
-            var bytesLeftInBlock = block.Data.Offset + block.Data.Count - blockIndex;
+            var bytesLeftInBlock = block.Data.Length - blockIndex;
 
             // If inadequate bytes left or if the segment is readonly
             if (bytesLeftInBlock < count || segment.ReadOnly)
@@ -76,7 +76,7 @@ namespace Channels
                 segment = nextSegment;
                 block = nextBlock;
 
-                blockIndex = block.Data.Offset;
+                blockIndex = 0;
 
                 segment.End = blockIndex;
                 segment.Block = block;
@@ -104,7 +104,7 @@ namespace Channels
             var blockIndex = _tailIndex;
             var bufferIndex = offset;
             var remaining = count;
-            var bytesLeftInBlock = block.Data.Offset + block.Data.Count - blockIndex;
+            var bytesLeftInBlock = block.Data.Length - blockIndex;
 
             while (remaining > 0)
             {
@@ -118,13 +118,14 @@ namespace Channels
                     segment = nextSegment;
                     block = nextBlock;
 
-                    blockIndex = block.Data.Offset;
-                    bytesLeftInBlock = block.Data.Count;
+                    blockIndex = 0;
+                    bytesLeftInBlock = block.Data.Length;
                 }
 
                 var bytesToCopy = remaining < bytesLeftInBlock ? remaining : bytesLeftInBlock;
 
-                Buffer.BlockCopy(data, bufferIndex, block.Array, blockIndex, bytesToCopy);
+                var src = new Span<byte>(data, bufferIndex, bytesToCopy);
+                src.TryCopyTo(Memory);
 
                 blockIndex += bytesToCopy;
                 bufferIndex += bytesToCopy;
@@ -188,7 +189,7 @@ namespace Channels
             var block = _tail.Block;
             var blockIndex = _tailIndex + bytesWritten;
 
-            Debug.Assert(blockIndex <= block.Data.Offset + block.Data.Count);
+            Debug.Assert(blockIndex <= block.Data.Length);
 
             _tail.End = blockIndex;
             _tailIndex = blockIndex;

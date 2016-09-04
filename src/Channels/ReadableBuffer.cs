@@ -5,13 +5,12 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Numerics;
-using System.Runtime.CompilerServices;
 
 namespace Channels
 {
-    public struct ReadableBuffer : IDisposable, IEnumerable<BufferSpan>
+    public struct ReadableBuffer : IDisposable, IEnumerable<Span<byte>>
     {
-        private readonly BufferSpan _span;
+        private readonly Span<byte> _span;
         private readonly bool _isOwner;
         private readonly Channel _channel;
 
@@ -24,7 +23,7 @@ namespace Channels
 
         public bool IsSingleSpan => _start.Segment.Block == _end.Segment.Block;
 
-        public BufferSpan FirstSpan => _span;
+        public Span<byte> FirstSpan => _span;
 
         public ReadCursor Start => _start;
         public ReadCursor End => _end;
@@ -144,7 +143,7 @@ namespace Channels
             }
 
             var span = FirstSpan;
-            return span.Array[span.Offset];
+            return span[0];
         }
 
         public ReadableBuffer Preserve()
@@ -152,12 +151,14 @@ namespace Channels
             return new ReadableBuffer(ref this);
         }
 
-        public unsafe void CopyTo(byte* destination, int length)
+        public unsafe void CopyTo(byte* data, int length)
         {
             if (length < Length)
             {
                 throw new ArgumentOutOfRangeException();
             }
+
+            var destination = new Span<byte>(data, length);
 
             var remaining = (uint)Length;
             foreach (var span in this)
@@ -168,7 +169,9 @@ namespace Channels
                 }
 
                 var count = (uint)Math.Min(remaining, span.Length);
-                Unsafe.CopyBlock(destination, (byte*)span.BufferPtr, count);
+                var src = span.Slice(remaining);
+                src.TryCopyTo(destination);
+                destination = destination.Slice(count);
                 remaining -= count;
             }
         }
@@ -185,10 +188,12 @@ namespace Channels
                 throw new ArgumentOutOfRangeException();
             }
 
+            var destination = new Span<byte>(data, offset, data.Length - offset);
+
             foreach (var span in this)
             {
-                Buffer.BlockCopy(span.Array, span.Offset, data, offset, span.Length);
-                offset += span.Length;
+                span.TryCopyTo(destination);
+                destination = destination.Slice(span.Length);
             }
         }
 
@@ -258,7 +263,7 @@ namespace Channels
             return new Enumerator(ref this);
         }
 
-        IEnumerator<BufferSpan> IEnumerable<BufferSpan>.GetEnumerator()
+        IEnumerator<Span<byte>> IEnumerable<Span<byte>>.GetEnumerator()
         {
             return GetEnumerator();
         }
@@ -268,18 +273,18 @@ namespace Channels
             return GetEnumerator();
         }
 
-        public struct Enumerator : IEnumerator<BufferSpan>
+        public struct Enumerator : IEnumerator<Span<byte>>
         {
             private ReadableBuffer _buffer;
-            private BufferSpan _current;
+            private Span<byte> _current;
 
             public Enumerator(ref ReadableBuffer buffer)
             {
                 _buffer = buffer;
-                _current = default(BufferSpan);
+                _current = default(Span<byte>);
             }
 
-            public BufferSpan Current => _current;
+            public Span<byte> Current => _current;
 
             object IEnumerator.Current
             {
