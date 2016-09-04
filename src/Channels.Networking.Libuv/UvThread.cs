@@ -17,7 +17,7 @@ namespace Channels.Networking.Libuv
             Name = "Libuv event loop"
         };
         private readonly ManualResetEventSlim _running = new ManualResetEventSlim();
-        private readonly LockFreeWorkQueue<Work> _workQueue = new LockFreeWorkQueue<Work>();
+        private readonly WorkQueue<Work> _workQueue = new WorkQueue<Work>();
 
         private bool _stopping;
         private UvAsyncHandle _postHandle;
@@ -87,7 +87,7 @@ namespace Channels.Networking.Libuv
 
         private void OnPost()
         {
-            foreach (var work in _workQueue.GetAndClear())
+            foreach (var work in _workQueue.DequeAll())
             {
                 work.Callback(work.State);
             }

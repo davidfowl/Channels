@@ -6,9 +6,9 @@ using System.Threading;
 namespace Channels.Networking.Libuv.Internal
 {
     // Lock free linked list that for multi producers and a single consumer
-    internal class LockFreeWorkQueue<T>
+    internal class WorkQueue<T>
     {
-        private Node Head;
+        private Node _head;
 
         public void Add(T value)
         {
@@ -17,17 +17,17 @@ namespace Channels.Networking.Libuv.Internal
 
             do
             {
-                oldHead = Head;
-                node.Next = Head;
+                oldHead = _head;
+                node.Next = _head;
                 node.Count = 1 + (oldHead?.Count ?? 0);
-            } while (Interlocked.CompareExchange(ref Head, node, oldHead) != oldHead);
+            } while (Interlocked.CompareExchange(ref _head, node, oldHead) != oldHead);
         }
 
 
-        public Enumerable GetAndClear()
+        public Enumerable DequeAll()
         {
             // swap out the head
-            var node = Interlocked.Exchange(ref Head, null);
+            var node = Interlocked.Exchange(ref _head, null);
 
             // we now have a detatched head, but we're backwards
             // note: 0/1 are a trivial case
@@ -50,49 +50,54 @@ namespace Channels.Networking.Libuv.Internal
             return new Enumerable(prev);
         }
 
+        public struct Enumerable : IEnumerable<T>
+        {
+            private Node _node;
+            public int Count => _node?.Count ?? 0;
+            internal Enumerable(Node node)
+            {
+                _node = node;
+            }
+            public Enumerator GetEnumerator() => new Enumerator(_node);
+            IEnumerator<T> IEnumerable<T>.GetEnumerator() => GetEnumerator();
+            IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
+
+        }
+
+        public struct Enumerator : IEnumerator<T>
+        {
+            private Node _next;
+            private T _current;
+            internal Enumerator(Node node)
+            {
+                _current = default(T);
+                _next = node;
+            }
+            object IEnumerator.Current => _current;
+            public T Current => _current;
+
+            void IDisposable.Dispose() { }
+
+            public bool MoveNext()
+            {
+                if (_next == null)
+                {
+                    _current = default(T);
+                    return false;
+                }
+                _current = _next.Value;
+                _next = _next.Next;
+                return true;
+            }
+            public void Reset() { throw new NotSupportedException(); }
+        }
+
         internal class Node // need internal for Enumerator / Enumerable
         {
             public T Value;
             public Node Next;
             public int Count;
         }
-        public struct Enumerable : IEnumerable<T>
-        {
-            private Node node;
-            public int Count => node?.Count ?? 0;
-            internal Enumerable(Node node)
-            {
-                this.node = node;
-            }
-            public Enumerator GetEnumerator() => new Enumerator(node);
-            IEnumerator<T> IEnumerable<T>.GetEnumerator() => GetEnumerator();
-            IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
-        }
-        public struct Enumerator : IEnumerator<T>
-        {
-            void IDisposable.Dispose() { }
-            private Node next;
-            private T current;
-            internal Enumerator(Node node)
-            {
-                this.current = default(T);
-                this.next = node;
-            }
-            object IEnumerator.Current => current;
-            public T Current => current;
-            public bool MoveNext()
-            {
-                if (next == null)
-                {
-                    current = default(T);
-                    return false;
-                }
-                current = next.Value;
-                next = next.Next;
-                return true;
-            }
-            public void Reset() { throw new NotSupportedException(); }
-        }
     }
 }
