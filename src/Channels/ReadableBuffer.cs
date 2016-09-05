@@ -74,25 +74,65 @@ namespace Channels
             _length = buffer._length;
         }
 
-        public ReadCursor IndexOf(ref Vector<byte> byte0Vector)
+        public unsafe ReadCursor IndexOf(ref Vector<byte> byte0Vector)
         {
-            var begin = _start;
-            begin.Seek(ref byte0Vector);
-            return begin;
-        }
+            if (IsEmpty)
+            {
+                return _end;
+            }
 
-        public ReadCursor IndexOfAny(ref Vector<byte> byte0Vector, ref Vector<byte> byte1Vector)
-        {
-            var begin = _start;
-            begin.Seek(ref byte0Vector, ref byte1Vector);
-            return begin;
-        }
+            byte byte0 = byte0Vector[0];
 
-        public ReadCursor IndexOfAny(ref Vector<byte> byte0Vector, ref Vector<byte> byte1Vector, ref Vector<byte> byte2Vector)
-        {
-            var begin = _start;
-            begin.Seek(ref byte0Vector, ref byte1Vector, ref byte2Vector);
-            return begin;
+            var start = _start;
+            var seek = 0;
+
+            foreach (var span in this)
+            {
+                var currentSpan = span;
+                var found = false;
+
+                while (currentSpan.Length >= VectorWidth)
+                {
+                    var data = currentSpan.Read<Vector<byte>>();
+                    var byte0Equals = Vector.Equals(data, byte0Vector);
+
+                    if (byte0Equals.Equals(Vector<byte>.Zero))
+                    {
+                        currentSpan = currentSpan.Slice(VectorWidth);
+                        seek += VectorWidth;
+                    }
+                    else
+                    {
+                        var index = FindFirstEqualByte(ref byte0Equals);
+                        seek += index;
+                        found = true;
+                        break;
+                    }
+                }
+
+                if (!found)
+                {
+                    // Slow search
+                    for (int i = 0; i < currentSpan.Length; i++)
+                    {
+                        if (currentSpan[i] == byte0)
+                        {
+                            seek += i;
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (found)
+                {
+                    // TODO: Avoid extra seek
+                    start.Seek(seek);
+                    return start;
+                }
+            }
+
+            return _end;
         }
 
         public ReadableBuffer Slice(int start, int length)
@@ -291,11 +331,13 @@ namespace Channels
         {
             private ReadableBuffer _buffer;
             private Span<byte> _current;
+            internal ReadCursor _cursor;
 
             public Enumerator(ref ReadableBuffer buffer)
             {
                 _buffer = buffer;
                 _current = default(Span<byte>);
+                _cursor = default(ReadCursor);
             }
 
             public Span<byte> Current => _current;
@@ -312,6 +354,7 @@ namespace Channels
 
             public bool MoveNext()
             {
+                _cursor = _buffer.Start;
                 var start = _buffer.Start;
                 bool moved = start.TryGetBuffer(_buffer.End, out _current);
                 _buffer = _buffer.Slice(start);
@@ -428,6 +471,63 @@ namespace Channels
                     int delta = 8 - (count & 7);
                     return *(ulong*)(a - delta) == *(ulong*)(b - delta);
             }
+        }
+
+        /// <summary>
+        /// Find first byte
+        /// </summary>
+        /// <param  name="byteEquals"></param >
+        /// <returns>The first index of the result vector</returns>
+        /// <exception cref="InvalidOperationException">byteEquals = 0</exception>
+        internal static int FindFirstEqualByte(ref Vector<byte> byteEquals)
+        {
+            if (!BitConverter.IsLittleEndian) return FindFirstEqualByteSlow(ref byteEquals);
+
+            // Quasi-tree search
+            var vector64 = Vector.AsVectorInt64(byteEquals);
+            for (var i = 0; i < Vector<long>.Count; i++)
+            {
+                var longValue = vector64[i];
+                if (longValue == 0) continue;
+
+                return (i << 3) +
+                    ((longValue & 0x00000000ffffffff) > 0
+                        ? (longValue & 0x000000000000ffff) > 0
+                            ? (longValue & 0x00000000000000ff) > 0 ? 0 : 1
+                            : (longValue & 0x0000000000ff0000) > 0 ? 2 : 3
+                        : (longValue & 0x0000ffff00000000) > 0
+                            ? (longValue & 0x000000ff00000000) > 0 ? 4 : 5
+                            : (longValue & 0x00ff000000000000) > 0 ? 6 : 7);
+            }
+            throw new InvalidOperationException();
+        }
+
+        // Internal for testing
+        internal static int FindFirstEqualByteSlow(ref Vector<byte> byteEquals)
+        {
+            // Quasi-tree search
+            var vector64 = Vector.AsVectorInt64(byteEquals);
+            for (var i = 0; i < Vector<long>.Count; i++)
+            {
+                var longValue = vector64[i];
+                if (longValue == 0) continue;
+
+                var shift = i << 1;
+                var offset = shift << 2;
+                var vector32 = Vector.AsVectorInt32(byteEquals);
+                if (vector32[shift] != 0)
+                {
+                    if (byteEquals[offset] != 0) return offset;
+                    if (byteEquals[offset + 1] != 0) return offset + 1;
+                    if (byteEquals[offset + 2] != 0) return offset + 2;
+                    return offset + 3;
+                }
+                if (byteEquals[offset + 4] != 0) return offset + 4;
+                if (byteEquals[offset + 5] != 0) return offset + 5;
+                if (byteEquals[offset + 6] != 0) return offset + 6;
+                return offset + 7;
+            }
+            throw new InvalidOperationException();
         }
     }
 }

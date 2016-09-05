@@ -1,4 +1,5 @@
 ﻿using System.Linq;
+using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
 using Xunit;
@@ -54,6 +55,74 @@ namespace Channels.Tests
                 spans[1].TryCopyTo(worldBytes);
                 Assert.Equal("Hello", Encoding.ASCII.GetString(helloBytes));
                 Assert.Equal(" World", Encoding.ASCII.GetString(worldBytes));
+            }
+        }
+
+        [Fact]
+        public async Task IndexOfNotFoundReturnsEnd()
+        {
+            using (var cf = new ChannelFactory())
+            {
+                var channel = cf.CreateChannel();
+                var bytes = Encoding.ASCII.GetBytes("Hello World");
+
+                await channel.WriteAsync(bytes, 0, bytes.Length);
+                var buffer = await channel.ReadAsync();
+                var delim = buffer.IndexOf(ref CommonVectors.LF);
+
+                Assert.True(delim.IsEnd);
+            }
+        }
+
+        [Fact]
+        public async Task FastPathIndexOfAcrossBlocks()
+        {
+            var vecUpperR = new Vector<byte>((byte)'R');
+
+            const int blockSize = 4032;
+            using (var cf = new ChannelFactory())
+            {
+                var channel = cf.CreateChannel();
+                //     block 1       ->    block2
+                // [padding..hello]  ->  [  world   ]
+                var paddingBytes = Enumerable.Repeat((byte)'a', blockSize - 5).ToArray();
+                var bytes = Encoding.ASCII.GetBytes("Hello World");
+                var writeBuffer = channel.Alloc();
+                writeBuffer.Write(paddingBytes, 0, paddingBytes.Length);
+                writeBuffer.Write(bytes, 0, bytes.Length);
+                await writeBuffer.FlushAsync();
+
+                var buffer = await channel.ReadAsync();
+                var delim = buffer.IndexOf(ref vecUpperR);
+                Assert.True(delim.IsEnd);
+            }
+        }
+
+        [Fact]
+        public async Task SlowPathIndexOfAcrossBlocks()
+        {
+            const int blockSize = 4032;
+            using (var cf = new ChannelFactory())
+            {
+                var channel = cf.CreateChannel();
+                //     block 1       ->    block2
+                // [padding..hello]  ->  [  world   ]
+                var paddingBytes = Enumerable.Repeat((byte)'a', blockSize - 5).ToArray();
+                var bytes = Encoding.ASCII.GetBytes("Hello World");
+                var writeBuffer = channel.Alloc();
+                writeBuffer.Write(paddingBytes, 0, paddingBytes.Length);
+                writeBuffer.Write(bytes, 0, bytes.Length);
+                await writeBuffer.FlushAsync();
+
+                var buffer = await channel.ReadAsync();
+                var delim = buffer.IndexOf(ref CommonVectors.Space);
+                Assert.False(buffer.IsSingleSpan);
+                Assert.False(delim.IsEnd);
+
+                var slice = buffer.Slice(delim).Slice(1);
+                var array = slice.ToArray();
+
+                Assert.Equal("World", Encoding.ASCII.GetString(array));
             }
         }
     }
