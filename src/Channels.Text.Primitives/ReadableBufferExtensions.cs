@@ -13,10 +13,12 @@ namespace Channels.Text.Primitives
             {
                 for (int i = 0; i < span.Length; i++)
                 {
-                    if (IsWhitespaceChar(span[i]))
+                    if (!IsWhitespaceChar(span[i]))
                     {
-                        start++;
+                        break;
                     }
+
+                    start++;
                 }
             }
 

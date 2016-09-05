@@ -179,6 +179,8 @@ namespace Channels
 
         public ReadableBuffer Slice(int start)
         {
+            if (start == 0) return this;
+
             var begin = _start;
             begin.Seek(start);
             return new ReadableBuffer(_channel, begin, _end);
