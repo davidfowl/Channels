@@ -2,6 +2,8 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Text;
 using Channels.Text.Primitives;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Primitives;
@@ -10,7 +12,18 @@ namespace Channels.Samples.Http
 {
     public class RequestHeaderDictionary : IHeaderDictionary
     {
-        private Dictionary<string, HeaderValue> _headers = new Dictionary<string, HeaderValue>();
+        private static readonly byte[] ContentLengthKeyBytes = Encoding.ASCII.GetBytes("CONTENT-LENGTH");
+        private static readonly byte[] ContentTypeKeyBytes = Encoding.ASCII.GetBytes("CONTENT-TYPE");
+        private static readonly byte[] AcceptBytes = Encoding.ASCII.GetBytes("ACCEPT");
+        private static readonly byte[] AcceptLanguageBytes = Encoding.ASCII.GetBytes("ACCEPT-LANGUAGE");
+        private static readonly byte[] AcceptEncodingBytes = Encoding.ASCII.GetBytes("ACCEPT-ENCODING");
+        private static readonly byte[] HostBytes = Encoding.ASCII.GetBytes("HOST");
+        private static readonly byte[] ConnectionBytes = Encoding.ASCII.GetBytes("CONNECTION");
+        private static readonly byte[] CacheControlBytes = Encoding.ASCII.GetBytes("CACHE-CONTROL");
+        private static readonly byte[] UserAgentBytes = Encoding.ASCII.GetBytes("USER-AGENT");
+        private static readonly byte[] UpgradeInsecureRequests = Encoding.ASCII.GetBytes("UPGRADE-INSECURE-REQUESTS");
+
+        private Dictionary<string, HeaderValue> _headers = new Dictionary<string, HeaderValue>(StringComparer.OrdinalIgnoreCase);
 
         public StringValues this[string key]
         {
@@ -37,10 +50,107 @@ namespace Channels.Samples.Http
 
         public void SetHeader(ref ReadableBuffer key, ref ReadableBuffer value)
         {
-            _headers[key.GetAsciiString()] = new HeaderValue
+            string headerKey = GetHeaderKey(ref key);
+            _headers[headerKey] = new HeaderValue
             {
                 Raw = value.Preserve()
             };
+        }
+
+        private string GetHeaderKey(ref ReadableBuffer key)
+        {
+            if (EqualsIgnoreCase(ref key, AcceptBytes))
+            {
+                return "Accept";
+            }
+
+            if (EqualsIgnoreCase(ref key, AcceptEncodingBytes))
+            {
+                return "Accept-Encoding";
+            }
+
+            if (EqualsIgnoreCase(ref key, AcceptLanguageBytes))
+            {
+                return "Accept-Language";
+            }
+
+            if (EqualsIgnoreCase(ref key, HostBytes))
+            {
+                return "Host";
+            }
+
+            if (EqualsIgnoreCase(ref key, UserAgentBytes))
+            {
+                return "User-Agent";
+            }
+
+            if (EqualsIgnoreCase(ref key, CacheControlBytes))
+            {
+                return "Cache-Control";
+            }
+
+            if (EqualsIgnoreCase(ref key, ConnectionBytes))
+            {
+                return "Connection";
+            }
+
+            if (EqualsIgnoreCase(ref key, UpgradeInsecureRequests))
+            {
+                return "Upgrade-Insecure-Requests";
+            }
+
+            return key.GetAsciiString();
+        }
+
+        private unsafe bool EqualsIgnoreCase(ref ReadableBuffer key, byte[] buffer)
+        {
+            if (key.Length != buffer.Length)
+            {
+                return false;
+            }
+
+            fixed (byte* bufferPtr = &buffer[0])
+            {
+                byte* rightPtr = bufferPtr;
+
+                foreach (var span in key)
+                {
+                    if (!EqualsIgnoreCase((byte*)span.UnsafePointer, rightPtr, span.Length))
+                    {
+                        return false;
+                    }
+
+                    rightPtr += span.Length;
+                }
+            }
+
+            return true;
+        }
+
+        private unsafe bool EqualsIgnoreCase(byte* leftPtr, byte* rightPtr, int length)
+        {
+            for (int i = 0; i < length; i++)
+            {
+                var mask = IsAlpha(*leftPtr) ? 0xdf : 0xff;
+                var left = *leftPtr & mask;
+                var right = *rightPtr;
+
+                if (left != right)
+                {
+                    return false;
+                }
+
+                leftPtr++;
+                rightPtr++;
+            }
+
+            return true;
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static bool IsAlpha(byte b)
+        {
+            return b >= 'a' && b <= 'z' || b >= 'A' && b <= 'Z';
         }
 
         private void SetHeader(string key, StringValues value)

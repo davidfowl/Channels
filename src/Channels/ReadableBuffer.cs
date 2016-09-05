@@ -408,7 +408,7 @@ namespace Channels
             }
         }
 
-        public unsafe bool Equals(byte[] value, int offset, int count)
+        public bool Equals(byte[] value, int offset, int count)
         {
             return Length == count && StartsWith(value, offset, count);
         }
