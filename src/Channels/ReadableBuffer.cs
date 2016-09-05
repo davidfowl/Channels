@@ -91,22 +91,25 @@ namespace Channels
                 var currentSpan = span;
                 var found = false;
 
-                while (currentSpan.Length >= VectorWidth)
+                if (Vector.IsHardwareAccelerated)
                 {
-                    var data = currentSpan.Read<Vector<byte>>();
-                    var byte0Equals = Vector.Equals(data, byte0Vector);
+                    while (currentSpan.Length >= VectorWidth)
+                    {
+                        var data = currentSpan.Read<Vector<byte>>();
+                        var byte0Equals = Vector.Equals(data, byte0Vector);
 
-                    if (byte0Equals.Equals(Vector<byte>.Zero))
-                    {
-                        currentSpan = currentSpan.Slice(VectorWidth);
-                        seek += VectorWidth;
-                    }
-                    else
-                    {
-                        var index = FindFirstEqualByte(ref byte0Equals);
-                        seek += index;
-                        found = true;
-                        break;
+                        if (byte0Equals.Equals(Vector<byte>.Zero))
+                        {
+                            currentSpan = currentSpan.Slice(VectorWidth);
+                            seek += VectorWidth;
+                        }
+                        else
+                        {
+                            var index = FindFirstEqualByte(ref byte0Equals);
+                            seek += index;
+                            found = true;
+                            break;
+                        }
                     }
                 }
 
