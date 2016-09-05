@@ -13,14 +13,16 @@ namespace Channels.Text.Primitives
             {
                 for (int i = 0; i < span.Length; i++)
                 {
-                    if (IsWhitespaceChar(span[i]))
+                    if (!IsWhitespaceChar(span[i]))
                     {
-                        start++;
+                        break;
                     }
+
+                    start++;
                 }
             }
 
-            return buffer.Slice(start);
+            return start == 0 ? buffer : buffer.Slice(start);
         }
 
         private static bool IsWhitespaceChar(int ch)
