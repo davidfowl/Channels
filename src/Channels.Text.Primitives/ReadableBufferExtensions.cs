@@ -8,19 +8,54 @@ namespace Channels.Text.Primitives
     {
         public static ReadableBuffer TrimStart(this ReadableBuffer buffer)
         {
-            int start = 0;
-            foreach (var span in buffer)
+            var enumerator = buffer.GetEnumerator();
+
+            if (!enumerator.MoveNext())
             {
-                for (int i = 0; i < span.Length; i++)
-                {
-                    if (IsWhitespaceChar(span[i]))
-                    {
-                        start++;
-                    }
-                }
+                return default(ReadableBuffer);
             }
 
+            var span = enumerator.Current;
+            var start = 0;
+            var complete = false;
+
+            for (var i = 0; i < span.Length; i++)
+            {
+                if (!IsWhitespaceChar(span[i]))
+                {
+                    complete = true;
+                    break;
+                }
+
+                start++;
+            }
+
+            if (complete || !enumerator.MoveNext())
+            {
+                return start == 0 ? buffer : buffer.Slice(start);
+            }
+
+            start = TrimStartMultiSpan(ref enumerator, start);
+
             return buffer.Slice(start);
+        }
+
+        private static int TrimStartMultiSpan(ref ReadableBuffer.Enumerator enumerator, int start)
+        {
+            do
+            {
+                var span = enumerator.Current;
+                for (var i = 0; i < span.Length; i++)
+                {
+                    if (!IsWhitespaceChar(span[i]))
+                    {
+                        break;
+                    }
+                    start++;
+                }
+            } while (enumerator.MoveNext());
+
+            return start;
         }
 
         private static bool IsWhitespaceChar(int ch)
