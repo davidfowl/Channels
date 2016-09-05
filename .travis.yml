@@ -54,4 +54,4 @@ install:
 
 script:
   # Build sample
-  - dotnet test -c Release test/Channels.Tests
+  - dotnet test test/Channels.Tests
