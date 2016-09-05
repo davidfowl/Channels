@@ -6,6 +6,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Numerics;
 using System.Runtime.CompilerServices;
+using System.Text;
 
 namespace Channels
 {
@@ -260,7 +261,15 @@ namespace Channels
 
         public override string ToString()
         {
-            return FirstSpan.ToString();
+            var sb = new StringBuilder();
+            foreach (var span in this)
+            {
+                foreach (var b in span)
+                {
+                    sb.Append((char)b);
+                }
+            }
+            return sb.ToString();
         }
 
         public Enumerator GetEnumerator()
