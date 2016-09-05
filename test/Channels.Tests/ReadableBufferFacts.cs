@@ -38,47 +38,6 @@ namespace Channels.Tests
             }
         }
 
-        private unsafe void TestIndexOfWorksForAllLocations(ref ReadableBuffer readBuffer, byte emptyValue)
-        {
-            byte huntValue = (byte)~emptyValue;
-            Vector<byte> huntVector = new Vector<byte>(huntValue);
-
-            // we're going to fully index the final locations of the buffer, so that we
-            // can mutate etc in constant time
-            var addresses = BuildPointerIndex(ref readBuffer);
-
-            // check it isn't there to start with
-            var found = readBuffer.IndexOf(ref huntVector);
-            Assert.True(found.IsEnd);
-
-            // correctness test all values 
-            for (int i = 0; i < readBuffer.Length; i++)
-            {
-                *addresses[i] = huntValue;
-                found = readBuffer.IndexOf(ref huntVector);
-                *addresses[i] = emptyValue;
-
-                Assert.False(found.IsEnd);
-                var slice = readBuffer.Slice(found);
-                Assert.True(slice.FirstSpan.UnsafePointer == addresses[i]);
-            }
-        }
-        static unsafe byte*[] BuildPointerIndex(ref ReadableBuffer readBuffer)
-        {
-
-            byte*[] addresses = new byte*[readBuffer.Length];
-            int index = 0;
-            foreach (var span in readBuffer)
-            {
-                byte* ptr = (byte*)span.UnsafePointer;
-                for (int i = 0; i < span.Length; i++)
-                {
-                    addresses[index++] = ptr++;
-                }
-            }
-            return addresses;
-        }
-
         [Fact]
         public async Task EqualsDetectsDeltaForAllLocations()
         {
@@ -105,7 +64,7 @@ namespace Channels.Tests
                 EqualsDetectsDeltaForAllLocations(readBuffer, data, 0, data.Length);
 
                 // check the first 32 sub-lengths
-                for(int i = 0; i <= 32; i++)
+                for (int i = 0; i <= 32; i++)
                 {
                     var slice = readBuffer.Slice(0, i);
                     EqualsDetectsDeltaForAllLocations(slice, data, 0, i);
@@ -125,7 +84,7 @@ namespace Channels.Tests
             Assert.Equal(length, slice.Length);
             Assert.True(slice.Equals(expected, offset, length));
             // change one byte in buffer, for every position
-            for(int i = 0; i < length; i++)
+            for (int i = 0; i < length; i++)
             {
                 expected[offset + i] ^= 42;
                 Assert.False(slice.Equals(expected, offset, length));
@@ -152,11 +111,78 @@ namespace Channels.Tests
             }
         }
 
+        [Theory]
+        [InlineData(" hello", "hello")]
+        [InlineData("    hello", "hello")]
+        [InlineData("\r\n hello", "hello")]
+        [InlineData("\rhe  llo", "he  llo")]
+        [InlineData("\thell o ", "hell o ")]
+        public async Task TrimStartTrimsWhitespaceAtStart(string input, string expected)
+        {
+            using (var cf = new ChannelFactory())
+            {
+                var channel = cf.CreateChannel();
+
+                var writeBuffer = channel.Alloc();
+                var bytes = Encoding.ASCII.GetBytes(input);
+                writeBuffer.Write(bytes, 0, bytes.Length);
+                await writeBuffer.FlushAsync();
+
+                var buffer = await channel.ReadAsync();
+                var trimmed = buffer.TrimStart();
+                var outputBytes = trimmed.ToArray();
+
+                Assert.Equal(expected, Encoding.ASCII.GetString(outputBytes));
+            }
+        }
+
+        private unsafe void TestIndexOfWorksForAllLocations(ref ReadableBuffer readBuffer, byte emptyValue)
+        {
+            byte huntValue = (byte)~emptyValue;
+            Vector<byte> huntVector = new Vector<byte>(huntValue);
+
+            // we're going to fully index the final locations of the buffer, so that we
+            // can mutate etc in constant time
+            var addresses = BuildPointerIndex(ref readBuffer);
+
+            // check it isn't there to start with
+            var found = readBuffer.IndexOf(ref huntVector);
+            Assert.True(found.IsEnd);
+
+            // correctness test all values 
+            for (int i = 0; i < readBuffer.Length; i++)
+            {
+                *addresses[i] = huntValue;
+                found = readBuffer.IndexOf(ref huntVector);
+                *addresses[i] = emptyValue;
+
+                Assert.False(found.IsEnd);
+                var slice = readBuffer.Slice(found);
+                Assert.True(slice.FirstSpan.UnsafePointer == addresses[i]);
+            }
+        }
+
+        private static unsafe byte*[] BuildPointerIndex(ref ReadableBuffer readBuffer)
+        {
+
+            byte*[] addresses = new byte*[readBuffer.Length];
+            int index = 0;
+            foreach (var span in readBuffer)
+            {
+                byte* ptr = (byte*)span.UnsafePointer;
+                for (int i = 0; i < span.Length; i++)
+                {
+                    addresses[index++] = ptr++;
+                }
+            }
+            return addresses;
+        }
+
         private unsafe void ReadUInt64GivesExpectedValues(ref ReadableBuffer readBuffer)
         {
             Assert.True(readBuffer.IsSingleSpan);
 
-            for(ulong i = 0; i < 1024;i++)
+            for (ulong i = 0; i < 1024; i++)
             {
                 TestValue(ref readBuffer, i);
             }
