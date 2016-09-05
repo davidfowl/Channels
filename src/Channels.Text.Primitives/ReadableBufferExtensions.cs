@@ -1,31 +1,31 @@
 ﻿using System;
 using System.Text;
 using System.Text.Utf8;
-using System.Threading;
 
 namespace Channels.Text.Primitives
 {
     public static class ReadableBufferExtensions
     {
-        private static readonly Encoding Utf8Encoding = Encoding.UTF8;
-        private static Decoder Utf8Decoder;
-
         public static ReadableBuffer TrimStart(this ReadableBuffer buffer)
         {
-            int ch;
-            while ((ch = buffer.Peek()) != -1)
+            int start = 0;
+            foreach (var span in buffer)
             {
-                if (ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r')
+                for (int i = 0; i < span.Length; i++)
                 {
-                    buffer = buffer.Slice(1);
-                }
-                else
-                {
-                    break;
+                    if (IsWhitespaceChar(span[i]))
+                    {
+                        start++;
+                    }
                 }
             }
 
-            return buffer;
+            return buffer.Slice(start);
+        }
+
+        private static bool IsWhitespaceChar(int ch)
+        {
+            return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r';
         }
 
         public unsafe static uint GetUInt32(this ReadableBuffer buffer)
