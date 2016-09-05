@@ -45,9 +45,9 @@ namespace Channels
 
         internal bool IsDefault => _tail == null;
 
-        public Span<byte> Memory => _tail.Block.Data.Slice(_tail.End, _tail.Block.Data.Length - _tail.End);
+        public Span<byte> Memory => IsDefault ? Span<byte>.Empty : _tail.Block.Data.Slice(_tail.End, _tail.Block.Data.Length - _tail.End);
 
-        public void Ensure(int count)
+        public void Ensure(int count = 1)
         {
             if (_tail == null)
             {
@@ -67,7 +67,7 @@ namespace Channels
             var bytesLeftInBlock = block.Data.Length - blockIndex;
 
             // If inadequate bytes left or if the segment is readonly
-            if (bytesLeftInBlock < count || segment.ReadOnly)
+            if (bytesLeftInBlock == 0 || bytesLeftInBlock < count || segment.ReadOnly)
             {
                 var nextBlock = _pool.Lease();
                 var nextSegment = new MemoryBlockSegment(nextBlock);
@@ -87,56 +87,39 @@ namespace Channels
 
         public void Write(byte[] data, int offset, int count)
         {
-            if (_tail == null)
+            if (IsDefault)
             {
-                _tail = new MemoryBlockSegment(_pool.Lease());
-                _tailIndex = _tail.End;
-                _head = _tail;
-                _headIndex = _tail.Start;
+                Ensure();
             }
 
-            Debug.Assert(_tail.Block != null);
-            Debug.Assert(_tail.Next == null);
-            Debug.Assert(_tail.End == _tailIndex);
+            var source = new Span<byte>(data, offset, count);
 
-            var segment = _tail;
-            var block = _tail.Block;
-            var blockIndex = _tailIndex;
-            var bufferIndex = offset;
+            // Fast path, try copying to the available memory directly
+            if (source.TryCopyTo(Memory))
+            {
+                CommitBytes(count);
+                return;
+            }
+
             var remaining = count;
-            var bytesLeftInBlock = block.Data.Length - blockIndex;
-
             while (remaining > 0)
             {
-                // Try the block empty if the segment is reaodnly
-                if (bytesLeftInBlock == 0 || segment.ReadOnly)
-                {
-                    var nextBlock = _pool.Lease();
-                    var nextSegment = new MemoryBlockSegment(nextBlock);
-                    segment.End = blockIndex;
-                    Volatile.Write(ref segment.Next, nextSegment);
-                    segment = nextSegment;
-                    block = nextBlock;
+                var writable = Math.Min(remaining, Memory.Length);
 
-                    blockIndex = 0;
-                    bytesLeftInBlock = block.Data.Length;
+                Ensure(writable);
+
+                if (writable == 0)
+                {
+                    continue;
                 }
 
-                var bytesToCopy = remaining < bytesLeftInBlock ? remaining : bytesLeftInBlock;
+                source.Slice(offset, writable).TryCopyTo(Memory);
 
-                var src = new Span<byte>(data, bufferIndex, bytesToCopy);
-                src.TryCopyTo(Memory);
+                remaining -= writable;
+                offset += writable;
 
-                blockIndex += bytesToCopy;
-                bufferIndex += bytesToCopy;
-                remaining -= bytesToCopy;
-                bytesLeftInBlock -= bytesToCopy;
+                CommitBytes(writable);
             }
-
-            segment.End = blockIndex;
-            segment.Block = block;
-            _tail = segment;
-            _tailIndex = blockIndex;
         }
 
         public void Append(ref ReadableBuffer buffer)
