@@ -22,7 +22,7 @@ namespace Channels.Text.Primitives
                 }
             }
 
-            return start == 0 ? buffer : buffer.Slice(start);
+            return buffer.Slice(start);
         }
 
         private static bool IsWhitespaceChar(int ch)
