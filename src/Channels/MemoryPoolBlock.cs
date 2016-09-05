@@ -20,7 +20,7 @@ namespace Channels
         /// <summary>
         /// This object cannot be instantiated outside of the static Create method
         /// </summary>
-        unsafe protected MemoryPoolBlock(Span<byte> data)
+        protected MemoryPoolBlock(Span<byte> data)
         {
             Data = data;
             _referenceCount = 1;

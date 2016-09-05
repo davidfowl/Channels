@@ -74,7 +74,7 @@ namespace Channels
             _length = buffer._length;
         }
 
-        public unsafe ReadCursor IndexOf(ref Vector<byte> byte0Vector)
+        public ReadCursor IndexOf(ref Vector<byte> byte0Vector)
         {
             if (IsEmpty)
             {

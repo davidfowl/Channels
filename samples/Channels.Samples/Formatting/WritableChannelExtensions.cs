@@ -27,7 +27,7 @@ namespace Channels.Samples.Formatting
 
         public FormattingData FormattingData { get; }
 
-        public unsafe Span<byte> FreeBuffer
+        public Span<byte> FreeBuffer
         {
             get
             {

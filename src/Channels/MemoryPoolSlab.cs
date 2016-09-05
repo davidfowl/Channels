@@ -37,7 +37,7 @@ namespace Channels
         /// </summary>
         private bool _disposedValue = false; // To detect redundant calls
 
-        public unsafe static MemoryPoolSlab Create(int length)
+        public static MemoryPoolSlab Create(int length)
         {
             // allocate and pin requested memory length
             var array = new byte[length];
