@@ -9,7 +9,7 @@ using Channels.Networking.Windows.RIO.Internal.Winsock;
 
 namespace Channels.Networking.Windows.RIO
 {
-    public sealed class RioTcpConnection : IDisposable
+    public sealed class RioTcpConnection : IChannel
     {
         private const RioSendFlags MessagePart = RioSendFlags.Defer | RioSendFlags.DontNotify;
         private const RioSendFlags MessageEnd = RioSendFlags.None;
