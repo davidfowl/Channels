@@ -17,12 +17,14 @@ namespace Channels.Networking.Sockets
 
         public IReadableChannel Input => _input ?? CreateInput();
         public IWritableChannel Output => _output ?? CreateOutput();
+
         private Channel CreateInput()
         {
             _input = ChannelFactory.CreateChannel();
             ProcessReads();
             return _input;
         }
+
         private Channel CreateOutput()
         {
             _output = ChannelFactory.CreateChannel();
@@ -57,6 +59,7 @@ namespace Channels.Networking.Sockets
             }
             return obj;
         }
+
         internal static void RecycleSocketAsyncEventArgs(SocketAsyncEventArgs args)
         {
             if (args != null)
@@ -136,6 +139,7 @@ namespace Channels.Networking.Sockets
                 RecycleSocketAsyncEventArgs(args);
             }
         }
+
         private async void ProcessWrites()
         {
             SocketAsyncEventArgs args = null;
@@ -214,6 +218,7 @@ namespace Channels.Networking.Sockets
         }
 
         public void Dispose() => Dispose(true);
+
         protected virtual void Dispose(bool disposing)
         {
             if (disposing)
@@ -225,10 +230,12 @@ namespace Channels.Networking.Sockets
                 _channelFactory = null;
             }
         }
+
         private void Shutdown()
         {
             Socket?.Shutdown(SocketShutdown.Both);
         }
+
         public static Task<SocketConnection> ConnectAsync(IPEndPoint endPoint, ChannelFactory channelFactory = null)
         {
             var args = new SocketAsyncEventArgs();
@@ -242,6 +249,7 @@ namespace Channels.Networking.Sockets
             }
             return tcs.Task;
         }
+
         private static void OnAsyncCompleted(object sender, SocketAsyncEventArgs e)
         {
             try

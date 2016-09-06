@@ -13,6 +13,7 @@ namespace Channels.Networking.Sockets
         private ChannelFactory ChannelFactory => _channelFactory;
         private Action<SocketConnection> Callback { get; set; }
         static readonly EventHandler<SocketAsyncEventArgs> _asyncCompleted = OnAsyncCompleted;
+
         public SocketListener(ChannelFactory channelFactory = null)
         {
             _ownsChannelFactory = channelFactory != null;
@@ -20,6 +21,7 @@ namespace Channels.Networking.Sockets
         }
 
         public void Dispose() => Dispose(true);
+
         protected virtual void Dispose(bool disposing)
         {
             if (disposing)
@@ -31,7 +33,6 @@ namespace Channels.Networking.Sockets
                 _channelFactory = null;
             }
         }
-
 
         public void Start(IPEndPoint endpoint)
         {
@@ -47,6 +48,7 @@ namespace Channels.Networking.Sockets
                 BeginAccept(args);
             }
         }
+
         public void Stop()
         {
             if (_socket != null)
@@ -58,6 +60,7 @@ namespace Channels.Networking.Sockets
         }
 
         private Socket GetReusableSocket() => null; // TODO: socket pooling / re-use
+
         private void BeginAccept(SocketAsyncEventArgs args)
         {
             // keep trying to take sync; break when it goes async
@@ -73,6 +76,7 @@ namespace Channels.Networking.Sockets
         {
             Callback = callback;
         }
+
         private static void OnAsyncCompleted(object sender, SocketAsyncEventArgs e)
         {
             try
