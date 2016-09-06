@@ -23,7 +23,7 @@ namespace Channels.Samples.Http
         private static readonly byte[] UserAgentBytes = Encoding.ASCII.GetBytes("USER-AGENT");
         private static readonly byte[] UpgradeInsecureRequests = Encoding.ASCII.GetBytes("UPGRADE-INSECURE-REQUESTS");
 
-        private Dictionary<string, HeaderValue> _headers = new Dictionary<string, HeaderValue>(StringComparer.OrdinalIgnoreCase);
+        private Dictionary<string, HeaderValue> _headers = new Dictionary<string, HeaderValue>(10, StringComparer.OrdinalIgnoreCase);
 
         public StringValues this[string key]
         {
@@ -109,42 +109,18 @@ namespace Channels.Samples.Http
                 return false;
             }
 
-            fixed (byte* bufferPtr = &buffer[0])
+            // Uppercase the things
+            foreach (var span in key)
             {
-                byte* rightPtr = bufferPtr;
-
-                foreach (var span in key)
+                var ptr = (byte*)span.UnsafePointer;
+                for (int i = 0; i < span.Length; i++)
                 {
-                    if (!EqualsIgnoreCase((byte*)span.UnsafePointer, rightPtr, span.Length))
-                    {
-                        return false;
-                    }
-
-                    rightPtr += span.Length;
+                    var mask = IsAlpha(span[i]) ? 0xdf : 0xff;
+                    *ptr++ = (byte)(span[i] & mask);
                 }
             }
 
-            return true;
-        }
-
-        private unsafe bool EqualsIgnoreCase(byte* leftPtr, byte* rightPtr, int length)
-        {
-            for (int i = 0; i < length; i++)
-            {
-                var mask = IsAlpha(*leftPtr) ? 0xdf : 0xff;
-                var left = *leftPtr & mask;
-                var right = *rightPtr;
-
-                if (left != right)
-                {
-                    return false;
-                }
-
-                leftPtr++;
-                rightPtr++;
-            }
-
-            return true;
+            return key.Equals(buffer, 0, buffer.Length);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
