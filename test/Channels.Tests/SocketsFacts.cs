@@ -45,7 +45,7 @@ namespace Channels.Tests
             Assert.Equal(MessageToSend, reply);
         }
 
-        // [Fact]
+        [Fact]
         public async Task CanCreateWorkingEchoServer_Channel_Client_Server()
         {
             var endpoint = new IPEndPoint(IPAddress.Loopback, 5010);

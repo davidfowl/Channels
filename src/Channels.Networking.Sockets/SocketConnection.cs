@@ -46,8 +46,30 @@ namespace Channels.Networking.Sockets
         }
         public string Name { get; set; }
         public override string ToString() => Name ?? base.ToString();
+
+        // try with a trivial pool at first
+        private static SocketAsyncEventArgs spare;
+        internal static SocketAsyncEventArgs GetOrCreateSocketAsyncEventArgs()
+        {
+            var obj = Interlocked.Exchange(ref spare, null);
+            if(obj == null)
+            {
+                obj = new SocketAsyncEventArgs();
+                obj.Completed += _asyncCompleted; // only for new, otherwise multi-fire
+            }
+            return obj;
+        }
+        internal static void RecycleSocketAsyncEventArgs(SocketAsyncEventArgs args)
+        {
+            if (args != null)
+            {
+                Interlocked.Exchange(ref spare, args);
+            }
+        }
+
         private async void ProcessReads()
         {
+            SocketAsyncEventArgs args = null;
             try
             {
                 // if the consumer says they don't want the data, we need to shut down the receive
@@ -56,14 +78,13 @@ namespace Channels.Networking.Sockets
                     try { Socket.Shutdown(SocketShutdown.Receive); } catch { }
                 }));
 
-                var args = new SocketAsyncEventArgs();
+                args = GetOrCreateSocketAsyncEventArgs();
                 var pending = new SemaphoreSlim(0, 1);
-                args.Completed += _asyncCompleted;
                 args.UserToken = pending;
                 while (!_input.ReaderCompleted.IsCompleted)
                 {
                     // we need a buffer to read into
-                    var buffer = _input.Alloc(2048);
+                    var buffer = _input.Alloc(2048); // TODO: should this be controllable by the consumer?
                     bool flushed = false;
                     try
                     {
@@ -114,13 +135,15 @@ namespace Channels.Networking.Sockets
                     Socket.Shutdown(SocketShutdown.Receive);
                 }
                 catch { }
+                RecycleSocketAsyncEventArgs(args);
             }
         }
         private async void ProcessWrites()
         {
+            SocketAsyncEventArgs args = null;
             try
             {
-                var args = new SocketAsyncEventArgs();
+                args = GetOrCreateSocketAsyncEventArgs();
                 var pending = new SemaphoreSlim(0, 1);
                 args.Completed += _asyncCompleted;
                 args.UserToken = pending;
@@ -177,6 +200,7 @@ namespace Channels.Networking.Sockets
                     Socket.Shutdown(SocketShutdown.Send);
                 }
                 catch { }
+                RecycleSocketAsyncEventArgs(args);
             }
         }
 

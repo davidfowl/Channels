@@ -40,7 +40,8 @@ namespace Channels.Networking.Sockets
                 _socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
                 _socket.Bind(endpoint);
                 _socket.Listen(10);
-                var args = new SocketAsyncEventArgs(); // keep re-using same args
+                var args = new SocketAsyncEventArgs(); // note: we keep re-using same args over for successive accepts
+                                                       // so usefulness of pooling here minimal; this is per listener
                 args.Completed += _asyncCompleted;
                 args.UserToken = this;
                 BeginAccept(args);
