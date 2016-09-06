@@ -103,7 +103,7 @@ namespace Channels.Samples
 
                     var delim = responseBuffer.IndexOf(ref CommonVectors.LF);
 
-                    if (delim.IsEnd)
+                    if (delim == ReadCursor.NotFound)
                     {
                         continue;
                     }
@@ -113,7 +113,7 @@ namespace Channels.Samples
 
                     delim = responseLine.IndexOf(ref CommonVectors.Space);
 
-                    if (delim.IsEnd)
+                    if (delim == ReadCursor.NotFound)
                     {
                         // Bad request
                         throw new InvalidOperationException();
@@ -126,7 +126,7 @@ namespace Channels.Samples
 
                     delim = responseLine.IndexOf(ref CommonVectors.Space);
 
-                    if (delim.IsEnd)
+                    if (delim == ReadCursor.NotFound)
                     {
                         // Bad request
                         throw new InvalidOperationException();
@@ -137,7 +137,7 @@ namespace Channels.Samples
 
                     delim = responseLine.IndexOf(ref CommonVectors.Space);
 
-                    if (delim.IsEnd)
+                    if (delim == ReadCursor.NotFound)
                     {
                         // Bad request
                         throw new InvalidOperationException();
@@ -180,7 +180,7 @@ namespace Channels.Samples
                         // End of the header
                         // \n
                         delim = responseBuffer.IndexOf(ref CommonVectors.LF);
-                        if (delim.IsEnd)
+                        if (delim == ReadCursor.NotFound)
                         {
                             break;
                         }
@@ -190,7 +190,7 @@ namespace Channels.Samples
 
                         // :
                         delim = headerPair.IndexOf(ref CommonVectors.Colon);
-                        if (delim.IsEnd)
+                        if (delim == ReadCursor.NotFound)
                         {
                             throw new Exception();
                         }
@@ -200,7 +200,7 @@ namespace Channels.Samples
 
                         // \r
                         delim = headerPair.IndexOf(ref CommonVectors.CR);
-                        if (delim.IsEnd)
+                        if (delim == ReadCursor.NotFound)
                         {
                             // Bad request
                             throw new Exception();

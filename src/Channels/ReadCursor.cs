@@ -8,6 +8,8 @@ namespace Channels
 {
     public struct ReadCursor : IEquatable<ReadCursor>
     {
+        public static ReadCursor NotFound => default(ReadCursor);
+
         private MemoryBlockSegment _segment;
         private int _index;
 
@@ -29,7 +31,7 @@ namespace Channels
 
         internal bool IsDefault => _segment == null;
 
-        public bool IsEnd
+        internal bool IsEnd
         {
             [MethodImpl(MethodImplOptions.AggressiveInlining)]
             get
@@ -237,6 +239,16 @@ namespace Channels
                 sb.Append((char)span[i]);
             }
             return sb.ToString();
+        }
+
+        public static bool operator ==(ReadCursor c1, ReadCursor c2)
+        {
+            return c1.Equals(c2);
+        }
+
+        public static bool operator !=(ReadCursor c1, ReadCursor c2)
+        {
+            return !c1.Equals(c2);
         }
 
         public bool Equals(ReadCursor other)

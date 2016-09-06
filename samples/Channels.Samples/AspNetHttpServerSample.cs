@@ -1,16 +1,18 @@
-﻿using System.Text;
+﻿using System;
+using System.Collections.Generic;
+using System.Text;
 using Channels.Samples.Http;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Hosting.Server;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Primitives;
 
 namespace Channels.Samples
 {
     public class AspNetHttpServerSample
     {
-        private static readonly byte[] _helloWorldPayload = Encoding.UTF8.GetBytes("Hello, World!");
-
         public static void Run()
         {
 
@@ -24,14 +26,63 @@ namespace Channels.Samples
                                 // .UseKestrel()
                                 .Configure(app =>
                                 {
-                                    app.Run(context =>
+                                    var view = @"
+<html>
+<head>
+<title></title>
+</head>
+<body>
+<form action="""" method=""post"">
+    Username:<input type=""text"" name=""username"">
+    Password:<input type=""password"" name=""password"">
+    <input type=""submit"" value=""Login"">
+</form>
+</body>
+</html>";
+                                    app.Run(async context =>
                                     {
-                                        context.Response.StatusCode = 200;
-                                        context.Response.ContentType = "text/plain";
-                                        // HACK: Setting the Content-Length header manually avoids the cost of serializing the int to a string.
-                                        //       This is instead of: httpContext.Response.ContentLength = _helloWorldPayload.Length;
-                                        context.Response.Headers["Content-Length"] = "13";
-                                        return context.Response.Body.WriteAsync(_helloWorldPayload, 0, _helloWorldPayload.Length);
+                                        if (!string.Equals(context.Request.Method, "GET", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            var contentLength = context.Request.ContentLength;
+
+                                            // Access the raw connection
+                                            var connection = context.Features.Get<ITcpConnectionFeature>();
+                                            var data = new Dictionary<string, StringValues>();
+
+                                            // Reads the form body
+                                            while (true)
+                                            {
+                                                var buffer = await connection.Input.ReadAsync();
+
+                                                try
+                                                {
+                                                    if (buffer.IsEmpty && connection.Input.Completion.IsCompleted)
+                                                    {
+                                                        // Connection closed
+                                                        return;
+                                                    }
+
+                                                    if (FormReader.TryParse(ref buffer, ref data, ref contentLength))
+                                                    {
+                                                        break;
+                                                    }
+                                                }
+                                                finally
+                                                {
+                                                    buffer.Consumed();
+                                                }
+                                            }
+
+                                            foreach (var item in data)
+                                            {
+                                                Console.WriteLine($"{item.Key}={item.Value}");
+                                            }
+
+                                            // This is the idiomatic approach
+                                            // var form = await context.Request.ReadFormAsync();
+                                        }
+                                        context.Response.ContentLength = view.Length;
+                                        await context.Response.WriteAsync(view);
                                     });
                                 })
                                 .Build();
