@@ -212,8 +212,6 @@ namespace Channels
             }
         }
 
-        public void CompleteAwaiting() => Complete();
-
         public void CompleteWriting(Exception error = null)
         {
             lock (_sync)
