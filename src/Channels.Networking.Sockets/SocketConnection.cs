@@ -44,8 +44,6 @@ namespace Channels.Networking.Sockets
             }
             _channelFactory = channelFactory;
         }
-        public string Name { get; set; }
-        public override string ToString() => Name ?? base.ToString();
 
         // try with a trivial pool at first
         private static SocketAsyncEventArgs spare;

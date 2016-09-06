@@ -60,8 +60,6 @@ namespace Channels.Tests
 
                 using (var client = await SocketConnection.ConnectAsync(endpoint))
                 {
-                    client.Name = "Client";
-
                     var output = client.Output.Alloc();
                     WritableBufferExtensions.WriteUtf8String(ref output, MessageToSend);
                     await output.FlushAsync();
@@ -93,7 +91,6 @@ namespace Channels.Tests
         {
             using (connection)
             {
-                connection.Name = "Server";
                 try
                 {
                     while (true)
