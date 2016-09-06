@@ -9,15 +9,29 @@ namespace Channels.Networking.Sockets
     public class SocketConnection : IDisposable
     {
         private Socket _socket;
-        private readonly Channel _input, _output;
-        private IDisposable _ownedChannelFactory; // purely for well-timed cascading collection
+        private Channel _input, _output;
+        private ChannelFactory _channelFactory;
+        private readonly bool _ownsChannelFactory;
 
         static readonly EventHandler<SocketAsyncEventArgs> _asyncCompleted = OnAsyncCompleted;
 
-        public IReadableChannel Input => _input;
-        public IWritableChannel Output => _output;
-        private Socket Socket => _socket;
+        public IReadableChannel Input => _input ?? CreateInput();
+        public IWritableChannel Output => _output ?? CreateOutput();
+        private Channel CreateInput()
+        {
+            _input = ChannelFactory.CreateChannel();
+            ProcessReads();
+            return _input;
+        }
+        private Channel CreateOutput()
+        {
+            _output = ChannelFactory.CreateChannel();
+            ProcessWrites();
+            return _output;
+        }
 
+        private Socket Socket => _socket;
+        private ChannelFactory ChannelFactory => _channelFactory;
 
         internal SocketConnection(Socket socket, ChannelFactory channelFactory)
         {
@@ -25,21 +39,19 @@ namespace Channels.Networking.Sockets
             _socket = socket;
             if (channelFactory == null)
             {
-                _ownedChannelFactory = channelFactory = new ChannelFactory();
+                _ownsChannelFactory = true;
+                channelFactory = new ChannelFactory();
             }
-            _input = channelFactory.CreateChannel();
-            _output = channelFactory.CreateChannel();
-
-            ProcessReads();
-            ProcessWrites();
-
+            _channelFactory = channelFactory;
         }
+        public string Name { get; set; }
+        public override string ToString() => Name ?? base.ToString();
         private async void ProcessReads()
         {
             try
             {
                 // if the consumer says they don't want the data, we need to shut down the receive
-                GC.KeepAlive(Input.Completion.ContinueWith(delegate
+                GC.KeepAlive(_input.ReaderCompleted.ContinueWith(delegate
                 {// GC.KeepAlive here just to shut the compiler up
                     try { Socket.Shutdown(SocketShutdown.Receive); } catch { }
                 }));
@@ -48,36 +60,46 @@ namespace Channels.Networking.Sockets
                 var pending = new SemaphoreSlim(0, 1);
                 args.Completed += _asyncCompleted;
                 args.UserToken = pending;
-                while (!Input.Completion.IsCompleted)
+                while (!_input.ReaderCompleted.IsCompleted)
                 {
                     // we need a buffer to read into
                     var buffer = _input.Alloc(2048);
-                    SetBuffer(buffer.Memory, args);
-                    
-                    if (Socket.ReceiveAsync(args)) //  initiator calls ReceiveAsync
+                    bool flushed = false;
+                    try
                     {
-                        // wait async for the semaphore to be released by the callback
-                        await pending.WaitAsync();
-                    }
-                    else
-                    {
-                        // if ReceiveAsync returns sync, we have the conch - nothing to do - we already received
-                    }
-                    // either way, need to validate
-                    if (args.SocketError != SocketError.Success)
-                    {
-                        throw new SocketException((int)args.SocketError);
-                    }
-                    int len = args.BytesTransferred;
-                    if (len <= 0)
-                    {
-                        // end of the socket
-                        await buffer.FlushAsync();
-                        break;
-                    }
+                        SetBuffer(buffer.Memory, args);
 
-                    buffer.CommitBytes(len);
-                    await buffer.FlushAsync();
+                        if (Socket.ReceiveAsync(args)) //  initiator calls ReceiveAsync
+                        {
+                            // wait async for the semaphore to be released by the callback
+                            await pending.WaitAsync();
+                        }
+                        else
+                        {
+                            // if ReceiveAsync returns sync, we have the conch - nothing to do - we already received
+                        }
+                        // either way, need to validate
+                        if (args.SocketError != SocketError.Success)
+                        {
+                            throw new SocketException((int)args.SocketError);
+                        }
+                        int len = args.BytesTransferred;
+                        if (len <= 0)
+                        {
+                            // end of the socket
+                            break;
+                        }
+                        buffer.CommitBytes(len);
+                        await buffer.FlushAsync();
+                        flushed = true;
+                    }
+                    finally
+                    {
+                        if (!flushed)
+                        {
+                            await buffer.FlushAsync();
+                        }
+                    }
                 }
                 _input.CompleteWriting();
             }
@@ -177,8 +199,8 @@ namespace Channels.Networking.Sockets
                 GC.SuppressFinalize(this);
                 _socket?.Dispose();
                 _socket = null;
-                _ownedChannelFactory?.Dispose();
-                _ownedChannelFactory = null;
+                if (_ownsChannelFactory) { _channelFactory?.Dispose(); }
+                _channelFactory = null;
             }
         }
         private void Shutdown()

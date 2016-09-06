@@ -1,16 +1,52 @@
 ﻿using Channels.Networking.Sockets;
-using System.Net;
-using Xunit;
-using System;
-using System.Threading.Tasks;
 using Channels.Text.Primitives;
+using System;
+using System.Net;
+using System.Net.Sockets;
+using System.Text;
+using System.Threading.Tasks;
+using Xunit;
 
 namespace Channels.Tests
 {
     public class SocketsFacts
     {
         [Fact]
-        public async Task CanCreateWorkingEchoServer()
+        public void CanCreateWorkingEchoServer_Channel_Server_NonChannel_Client()
+        {
+            var endpoint = new IPEndPoint(IPAddress.Loopback, 5010);
+            const string MessageToSend = "Hello world!";
+            string reply = null;
+
+            using (var server = new SocketListener())
+            {
+                server.OnConnection(Echo);
+                server.Start(endpoint);
+
+                // create the client the old way
+                using (var socket = new Socket(SocketType.Stream, ProtocolType.Tcp))
+                {
+                    socket.Connect(endpoint);
+                    var data = Encoding.UTF8.GetBytes(MessageToSend);
+                    socket.Send(data);
+                    socket.Shutdown(SocketShutdown.Send);
+
+                    byte[] buffer = new byte[data.Length];
+                    int offset = 0, bytesReceived;
+                    while (offset <= buffer.Length
+                        && (bytesReceived = socket.Receive(buffer, offset, buffer.Length - offset, SocketFlags.None)) > 0)
+                    {
+                        offset += bytesReceived;
+                    }
+                    socket.Shutdown(SocketShutdown.Receive);
+                    reply = Encoding.UTF8.GetString(buffer, 0, offset);
+                }
+            }
+            Assert.Equal(MessageToSend, reply);
+        }
+
+        // [Fact]
+        public async Task CanCreateWorkingEchoServer_Channel_Client_Server()
         {
             var endpoint = new IPEndPoint(IPAddress.Loopback, 5010);
             const string MessageToSend = "Hello world!";
@@ -24,6 +60,8 @@ namespace Channels.Tests
 
                 using (var client = await SocketConnection.ConnectAsync(endpoint))
                 {
+                    client.Name = "Client";
+
                     var output = client.Output.Alloc();
                     WritableBufferExtensions.WriteUtf8String(ref output, MessageToSend);
                     await output.FlushAsync();
@@ -49,17 +87,23 @@ namespace Channels.Tests
             Assert.Equal(MessageToSend, reply);
         }
 
+
+
         private async void Echo(SocketConnection connection)
         {
             using (connection)
             {
+                connection.Name = "Server";
                 try
                 {
                     while (true)
                     {
-                        ReadableBuffer request;
-                        request = await connection.Input.ReadAsync();
-                        if (request.IsEmpty && connection.Input.Completion.IsCompleted) break;
+                        ReadableBuffer request = await connection.Input.ReadAsync();
+                        if (request.IsEmpty && connection.Input.Completion.IsCompleted)
+                        {
+                            request.Consumed();
+                            break;
+                        }
 
                         int len = request.Length;
                         var response = connection.Output.Alloc();

@@ -65,6 +65,9 @@ namespace Channels
             {
                 Pool = pool,
                 Slab = slab,
+#if DEBUG
+                Leaser = Environment.StackTrace,
+#endif
             };
         }
 
