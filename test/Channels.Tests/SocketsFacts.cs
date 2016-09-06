@@ -1,5 +1,6 @@
 ﻿using Channels.Networking.Libuv;
 using Channels.Networking.Sockets;
+using Channels.Networking.Windows.RIO;
 using Channels.Text.Primitives;
 using System;
 using System.Net;
@@ -14,7 +15,7 @@ namespace Channels.Tests
     {
 
         [Fact]
-        public void CanCreateWorkingEchoServer_Channel_Libuv_Server_NonChannel_Client()
+        public void CanCreateWorkingEchoServer_ChannelLibuvServer_NonChannelClient()
         {
             var endpoint = new IPEndPoint(IPAddress.Loopback, 5010);
             const string MessageToSend = "Hello world!";
@@ -60,7 +61,7 @@ namespace Channels.Tests
         }
 
         // [Fact]
-        public void CanCreateWorkingEchoServer_Channel_Server_NonChannel_Client()
+        public void CanCreateWorkingEchoServer_ChannelSocketServer_NonChannelClient()
         {
             var endpoint = new IPEndPoint(IPAddress.Loopback, 5010);
             const string MessageToSend = "Hello world!";
@@ -77,7 +78,7 @@ namespace Channels.Tests
         }
 
         // [Fact]
-        public async Task CanCreateWorkingEchoServer_Channel_Client_Server()
+        public async Task CanCreateWorkingEchoServer_ChannelSocketServer_ChannelSocketClient()
         {
             var endpoint = new IPEndPoint(IPAddress.Loopback, 5010);
             const string MessageToSend = "Hello world!";
