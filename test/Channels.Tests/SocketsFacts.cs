@@ -120,13 +120,13 @@ namespace Channels.Tests
 
         private void Echo(SocketConnection connection)
         {
-            using (connection) { Echo(connection.Input, connection.Output); }
+            Echo(connection.Input, connection.Output, connection);
         }
         private void Echo(UvTcpConnection connection)
         {
-            Echo(connection.Input, connection.Output);
+            Echo(connection.Input, connection.Output, null);
         }
-        private async void Echo(IReadableChannel input, IWritableChannel output)
+        private async void Echo(IReadableChannel input, IWritableChannel output, IDisposable lifetime)
         {
             try
             {
@@ -152,6 +152,10 @@ namespace Channels.Tests
             {
                 if (!(input?.Completion?.IsCompleted ?? true)) input.CompleteReading(ex);
                 if (!(output?.Completion?.IsCompleted ?? true)) output.CompleteWriting(ex);
+            }
+            finally
+            {
+                lifetime?.Dispose();
             }
         }
     }
