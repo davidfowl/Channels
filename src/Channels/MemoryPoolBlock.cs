@@ -11,18 +11,19 @@ namespace Channels
     /// </summary>
     public class MemoryPoolBlock
     {
-        /// <summary>
-        /// The array segment describing the range of memory this block is tracking. The caller which has leased this block may only read and
-        /// modify the memory in this range.
-        /// </summary>
-        public Span<byte> Data;
+        private readonly int _offset;
+        private readonly int _length;
+
+        public Span<byte> Data => Slab.Data.Slice(_offset, _length);
 
         /// <summary>
         /// This object cannot be instantiated outside of the static Create method
         /// </summary>
-        protected MemoryPoolBlock(Span<byte> data)
+        protected MemoryPoolBlock(int offset, int length)
         {
-            Data = data;
+            _offset = offset;
+            _length = length;
+
             _referenceCount = 1;
         }
 
@@ -50,20 +51,17 @@ namespace Channels
 #endif
             if (Slab != null && Slab.IsActive)
             {
-                Pool.Return(new MemoryPoolBlock(Data)
-                {
-                    Pool = Pool,
-                    Slab = Slab,
-                });
+                Pool.Return(this);
             }
         }
 
         internal static MemoryPoolBlock Create(
-            Span<byte> data,
+            int offset,
+            int length,
             MemoryPool pool,
             MemoryPoolSlab slab)
         {
-            return new MemoryPoolBlock(data)
+            return new MemoryPoolBlock(offset, length)
             {
                 Pool = pool,
                 Slab = slab,
@@ -86,9 +84,11 @@ namespace Channels
         public override string ToString()
         {
             var builder = new StringBuilder();
-            for (int i = 0; i < Data.Length; i++)
+            var data = Data;
+
+            for (int i = 0; i < data.Length; i++)
             {
-                builder.Append((char)Data[i]);
+                builder.Append((char)data[i]);
             }
             return builder.ToString();
         }

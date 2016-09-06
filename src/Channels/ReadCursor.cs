@@ -147,11 +147,11 @@ namespace Channels
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal bool TryGetBuffer(ReadCursor end, out Span<byte> span)
+        internal bool TryGetBuffer(ReadCursor end, out MemoryBlockSpan span)
         {
             if (IsDefault)
             {
-                span = default(Span<byte>);
+                span = default(MemoryBlockSpan);
                 return false;
             }
 
@@ -164,13 +164,13 @@ namespace Channels
 
                 if (following > 0)
                 {
-                    span = segment.Block.Data.Slice(index, following);
+                    span = new MemoryBlockSpan(segment.Block, index, following);
 
                     _index = index + following;
                     return true;
                 }
 
-                span = default(Span<byte>);
+                span = default(MemoryBlockSpan);
                 return false;
             }
             else
@@ -179,7 +179,7 @@ namespace Channels
             }
         }
 
-        private bool TryGetBufferMultiBlock(ReadCursor end, out Span<byte> span)
+        private bool TryGetBufferMultiBlock(ReadCursor end, out MemoryBlockSpan span)
         {
             var segment = _segment;
             var index = _index;
@@ -211,7 +211,7 @@ namespace Channels
 
                 if (wasLastBlock)
                 {
-                    span = default(Span<byte>);
+                    span = default(MemoryBlockSpan);
                     return false;
                 }
                 else
@@ -221,7 +221,7 @@ namespace Channels
                 }
             }
 
-            span = segment.Block.Data.Slice(index, following);
+            span = new MemoryBlockSpan(segment.Block, index, following);
 
             _segment = segment;
             _index = index + following;

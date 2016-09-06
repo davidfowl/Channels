@@ -119,7 +119,7 @@ namespace Channels
             _slabs.Push(slab);
 
             _slabAllocationCallback?.Invoke(slab);
-            slab.DeallocationCallback = _slabDeallocationCallback;
+            slab._deallocationCallback = _slabDeallocationCallback;
 
             var basePtr = (IntPtr)slab.Data.UnsafePointer;
             var firstOffset = (int)((_blockStride - 1) - ((ulong)(basePtr + _blockStride - 1) % _blockStride));
@@ -132,7 +132,8 @@ namespace Channels
                 offset += _blockStride)
             {
                 var block = MemoryPoolBlock.Create(
-                    slab.Data.Slice(offset, _blockLength),
+                    offset, 
+                    _blockLength,
                     this,
                     slab);
 #if DEBUG
@@ -143,7 +144,8 @@ namespace Channels
 
             // return last block rather than adding to pool
             var newBlock = MemoryPoolBlock.Create(
-                    slab.Data.Slice(offset, _blockLength),
+                    offset,
+                    _blockLength,
                     this,
                     slab);
 

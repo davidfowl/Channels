@@ -16,7 +16,7 @@ namespace Channels
         private static readonly int VectorShift = (int)Math.Log(VectorWidth, 2);
         private static readonly int VectorRemainderMask = ~(~0 << VectorShift);
 
-        private readonly Span<byte> _span;
+        private readonly MemoryBlockSpan _span;
         private readonly bool _isOwner;
         private readonly Channel _channel;
 
@@ -29,7 +29,7 @@ namespace Channels
 
         public bool IsSingleSpan => _start.Segment.Block == _end.Segment.Block;
 
-        public Span<byte> FirstSpan => _span;
+        public Span<byte> FirstSpan => _span.Data;
 
         public ReadCursor Start => _start;
         public ReadCursor End => _end;
@@ -335,17 +335,15 @@ namespace Channels
         public struct Enumerator : IEnumerator<Span<byte>>
         {
             private ReadableBuffer _buffer;
-            private Span<byte> _current;
-            internal ReadCursor _cursor;
+            private MemoryBlockSpan _current;
 
             public Enumerator(ref ReadableBuffer buffer)
             {
                 _buffer = buffer;
-                _current = default(Span<byte>);
-                _cursor = default(ReadCursor);
+                _current = default(MemoryBlockSpan);
             }
 
-            public Span<byte> Current => _current;
+            public Span<byte> Current => _current.Data;
 
             object IEnumerator.Current
             {
@@ -359,7 +357,6 @@ namespace Channels
 
             public bool MoveNext()
             {
-                _cursor = _buffer.Start;
                 var start = _buffer.Start;
                 bool moved = start.TryGetBuffer(_buffer.End, out _current);
                 _buffer = _buffer.Slice(start);

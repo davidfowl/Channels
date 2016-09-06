@@ -13,12 +13,16 @@ namespace Channels
         /// This handle pins the managed array in memory until the slab is disposed. This prevents it from being
         /// relocated and enables any subsections of the array to be used as native memory pointers to P/Invoked API calls.
         /// </summary>
-        private GCHandle _gcHandle;
+        private readonly GCHandle _gcHandle;
+        private byte[] _data;
 
-        /// <summary>
-        /// The managed memory allocated in the large object heap.
-        /// </summary>
-        public Span<byte> Data;
+        // Native
+        private readonly IntPtr _nativeData;
+        private readonly int _length;
+
+        private bool _isActive;
+        internal Action<MemoryPoolSlab> _deallocationCallback;
+        private bool _disposedValue;
 
         /// <summary>
         /// True as long as the blocks from this slab are to be considered returnable to the pool. In order to shrink the 
@@ -28,28 +32,41 @@ namespace Channels
         /// collected and the slab is no longer references the slab will be garbage collected and the memory unpinned will
         /// be unpinned by the slab's Dispose.
         /// </summary>
-        public bool IsActive;
+        public bool IsActive => _isActive;
 
-        internal Action<MemoryPoolSlab> DeallocationCallback;
+
+        public MemoryPoolSlab(IntPtr data, int length)
+        {
+            _nativeData = data;
+            _length = length;
+            _isActive = true;
+        }
+
+        public MemoryPoolSlab(byte[] data)
+        {
+            _data = data;
+            _length = data.Length;
+            _gcHandle = GCHandle.Alloc(data, GCHandleType.Pinned);
+            _isActive = true;
+        }
 
         /// <summary>
-        /// Part of the IDisposable implementation
+        /// The span of data this slab represents
         /// </summary>
-        private bool _disposedValue = false; // To detect redundant calls
+        public unsafe Span<byte> Data => _nativeData == IntPtr.Zero ? new Span<byte>(_data, 0, _data.Length) : new Span<byte>((byte*)_nativeData, _length);
+
+        public static MemoryPoolSlab CreateNative(int length)
+        {
+            return new MemoryPoolSlab(Marshal.AllocHGlobal(length), length);
+        }
 
         public static MemoryPoolSlab Create(int length)
         {
             // allocate and pin requested memory length
             var array = new byte[length];
-            var gcHandle = GCHandle.Alloc(array, GCHandleType.Pinned);
 
             // allocate and return slab tracking object
-            return new MemoryPoolSlab
-            {
-                Data = new Span<byte>(array, 0, length),
-                _gcHandle = gcHandle,
-                IsActive = true,
-            };
+            return new MemoryPoolSlab(array);
         }
 
         protected virtual void Dispose(bool disposing)
@@ -61,14 +78,21 @@ namespace Channels
                     // N/A: dispose managed state (managed objects).
                 }
 
-                // free unmanaged resources (unmanaged objects) and override a finalizer below.
-                IsActive = false;
+                _isActive = false;
 
-                DeallocationCallback?.Invoke(this);
-                _gcHandle.Free();
+                _deallocationCallback?.Invoke(this);
+
+                if (_gcHandle.IsAllocated)
+                {
+                    _gcHandle.Free();
+                }
+                else
+                {
+                    Marshal.FreeHGlobal(_nativeData);
+                }
 
                 // set large fields to null.
-                Data = default(Span<byte>);
+                _data = null;
 
                 _disposedValue = true;
             }
