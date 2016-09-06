@@ -147,7 +147,7 @@ namespace Channels.Tests
 
             // check it isn't there to start with
             var found = readBuffer.IndexOf(ref huntVector);
-            Assert.True(found.IsEnd);
+            Assert.True(found == ReadCursor.NotFound);
 
             // correctness test all values 
             for (int i = 0; i < readBuffer.Length; i++)
@@ -156,7 +156,7 @@ namespace Channels.Tests
                 found = readBuffer.IndexOf(ref huntVector);
                 *addresses[i] = emptyValue;
 
-                Assert.False(found.IsEnd);
+                Assert.True(found != ReadCursor.NotFound);
                 var slice = readBuffer.Slice(found);
                 Assert.True(slice.FirstSpan.UnsafePointer == addresses[i]);
             }

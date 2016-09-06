@@ -103,7 +103,7 @@ namespace Channels.Samples.Http
 
         private ValueTask<int> ReadAsync(ArraySegment<byte> buffer)
         {
-            return _connection.RequestBody.ReadAsync(buffer.Array, buffer.Offset, buffer.Count);
+            return _connection.Input.ReadAsync(buffer.Array, buffer.Offset, buffer.Count);
         }
 
 #if NET451

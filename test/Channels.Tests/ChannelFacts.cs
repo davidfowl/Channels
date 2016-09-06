@@ -70,7 +70,7 @@ namespace Channels.Tests
                 var buffer = await channel.ReadAsync();
                 var delim = buffer.IndexOf(ref CommonVectors.LF);
 
-                Assert.True(delim.IsEnd);
+                Assert.True(delim == ReadCursor.NotFound);
             }
         }
 
@@ -94,7 +94,7 @@ namespace Channels.Tests
 
                 var buffer = await channel.ReadAsync();
                 var delim = buffer.IndexOf(ref vecUpperR);
-                Assert.True(delim.IsEnd);
+                Assert.True(delim == ReadCursor.NotFound);
             }
         }
 
@@ -117,7 +117,7 @@ namespace Channels.Tests
                 var buffer = await channel.ReadAsync();
                 var delim = buffer.IndexOf(ref CommonVectors.Space);
                 Assert.False(buffer.IsSingleSpan);
-                Assert.False(delim.IsEnd);
+                Assert.False(delim == ReadCursor.NotFound);
 
                 var slice = buffer.Slice(delim).Slice(1);
                 var array = slice.ToArray();

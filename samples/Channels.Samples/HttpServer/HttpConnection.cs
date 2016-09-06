@@ -19,11 +19,13 @@ namespace Channels.Samples.Http
         public RequestHeaderDictionary RequestHeaders { get; } = new RequestHeaderDictionary();
         public ResponseHeaderDictionary ResponseHeaders { get; } = new ResponseHeaderDictionary();
 
-        public IReadableChannel RequestBody => _input;
-
         public ReadableBuffer HttpVersion { get; set; }
         public ReadableBuffer Path { get; set; }
         public ReadableBuffer Method { get; set; }
+
+        public IReadableChannel Input => _input;
+
+        public IWritableChannel Output => _output;
 
         // TODO: Check the http version
         public bool KeepAlive => true; //RequestHeaders.ContainsKey("Connection") && string.Equals(RequestHeaders["Connection"], "keep-alive");
@@ -68,7 +70,7 @@ namespace Channels.Samples.Http
                     {
                         // Find \n
                         var delim = buffer.IndexOf(ref CommonVectors.LF);
-                        if (delim.IsEnd)
+                        if (delim == ReadCursor.NotFound)
                         {
                             continue;
                         }
@@ -80,7 +82,7 @@ namespace Channels.Samples.Http
                         buffer = buffer.Slice(delim).Slice(1);
 
                         delim = startLine.IndexOf(ref CommonVectors.Space);
-                        if (delim.IsEnd)
+                        if (delim == ReadCursor.NotFound)
                         {
                             throw new Exception();
                         }
@@ -92,7 +94,7 @@ namespace Channels.Samples.Http
                         startLine = startLine.Slice(delim).Slice(1);
 
                         delim = startLine.IndexOf(ref CommonVectors.Space);
-                        if (delim.IsEnd)
+                        if (delim == ReadCursor.NotFound)
                         {
                             throw new Exception();
                         }
@@ -104,7 +106,7 @@ namespace Channels.Samples.Http
                         startLine = startLine.Slice(delim).Slice(1);
 
                         delim = startLine.IndexOf(ref CommonVectors.CR);
-                        if (delim.IsEnd)
+                        if (delim == ReadCursor.NotFound)
                         {
                             throw new Exception();
                         }
@@ -156,7 +158,7 @@ namespace Channels.Samples.Http
                         // End of the header
                         // \n
                         var delim = buffer.IndexOf(ref CommonVectors.LF);
-                        if (delim.IsEnd)
+                        if (delim == ReadCursor.NotFound)
                         {
                             break;
                         }
@@ -166,7 +168,7 @@ namespace Channels.Samples.Http
 
                         // :
                         delim = headerPair.IndexOf(ref CommonVectors.Colon);
-                        if (delim.IsEnd)
+                        if (delim == ReadCursor.NotFound)
                         {
                             throw new Exception();
                         }
@@ -176,7 +178,7 @@ namespace Channels.Samples.Http
 
                         // \r
                         delim = headerPair.IndexOf(ref CommonVectors.CR);
-                        if (delim.IsEnd)
+                        if (delim == ReadCursor.NotFound)
                         {
                             // Bad request
                             throw new Exception();
@@ -271,6 +273,8 @@ namespace Channels.Samples.Http
             StatusCode = 200;
             _autoChunk = false;
             _state = ParsingState.StartLine;
+            _method = null;
+            _path = null;
 
             HttpVersion.Dispose();
             Method.Dispose();

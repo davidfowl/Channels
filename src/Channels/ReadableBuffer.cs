@@ -78,7 +78,7 @@ namespace Channels
         {
             if (IsEmpty)
             {
-                return _end;
+                return ReadCursor.NotFound;
             }
 
             byte byte0 = byte0Vector[0];
@@ -135,7 +135,7 @@ namespace Channels
                 }
             }
 
-            return _end;
+            return ReadCursor.NotFound;
         }
 
         public ReadableBuffer Slice(int start, int length)
