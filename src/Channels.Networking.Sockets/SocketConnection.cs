@@ -8,23 +8,26 @@ namespace Channels.Networking.Sockets
 {
     public class SocketConnection : IDisposable
     {
-        private Socket socket;
-        private Channel input, output;
+        private Socket _socket;
+        private Channel _input, _output;
+        private ChannelFactory _ownedChannelFactory;
 
-        public IReadableChannel Input => input;
-        public IWritableChannel Output => output;
-        private ChannelFactory ownedChannelFactory;
+        static readonly EventHandler<SocketAsyncEventArgs> _asyncCompleted = OnAsyncCompleted;
+
+        public IReadableChannel Input => _input;
+        public IWritableChannel Output => _output;
+
 
         internal SocketConnection(Socket socket, ChannelFactory channelFactory)
         {
             socket.NoDelay = true;
-            this.socket = socket;
+            _socket = socket;
             if(channelFactory == null)
             {
-                ownedChannelFactory = channelFactory = new ChannelFactory();
+                _ownedChannelFactory = channelFactory = new ChannelFactory();
             }
-            input = channelFactory.CreateChannel();
-            output = channelFactory.CreateChannel();
+            _input = channelFactory.CreateChannel();
+            _output = channelFactory.CreateChannel();
 
             ProcessReads();
             ProcessWrites();
@@ -36,16 +39,16 @@ namespace Channels.Networking.Sockets
             {
                 var args = new SocketAsyncEventArgs();
                 SemaphoreSlim pending = new SemaphoreSlim(0, 1);
-                args.Completed += AsyncCompleted;
+                args.Completed += _asyncCompleted;
                 args.UserToken = pending;
 
                 while (true)
                 {
                     // we need a buffer to read into
-                    var buffer = input.Alloc(2048);
+                    var buffer = _input.Alloc(2048);
                     SetBuffer(buffer.Memory, args);
 
-                    if (socket.ReceiveAsync(args)) //  initiator calls ReceiveAsync
+                    if (_socket.ReceiveAsync(args)) //  initiator calls ReceiveAsync
                     {
                         // wait async for the semaphore to be released by the callback
                         await pending.WaitAsync();
@@ -70,17 +73,17 @@ namespace Channels.Networking.Sockets
                     buffer.CommitBytes(len);
                     await buffer.FlushAsync();
                 }
-                input.CompleteWriting();
+                _input.CompleteWriting();
             }
             catch (Exception ex)
             {
-                input?.CompleteWriting(ex);
+                _input?.CompleteWriting(ex);
             }
             finally
             {
                 try // we're not going to be reading anything else
                 {
-                    socket.Shutdown(SocketShutdown.Receive);
+                    _socket.Shutdown(SocketShutdown.Receive);
                 }
                 catch { }
             }
@@ -91,16 +94,16 @@ namespace Channels.Networking.Sockets
             {
                 var args = new SocketAsyncEventArgs();
                 SemaphoreSlim pending = new SemaphoreSlim(0, 1);
-                args.Completed += AsyncCompleted;
+                args.Completed += _asyncCompleted;
                 args.UserToken = pending;
 
                 while (true)
                 {
 
-                    var buffer = await output.ReadAsync();
+                    var buffer = await _output.ReadAsync();
                     try
                     {
-                        if (buffer.IsEmpty && output.WriterCompleted.IsCompleted)
+                        if (buffer.IsEmpty && _output.WriterCompleted.IsCompleted)
                         {
                             break;
                         }
@@ -108,7 +111,7 @@ namespace Channels.Networking.Sockets
                         {
                             SetBuffer(span, args);
 
-                            if (socket.SendAsync(args)) //  initiator calls SendAsync
+                            if (_socket.SendAsync(args)) //  initiator calls SendAsync
                             {
                                 // wait async for the semaphore to be released by the callback
                                 await pending.WaitAsync();
@@ -133,17 +136,17 @@ namespace Channels.Networking.Sockets
                         buffer.Consumed();
                     }
                 }
-                output.CompleteReading();
+                _output.CompleteReading();
             }
             catch (Exception ex)
             {
-                output?.CompleteReading(ex);
+                _output?.CompleteReading(ex);
             }
             finally
             {
                 try // we're not going to be sending anything else
                 {
-                    socket.Shutdown(SocketShutdown.Send);
+                    _socket.Shutdown(SocketShutdown.Send);
                 }
                 catch { }
             }
@@ -166,21 +169,21 @@ namespace Channels.Networking.Sockets
             if(disposing)
             {
                 GC.SuppressFinalize(this);
-                socket?.Dispose();
-                socket = null;
-                ownedChannelFactory?.Dispose();
-                ownedChannelFactory = null;                
+                _socket?.Dispose();
+                _socket = null;
+                _ownedChannelFactory?.Dispose();
+                _ownedChannelFactory = null;                
             }
         }
         private void Shutdown()
         {
-            socket?.Shutdown(SocketShutdown.Both);
+            _socket?.Shutdown(SocketShutdown.Both);
         }
         public static Task<SocketConnection> ConnectAsync(IPEndPoint endPoint, ChannelFactory channelFactory = null)
         {
             var args = new SocketAsyncEventArgs();
             args.RemoteEndPoint = endPoint;
-            args.Completed += AsyncCompleted;
+            args.Completed += _asyncCompleted;
             var tcs = new TaskCompletionSource<SocketConnection>(channelFactory);
             args.UserToken = tcs;
             if (!Socket.ConnectAsync(SocketType.Stream, ProtocolType.Tcp, args))
@@ -188,12 +191,7 @@ namespace Channels.Networking.Sockets
                 OnConnect(args); // completed sync - usually means failure
             }
             return tcs.Task;
-        }
-
-        static readonly EventHandler<SocketAsyncEventArgs> AsyncCompleted = (sender, args)
-            => OnAsyncCompleted(sender, args);
-
-        
+        }        
         private static void OnAsyncCompleted(object sender, SocketAsyncEventArgs e)
         {
             try

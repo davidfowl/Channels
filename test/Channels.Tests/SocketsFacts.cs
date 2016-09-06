@@ -82,7 +82,7 @@ namespace Channels.Tests
                     connection.Input.CompleteReading();
                     connection.Output.CompleteWriting();
                 }
-                catch(Exception ex)
+                catch (Exception ex)
                 {
                     if (!(connection?.Input?.Completion?.IsCompleted ?? true)) connection.Input.CompleteReading(ex);
                     if (!(connection?.Output?.Completion?.IsCompleted ?? true)) connection.Output.CompleteWriting(ex);
