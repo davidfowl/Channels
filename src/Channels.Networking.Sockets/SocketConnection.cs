@@ -9,20 +9,21 @@ namespace Channels.Networking.Sockets
     public class SocketConnection : IDisposable
     {
         private Socket _socket;
-        private Channel _input, _output;
-        private ChannelFactory _ownedChannelFactory;
+        private readonly Channel _input, _output;
+        private IDisposable _ownedChannelFactory; // purely for well-timed cascading collection
 
         static readonly EventHandler<SocketAsyncEventArgs> _asyncCompleted = OnAsyncCompleted;
 
         public IReadableChannel Input => _input;
         public IWritableChannel Output => _output;
+        private Socket Socket => _socket;
 
 
         internal SocketConnection(Socket socket, ChannelFactory channelFactory)
         {
             socket.NoDelay = true;
             _socket = socket;
-            if(channelFactory == null)
+            if (channelFactory == null)
             {
                 _ownedChannelFactory = channelFactory = new ChannelFactory();
             }
@@ -37,18 +38,23 @@ namespace Channels.Networking.Sockets
         {
             try
             {
+                // if the consumer says they don't want the data, we need to shut down the receive
+                GC.KeepAlive(Input.Completion.ContinueWith(delegate
+                {// GC.KeepAlive here just to shut the compiler up
+                    try { Socket.Shutdown(SocketShutdown.Receive); } catch { }
+                }));
+
                 var args = new SocketAsyncEventArgs();
-                SemaphoreSlim pending = new SemaphoreSlim(0, 1);
+                var pending = new SemaphoreSlim(0, 1);
                 args.Completed += _asyncCompleted;
                 args.UserToken = pending;
-
-                while (true)
+                while (!Input.Completion.IsCompleted)
                 {
                     // we need a buffer to read into
                     var buffer = _input.Alloc(2048);
                     SetBuffer(buffer.Memory, args);
-
-                    if (_socket.ReceiveAsync(args)) //  initiator calls ReceiveAsync
+                    
+                    if (Socket.ReceiveAsync(args)) //  initiator calls ReceiveAsync
                     {
                         // wait async for the semaphore to be released by the callback
                         await pending.WaitAsync();
@@ -63,13 +69,13 @@ namespace Channels.Networking.Sockets
                         throw new SocketException((int)args.SocketError);
                     }
                     int len = args.BytesTransferred;
-                    if(len <= 0)
+                    if (len <= 0)
                     {
                         // end of the socket
                         await buffer.FlushAsync();
                         break;
                     }
-                    
+
                     buffer.CommitBytes(len);
                     await buffer.FlushAsync();
                 }
@@ -83,7 +89,7 @@ namespace Channels.Networking.Sockets
             {
                 try // we're not going to be reading anything else
                 {
-                    _socket.Shutdown(SocketShutdown.Receive);
+                    Socket.Shutdown(SocketShutdown.Receive);
                 }
                 catch { }
             }
@@ -93,7 +99,7 @@ namespace Channels.Networking.Sockets
             try
             {
                 var args = new SocketAsyncEventArgs();
-                SemaphoreSlim pending = new SemaphoreSlim(0, 1);
+                var pending = new SemaphoreSlim(0, 1);
                 args.Completed += _asyncCompleted;
                 args.UserToken = pending;
 
@@ -111,7 +117,7 @@ namespace Channels.Networking.Sockets
                         {
                             SetBuffer(span, args);
 
-                            if (_socket.SendAsync(args)) //  initiator calls SendAsync
+                            if (Socket.SendAsync(args)) //  initiator calls SendAsync
                             {
                                 // wait async for the semaphore to be released by the callback
                                 await pending.WaitAsync();
@@ -146,7 +152,7 @@ namespace Channels.Networking.Sockets
             {
                 try // we're not going to be sending anything else
                 {
-                    _socket.Shutdown(SocketShutdown.Send);
+                    Socket.Shutdown(SocketShutdown.Send);
                 }
                 catch { }
             }
@@ -156,7 +162,7 @@ namespace Channels.Networking.Sockets
         private unsafe void SetBuffer(Span<byte> span, SocketAsyncEventArgs args)
         {
             ArraySegment<byte> segment;
-            if(!span.TryGetArray(default(void*), out segment))
+            if (!span.TryGetArray(default(void*), out segment))
             {
                 throw new InvalidOperationException("Memory is not backed by an array; oops!");
             }
@@ -166,18 +172,18 @@ namespace Channels.Networking.Sockets
         public void Dispose() => Dispose(true);
         protected virtual void Dispose(bool disposing)
         {
-            if(disposing)
+            if (disposing)
             {
                 GC.SuppressFinalize(this);
                 _socket?.Dispose();
                 _socket = null;
                 _ownedChannelFactory?.Dispose();
-                _ownedChannelFactory = null;                
+                _ownedChannelFactory = null;
             }
         }
         private void Shutdown()
         {
-            _socket?.Shutdown(SocketShutdown.Both);
+            Socket?.Shutdown(SocketShutdown.Both);
         }
         public static Task<SocketConnection> ConnectAsync(IPEndPoint endPoint, ChannelFactory channelFactory = null)
         {
@@ -191,12 +197,12 @@ namespace Channels.Networking.Sockets
                 OnConnect(args); // completed sync - usually means failure
             }
             return tcs.Task;
-        }        
+        }
         private static void OnAsyncCompleted(object sender, SocketAsyncEventArgs e)
         {
             try
             {
-                switch(e.LastOperation)
+                switch (e.LastOperation)
                 {
                     case SocketAsyncOperation.Connect:
                         OnConnect(e);
@@ -229,7 +235,8 @@ namespace Channels.Networking.Sockets
                 {
                     tcs.TrySetException(new SocketException((int)e.SocketError));
                 }
-            } catch(Exception ex)
+            }
+            catch (Exception ex)
             {
                 tcs.TrySetException(ex);
             }

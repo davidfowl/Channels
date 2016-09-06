@@ -18,7 +18,7 @@ namespace Channels.Tests
 
             using (var server = new SocketListener())
             {
-                server.OnConnection(OnConnection);
+                server.OnConnection(Echo);
                 server.Start(endpoint);
 
 
@@ -49,34 +49,22 @@ namespace Channels.Tests
             Assert.Equal(MessageToSend, reply);
         }
 
-        private async void OnConnection(SocketConnection connection)
+        private async void Echo(SocketConnection connection)
         {
             using (connection)
             {
                 try
                 {
-                    Console.WriteLine("[server] OnConnection entered");
                     while (true)
                     {
                         ReadableBuffer request;
-
-                        Console.WriteLine("[server] awaiting input...");
-                        try
-                        {
-                            request = await connection.Input.ReadAsync();
-                        }
-                        finally
-                        {
-                            Console.WriteLine("[server] await completed");
-                        }
+                        request = await connection.Input.ReadAsync();
                         if (request.IsEmpty && connection.Input.Completion.IsCompleted) break;
 
                         int len = request.Length;
-                        Console.WriteLine($"[server] echoing {len} bytes...");
                         var response = connection.Output.Alloc();
                         response.Append(ref request);
                         await response.FlushAsync();
-                        Console.WriteLine($"[server] echoed");
                         request.Consumed();
                     }
                     connection.Input.CompleteReading();
@@ -86,10 +74,6 @@ namespace Channels.Tests
                 {
                     if (!(connection?.Input?.Completion?.IsCompleted ?? true)) connection.Input.CompleteReading(ex);
                     if (!(connection?.Output?.Completion?.IsCompleted ?? true)) connection.Output.CompleteWriting(ex);
-                }
-                finally
-                {
-                    Console.WriteLine("[server] OnConnection exited");
                 }
             }
         }

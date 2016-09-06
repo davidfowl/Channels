@@ -6,10 +6,12 @@ namespace Channels.Networking.Sockets
 {
     public class SocketListener : IDisposable
     {
-        private bool _ownsChannelFactory;
-        private Socket _listenSocket;
+        private readonly bool _ownsChannelFactory;
+        private Socket _socket;
+        private Socket Socket => _socket;
         private ChannelFactory _channelFactory;
-        private Action<SocketConnection> _callback;
+        private ChannelFactory ChannelFactory => _channelFactory;
+        private Action<SocketConnection> Callback { get; set; }
         static readonly EventHandler<SocketAsyncEventArgs> _asyncCompleted = OnAsyncCompleted;
         public SocketListener(ChannelFactory channelFactory = null)
         {
@@ -23,8 +25,8 @@ namespace Channels.Networking.Sockets
             if (disposing)
             {
                 GC.SuppressFinalize(this);
-                _listenSocket?.Dispose();
-                _listenSocket = null;
+                _socket?.Dispose();
+                _socket = null;
                 if (_ownsChannelFactory) { _channelFactory?.Dispose(); }
                 _channelFactory = null;
             }
@@ -33,11 +35,11 @@ namespace Channels.Networking.Sockets
 
         public void Start(IPEndPoint endpoint)
         {
-            if (_listenSocket == null)
+            if (_socket == null)
             {
-                _listenSocket = new Socket(SocketType.Stream, ProtocolType.Tcp);
-                _listenSocket.Bind(endpoint);
-                _listenSocket.Listen(10);
+                _socket = new Socket(SocketType.Stream, ProtocolType.Tcp);
+                _socket.Bind(endpoint);
+                _socket.Listen(10);
                 var args = new SocketAsyncEventArgs(); // keep re-using same args
                 args.Completed += _asyncCompleted;
                 args.UserToken = this;
@@ -46,11 +48,11 @@ namespace Channels.Networking.Sockets
         }
         public void Stop()
         {
-            if (_listenSocket != null)
+            if (_socket != null)
             {
-                try { _listenSocket.Shutdown(SocketShutdown.Both); } catch { }
-                _listenSocket.Dispose();
-                _listenSocket = null;
+                try { _socket.Shutdown(SocketShutdown.Both); } catch { }
+                _socket.Dispose();
+                _socket = null;
             }
         }
 
@@ -59,7 +61,7 @@ namespace Channels.Networking.Sockets
         {
             // keep trying to take sync; break when it goes async
             args.AcceptSocket = GetReusableSocket();
-            while (!_listenSocket.AcceptAsync(args))
+            while (!Socket.AcceptAsync(args))
             {
                 OnAccept(args);
                 args.AcceptSocket = GetReusableSocket();
@@ -68,7 +70,7 @@ namespace Channels.Networking.Sockets
 
         public void OnConnection(Action<SocketConnection> callback)
         {
-            _callback = callback;
+            Callback = callback;
         }
         private static void OnAsyncCompleted(object sender, SocketAsyncEventArgs e)
         {
@@ -88,9 +90,9 @@ namespace Channels.Networking.Sockets
 
         private void OnAccept(SocketAsyncEventArgs e)
         {
-            var conn = new SocketConnection(e.AcceptSocket, _channelFactory);
+            var conn = new SocketConnection(e.AcceptSocket, ChannelFactory);
             e.AcceptSocket = null;
-            _callback?.Invoke(conn);
+            Callback?.Invoke(conn);
 
             // note that we don't want to call BeginAccept at the end of OnAccept, as that
             // will cause a stack-dive in the sync (backlog) case
