@@ -32,6 +32,7 @@ namespace Channels
         public Span<byte> FirstSpan => _span.Data;
 
         public ReadCursor Start => _start;
+
         public ReadCursor End => _end;
 
         internal ReadableBuffer(Channel channel, ReadCursor start, ReadCursor end) :
@@ -202,44 +203,12 @@ namespace Channels
             return new ReadableBuffer(ref this);
         }
 
-        public unsafe void CopyTo(byte* data, int length)
+        public void CopyTo(Span<byte> destination)
         {
-            if (length < Length)
+            if (Length > destination.Length)
             {
-                throw new ArgumentOutOfRangeException();
+                throw new ArgumentOutOfRangeException(nameof(destination));
             }
-
-            var destination = new Span<byte>(data, length);
-
-            var remaining = (uint)Length;
-            foreach (var span in this)
-            {
-                if (remaining == 0)
-                {
-                    break;
-                }
-
-                var count = (uint)Math.Min(remaining, span.Length);
-                var src = span.Slice(remaining);
-                src.TryCopyTo(destination);
-                destination = destination.Slice(count);
-                remaining -= count;
-            }
-        }
-
-        public void CopyTo(byte[] data)
-        {
-            CopyTo(data, 0);
-        }
-
-        public void CopyTo(byte[] data, int offset)
-        {
-            if (data.Length < Length)
-            {
-                throw new ArgumentOutOfRangeException();
-            }
-
-            var destination = new Span<byte>(data, offset, data.Length - offset);
 
             foreach (var span in this)
             {
@@ -251,7 +220,7 @@ namespace Channels
         public byte[] ToArray()
         {
             var buffer = new byte[Length];
-            CopyTo(buffer);
+            CopyTo(buffer.Slice());
             return buffer;
         }
 

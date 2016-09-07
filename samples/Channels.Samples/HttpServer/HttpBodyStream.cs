@@ -87,7 +87,7 @@ namespace Channels.Samples.Http
 
         public override Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken token)
         {
-            return _connection.WriteAsync(buffer, offset, count);
+            return _connection.WriteAsync(new Span<byte>(buffer, offset, count));
         }
 
         public override void Flush()
@@ -103,7 +103,7 @@ namespace Channels.Samples.Http
 
         private ValueTask<int> ReadAsync(ArraySegment<byte> buffer)
         {
-            return _connection.Input.ReadAsync(buffer.Array, buffer.Offset, buffer.Count);
+            return _connection.Input.ReadAsync(new Span<byte>(buffer.Array, buffer.Offset, buffer.Count));
         }
 
 #if NET451

@@ -41,11 +41,12 @@ namespace Channels.Text.Primitives
             }
             else if (buffer.Length < 128) // REVIEW: What's a good number
             {
-                var target = stackalloc byte[128];
+                var data = stackalloc byte[128];
+                var destination = new Span<byte>(data, 128);
 
-                buffer.CopyTo(target, length: 128);
+                buffer.CopyTo(destination);
 
-                textSpan = new ReadOnlySpan<byte>(target, buffer.Length);
+                textSpan = destination.Slice(0, buffer.Length);
             }
             else
             {
@@ -73,9 +74,9 @@ namespace Channels.Text.Primitives
             }
             else if (len < 128) // REVIEW: What's a good number
             {
-                var target = stackalloc byte[len];
-                buffer.CopyTo(target, len);
-                addr = target; // memory allocated via stackalloc is valid and
+                var data = stackalloc byte[len];
+                buffer.CopyTo(new Span<byte>(data, len));
+                addr = data; // memory allocated via stackalloc is valid and
                 // intact until the end of the method; we don't need to worry about scope
             }
             else
@@ -139,11 +140,12 @@ namespace Channels.Text.Primitives
             }
             else if (buffer.Length < 128) // REVIEW: What's a good number
             {
-                var target = stackalloc byte[128];
+                var data = stackalloc byte[128];
+                var destination = new Span<byte>(data, 128);
 
-                buffer.CopyTo(target, length: 128);
+                buffer.CopyTo(destination);
 
-                textSpan = new ReadOnlySpan<byte>(target, buffer.Length);
+                textSpan = destination.Slice(0, buffer.Length);
             }
             else
             {

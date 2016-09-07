@@ -49,13 +49,13 @@ namespace Channels.Samples.Http
         public static int WriteBeginChunkBytes(ref WritableBuffer start, int dataCount)
         {
             var chunkSegment = BeginChunkBytes(dataCount);
-            start.Write(chunkSegment.Array, chunkSegment.Offset, chunkSegment.Count);
+            start.Write(new Span<byte>(chunkSegment.Array, chunkSegment.Offset, chunkSegment.Count));
             return chunkSegment.Count;
         }
 
         public static void WriteEndChunkBytes(ref WritableBuffer start)
         {
-            start.Write(_endChunkBytes.Array, _endChunkBytes.Offset, _endChunkBytes.Count);
+            start.Write(new Span<byte>(_endChunkBytes.Array, _endChunkBytes.Offset, _endChunkBytes.Count));
         }
     }
 }

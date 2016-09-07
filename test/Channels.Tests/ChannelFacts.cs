@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System;
+using System.Linq;
 using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
@@ -16,7 +17,7 @@ namespace Channels.Tests
                 var channel = cf.CreateChannel();
                 var bytes = Encoding.ASCII.GetBytes("Hello World");
 
-                await channel.WriteAsync(bytes, 0, bytes.Length);
+                await channel.WriteAsync(new Span<byte>(bytes, 0, bytes.Length));
                 var buffer = await channel.ReadAsync();
 
                 Assert.Equal(11, buffer.Length);
@@ -39,8 +40,8 @@ namespace Channels.Tests
                 var paddingBytes = Enumerable.Repeat((byte)'a', blockSize - 5).ToArray();
                 var bytes = Encoding.ASCII.GetBytes("Hello World");
                 var writeBuffer = channel.Alloc();
-                writeBuffer.Write(paddingBytes, 0, paddingBytes.Length);
-                writeBuffer.Write(bytes, 0, bytes.Length);
+                writeBuffer.Write(new Span<byte>(paddingBytes, 0, paddingBytes.Length));
+                writeBuffer.Write(new Span<byte>(bytes, 0, bytes.Length));
                 await writeBuffer.FlushAsync();
 
                 var buffer = await channel.ReadAsync();
@@ -66,7 +67,7 @@ namespace Channels.Tests
                 var channel = cf.CreateChannel();
                 var bytes = Encoding.ASCII.GetBytes("Hello World");
 
-                await channel.WriteAsync(bytes, 0, bytes.Length);
+                await channel.WriteAsync(new Span<byte>(bytes, 0, bytes.Length));
                 var buffer = await channel.ReadAsync();
                 var delim = buffer.IndexOf(ref CommonVectors.LF);
 
@@ -88,8 +89,8 @@ namespace Channels.Tests
                 var paddingBytes = Enumerable.Repeat((byte)'a', blockSize - 5).ToArray();
                 var bytes = Encoding.ASCII.GetBytes("Hello World");
                 var writeBuffer = channel.Alloc();
-                writeBuffer.Write(paddingBytes, 0, paddingBytes.Length);
-                writeBuffer.Write(bytes, 0, bytes.Length);
+                writeBuffer.Write(new Span<byte>(paddingBytes, 0, paddingBytes.Length));
+                writeBuffer.Write(new Span<byte>(bytes, 0, bytes.Length));
                 await writeBuffer.FlushAsync();
 
                 var buffer = await channel.ReadAsync();
@@ -110,8 +111,8 @@ namespace Channels.Tests
                 var paddingBytes = Enumerable.Repeat((byte)'a', blockSize - 5).ToArray();
                 var bytes = Encoding.ASCII.GetBytes("Hello World");
                 var writeBuffer = channel.Alloc();
-                writeBuffer.Write(paddingBytes, 0, paddingBytes.Length);
-                writeBuffer.Write(bytes, 0, bytes.Length);
+                writeBuffer.Write(new Span<byte>(paddingBytes, 0, paddingBytes.Length));
+                writeBuffer.Write(new Span<byte>(bytes, 0, bytes.Length));
                 await writeBuffer.FlushAsync();
 
                 var buffer = await channel.ReadAsync();

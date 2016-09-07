@@ -282,7 +282,7 @@ namespace Channels.Samples.Http
 
         }
 
-        public Task WriteAsync(byte[] array, int offset, int count)
+        public Task WriteAsync(Span<byte> data)
         {
             var buffer = _output.Alloc();
 
@@ -293,13 +293,13 @@ namespace Channels.Samples.Http
 
             if (_autoChunk)
             {
-                ChunkWriter.WriteBeginChunkBytes(ref buffer, count);
-                buffer.Write(array, offset, count);
+                ChunkWriter.WriteBeginChunkBytes(ref buffer, data.Length);
+                buffer.Write(data);
                 ChunkWriter.WriteEndChunkBytes(ref buffer);
             }
             else
             {
-                buffer.Write(array, offset, count);
+                buffer.Write(data);
             }
 
             return buffer.FlushAsync();
@@ -314,9 +314,9 @@ namespace Channels.Samples.Http
 
             HasStarted = true;
 
-            buffer.Write(_http11Bytes, 0, _http11Bytes.Length);
+            buffer.Write(new Span<byte>(_http11Bytes, 0, _http11Bytes.Length));
             var status = ReasonPhrases.ToStatusBytes(StatusCode);
-            buffer.Write(status, 0, status.Length);
+            buffer.Write(new Span<byte>(status, 0, status.Length));
 
             autoChunk = !HasContentLength && !HasTransferEncoding && KeepAlive;
 
@@ -325,7 +325,7 @@ namespace Channels.Samples.Http
 
         private void WriteEndResponse(ref WritableBuffer buffer)
         {
-            buffer.Write(_chunkedEndBytes, 0, _chunkedEndBytes.Length);
+            buffer.Write(new Span<byte>(_chunkedEndBytes, 0, _chunkedEndBytes.Length));
         }
 
         private enum ParsingState

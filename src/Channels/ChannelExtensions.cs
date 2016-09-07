@@ -10,22 +10,17 @@ namespace Channels
 {
     public static class WritableChannelExtensions
     {
-        public static Task WriteAsync(this IWritableChannel channel, byte[] buffer, int offset, int count)
+        public static Task WriteAsync(this IWritableChannel channel, Span<byte> source)
         {
             var writeBuffer = channel.Alloc();
-            writeBuffer.Write(buffer, offset, count);
+            writeBuffer.Write(source);
             return writeBuffer.FlushAsync();
-        }
-
-        public static Task WriteAsync(this IWritableChannel channel, ArraySegment<byte> buffer)
-        {
-            return channel.WriteAsync(buffer.Array, buffer.Offset, buffer.Count);
         }
     }
 
     public static class ReadableChannelExtensions
     {
-        public static ValueTask<int> ReadAsync(this IReadableChannel input, byte[] buffer, int offset, int count)
+        public static ValueTask<int> ReadAsync(this IReadableChannel input, Span<byte> destination)
         {
             while (true)
             {
@@ -39,8 +34,8 @@ namespace Channels
                 var fin = input.Completion.IsCompleted;
 
                 var inputBuffer = awaiter.GetResult();
-                var sliced = inputBuffer.Slice(0, count);
-                sliced.CopyTo(buffer, offset);
+                var sliced = inputBuffer.Slice(0, destination.Length);
+                sliced.CopyTo(destination);
                 int actual = sliced.Length;
                 inputBuffer.Consumed(sliced.End);
 
@@ -54,7 +49,7 @@ namespace Channels
                 }
             }
 
-            return new ValueTask<int>(input.ReadAsyncAwaited(buffer, offset, count));
+            return new ValueTask<int>(input.ReadAsyncAwaited(destination));
         }
 
         public static async Task CopyToAsync(this IReadableChannel input, Stream stream)
@@ -125,7 +120,7 @@ namespace Channels
             }
         }
 
-        private static async Task<int> ReadAsyncAwaited(this IReadableChannel input, byte[] buffer, int offset, int count)
+        private static async Task<int> ReadAsyncAwaited(this IReadableChannel input, Span<byte> destination)
         {
             while (true)
             {
@@ -133,8 +128,8 @@ namespace Channels
 
                 var fin = input.Completion.IsCompleted;
 
-                var sliced = inputBuffer.Slice(0, count);
-                sliced.CopyTo(buffer, offset);
+                var sliced = inputBuffer.Slice(0, destination.Length);
+                sliced.CopyTo(destination);
                 int actual = sliced.Length;
                 inputBuffer.Consumed(sliced.End);
 

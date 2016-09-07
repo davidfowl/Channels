@@ -36,7 +36,7 @@ namespace Channels
 
                     if (managed != null)
                     {
-                        buffer.Write(managed, 0, bytesRead);
+                        buffer.Write(new Span<byte>(managed, 0, bytesRead));
                     }
                     else
                     {

@@ -85,23 +85,23 @@ namespace Channels
             }
         }
 
-        public void Write(byte[] data, int offset, int count)
+        public void Write(Span<byte> source)
         {
             if (IsDefault)
             {
                 Ensure();
             }
 
-            var source = new Span<byte>(data, offset, count);
-
             // Fast path, try copying to the available memory directly
             if (source.TryCopyTo(Memory))
             {
-                CommitBytes(count);
+                CommitBytes(source.Length);
                 return;
             }
 
-            var remaining = count;
+            var remaining = source.Length;
+            var offset = 0;
+
             while (remaining > 0)
             {
                 var writable = Math.Min(remaining, Memory.Length);

@@ -84,12 +84,12 @@ namespace Channels
 
         public override void Write(byte[] buffer, int offset, int count)
         {
-            _output.WriteAsync(buffer, offset, count).GetAwaiter().GetResult();
+            _output.WriteAsync(new Span<byte>(buffer, offset, count)).GetAwaiter().GetResult();
         }
 
         public override Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken token)
         {
-            return _output.WriteAsync(buffer, offset, count);
+            return _output.WriteAsync(new Span<byte>(buffer, offset, count));
         }
 
         public override void Flush()
@@ -105,7 +105,7 @@ namespace Channels
 
         private ValueTask<int> ReadAsync(ArraySegment<byte> buffer)
         {
-            return _input.ReadAsync(buffer.Array, buffer.Offset, buffer.Count);
+            return _input.ReadAsync(new Span<byte>(buffer.Array, buffer.Offset, buffer.Count));
         }
 
 #if NET451
