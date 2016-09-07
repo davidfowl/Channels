@@ -82,12 +82,12 @@ namespace Channels.Tests
         private void EqualsDetectsDeltaForAllLocations(ReadableBuffer slice, byte[] expected, int offset, int length)
         {
             Assert.Equal(length, slice.Length);
-            Assert.True(slice.Equals(expected, offset, length));
+            Assert.True(slice.Equals(new Span<byte>(expected, offset, length)));
             // change one byte in buffer, for every position
             for (int i = 0; i < length; i++)
             {
                 expected[offset + i] ^= 42;
-                Assert.False(slice.Equals(expected, offset, length));
+                Assert.False(slice.Equals(new Span<byte>(expected, offset, length)));
                 expected[offset + i] ^= 42;
             }
         }

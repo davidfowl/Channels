@@ -57,16 +57,16 @@ namespace Channels.Samples.Http
             };
         }
 
-        private unsafe string GetHeaderKey(ref ReadableBuffer key)
+        private string GetHeaderKey(ref ReadableBuffer key)
         {
             // Uppercase the things
             foreach (var span in key)
             {
-                var ptr = (byte*)span.UnsafePointer;
+                var data = span;
                 for (int i = 0; i < span.Length; i++)
                 {
                     var mask = IsAlpha(span[i]) ? 0xdf : 0xff;
-                    *ptr++ = (byte)(span[i] & mask);
+                    data[i] = (byte)(span[i] & mask);
                 }
             }
 
@@ -120,7 +120,7 @@ namespace Channels.Samples.Http
                 return false;
             }
 
-            return key.Equals(buffer, 0, buffer.Length);
+            return key.Equals(buffer.Slice());
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
