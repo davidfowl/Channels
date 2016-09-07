@@ -47,7 +47,7 @@ namespace Channels.Networking.Libuv
         private void Listen()
         {
             _listenSocket = new UvTcpHandle();
-            _listenSocket.Init(_thread.Loop, UvThread._queueCloseCallback);
+            _listenSocket.Init(_thread.Loop, null);
             _listenSocket.NoDelay(true);
             _listenSocket.Bind(_endpoint);
             _listenSocket.Listen(10, _onConnectionCallback, this);
@@ -61,7 +61,7 @@ namespace Channels.Networking.Libuv
 
             try
             {
-                acceptSocket.Init(listener._thread.Loop, UvThread._queueCloseCallback);
+                acceptSocket.Init(listener._thread.Loop, null);
                 acceptSocket.NoDelay(true);
                 listenSocket.Accept(acceptSocket);
                 var connection = new UvTcpConnection(listener._thread, acceptSocket);

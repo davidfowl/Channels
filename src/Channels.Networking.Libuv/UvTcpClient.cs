@@ -37,7 +37,7 @@ namespace Channels.Networking.Libuv
         private void DoConnect()
         {
             _connectSocket = new UvTcpHandle();
-            _connectSocket.Init(_thread.Loop, UvThread._queueCloseCallback);
+            _connectSocket.Init(_thread.Loop, null);
 
             var connectReq = new UvConnectRequest();
             connectReq.Init(_thread.Loop);
