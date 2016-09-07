@@ -10,8 +10,6 @@ namespace Channels.Networking.Libuv
     // This class needs a bunch of work to make sure it's thread safe
     public class UvThread : ICriticalNotifyCompletion, IDisposable
     {
-        internal static Action<Action<IntPtr>, IntPtr> _queueCloseCallback = QueueCloseHandle;
-
         private readonly Thread _thread = new Thread(OnStart)
         {
             Name = "Libuv event loop"
@@ -31,7 +29,7 @@ namespace Channels.Networking.Libuv
 
         public UvLoopHandle Loop { get; private set; }
 
-        public ChannelFactory ChannelFactory { get; private set; } = new ChannelFactory();
+        public ChannelFactory ChannelFactory { get; } = new ChannelFactory();
 
         public WriteReqPool WriteReqPool { get; }
 
@@ -78,11 +76,18 @@ namespace Channels.Networking.Libuv
             Loop.Init(Uv);
 
             _postHandle = new UvAsyncHandle();
-            _postHandle.Init(Loop, OnPost, _queueCloseCallback);
+            _postHandle.Init(Loop, OnPost, null);
 
             _running.Set();
 
             Uv.run(Loop, 0);
+
+            _postHandle.Reference();
+            _postHandle.Dispose();
+
+            Uv.run(Loop, 0);
+
+            Loop.Dispose();
         }
 
         private void OnPost()
@@ -124,11 +129,6 @@ namespace Channels.Networking.Libuv
             }
         }
 
-        private static void QueueCloseHandle(Action<IntPtr> callback, IntPtr handle)
-        {
-            throw new InvalidOperationException();
-        }
-
         public void UnsafeOnCompleted(Action continuation)
         {
             OnCompleted(continuation);
@@ -142,6 +142,8 @@ namespace Channels.Networking.Libuv
         public void Dispose()
         {
             Stop();
+
+            ChannelFactory.Dispose();
         }
 
         private struct Work
