@@ -1,7 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Numerics;
 using Channels.Text.Primitives;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Primitives;
 
 namespace Channels.Samples.Http
@@ -11,14 +10,24 @@ namespace Channels.Samples.Http
         private static Vector<byte> _vectorAnd = new Vector<byte>((byte)'&');
         private static Vector<byte> _vectorEq = new Vector<byte>((byte)'=');
 
-        public static bool TryParse(ref ReadableBuffer buffer, ref Dictionary<string, StringValues> data, ref long? contentLength)
+        private Dictionary<string, StringValues> _data = new Dictionary<string, StringValues>();
+        private long? _contentLength;
+
+        public FormReader(long? contentLength)
         {
-            if (buffer.IsEmpty || !contentLength.HasValue)
+            _contentLength = contentLength;
+        }
+
+        public Dictionary<string, StringValues> FormValues => _data;
+
+        public bool TryParse(ref ReadableBuffer buffer)
+        {
+            if (buffer.IsEmpty || !_contentLength.HasValue)
             {
                 return true;
             }
 
-            while (!buffer.IsEmpty && contentLength > 0)
+            while (!buffer.IsEmpty && _contentLength > 0)
             {
                 var next = buffer;
                 var delim = next.IndexOf(ref _vectorEq);
@@ -37,7 +46,7 @@ namespace Channels.Samples.Http
 
                 if (delim == ReadCursor.NotFound)
                 {
-                    var remaining = contentLength - buffer.Length;
+                    var remaining = _contentLength - buffer.Length;
 
                     if (remaining == 0)
                     {
@@ -56,12 +65,12 @@ namespace Channels.Samples.Http
                 }
 
                 // TODO: Combine multi value keys
-                data[key.GetUtf8String()] = value.GetUtf8String();
-                contentLength -= (buffer.Length - next.Length);
+                _data[key.GetUtf8String()] = value.GetUtf8String();
+                _contentLength -= (buffer.Length - next.Length);
                 buffer = next;
             }
 
-            return contentLength == 0;
+            return _contentLength == 0;
         }
     }
 }

@@ -47,7 +47,8 @@ namespace Channels.Samples
 
                                             // Access the raw connection
                                             var connection = context.Features.Get<ITcpConnectionFeature>();
-                                            var data = new Dictionary<string, StringValues>();
+
+                                            var reader = new FormReader(contentLength);
 
                                             // Reads the form body
                                             while (true)
@@ -62,7 +63,7 @@ namespace Channels.Samples
                                                         return;
                                                     }
 
-                                                    if (FormReader.TryParse(ref buffer, ref data, ref contentLength))
+                                                    if (reader.TryParse(ref buffer))
                                                     {
                                                         break;
                                                     }
@@ -73,7 +74,7 @@ namespace Channels.Samples
                                                 }
                                             }
 
-                                            foreach (var item in data)
+                                            foreach (var item in reader.FormValues)
                                             {
                                                 Console.WriteLine($"{item.Key}={item.Value}");
                                             }
