@@ -92,26 +92,26 @@ namespace Channels.Samples.Http
             return GetEnumerator();
         }
 
-        public unsafe void CopyTo(bool chunk, ref WritableBuffer buffer)
+        public void CopyTo(bool chunk, ref WritableBuffer buffer)
         {
             foreach (var header in _headers)
             {
-                buffer.Write(new Span<byte>(_headersStartBytes, 0, _headersStartBytes.Length));
+                buffer.Write(_headersStartBytes.Slice());
                 WritableBufferExtensions.WriteAsciiString(ref buffer, header.Key);
-                buffer.Write(new Span<byte>(_headersSeperatorBytes, 0, _headersSeperatorBytes.Length));
+                buffer.Write(_headersSeperatorBytes.Slice());
                 WritableBufferExtensions.WriteAsciiString(ref buffer, header.Value);
             }
 
             if (chunk)
             {
-                buffer.Write(new Span<byte>(_chunkedHeaderBytes, 0, _chunkedHeaderBytes.Length));
+                buffer.Write(_chunkedHeaderBytes.Slice());
             }
 
-            buffer.Write(new Span<byte>(_serverHeaderBytes, 0, _serverHeaderBytes.Length));
+            buffer.Write(_serverHeaderBytes.Slice());
             var date = _dateHeaderValueManager.GetDateHeaderValues().Bytes;
-            buffer.Write(new Span<byte>(date, 0, date.Length));
+            buffer.Write(date.Slice());
 
-            buffer.Write(new Span<byte>(_headersEndBytes, 0, _headersEndBytes.Length));
+            buffer.Write(_headersEndBytes.Slice());
         }
 
         public void Reset() => _headers.Clear();

@@ -314,9 +314,9 @@ namespace Channels.Samples.Http
 
             HasStarted = true;
 
-            buffer.Write(new Span<byte>(_http11Bytes, 0, _http11Bytes.Length));
+            buffer.Write(_http11Bytes.Slice());
             var status = ReasonPhrases.ToStatusBytes(StatusCode);
-            buffer.Write(new Span<byte>(status, 0, status.Length));
+            buffer.Write(status.Slice());
 
             autoChunk = !HasContentLength && !HasTransferEncoding && KeepAlive;
 
@@ -325,7 +325,7 @@ namespace Channels.Samples.Http
 
         private void WriteEndResponse(ref WritableBuffer buffer)
         {
-            buffer.Write(new Span<byte>(_chunkedEndBytes, 0, _chunkedEndBytes.Length));
+            buffer.Write(_chunkedEndBytes.Slice());
         }
 
         private enum ParsingState

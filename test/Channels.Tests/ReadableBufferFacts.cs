@@ -25,7 +25,7 @@ namespace Channels.Tests
                 var writeBuffer = channel.Alloc();
                 for (int i = 0; i < Size / data.Length; i++)
                 {
-                    writeBuffer.Write(new Span<byte>(data, 0, data.Length));
+                    writeBuffer.Write(data.Slice());
                     totalBytes += data.Length;
                 }
                 await writeBuffer.FlushAsync();
@@ -52,7 +52,7 @@ namespace Channels.Tests
                 rand.NextBytes(data);
 
                 var writeBuffer = channel.Alloc();
-                writeBuffer.Write(new Span<byte>(data, 0, data.Length));
+                writeBuffer.Write(data.Slice());
                 await writeBuffer.FlushAsync();
 
                 // now read it back
@@ -125,7 +125,7 @@ namespace Channels.Tests
 
                 var writeBuffer = channel.Alloc();
                 var bytes = Encoding.ASCII.GetBytes(input);
-                writeBuffer.Write(new Span<byte>(bytes, 0, bytes.Length));
+                writeBuffer.Write(bytes.Slice());
                 await writeBuffer.FlushAsync();
 
                 var buffer = await channel.ReadAsync();
