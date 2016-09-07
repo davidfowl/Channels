@@ -6,19 +6,21 @@ namespace Channels.Networking.Sockets
 {
     public class SocketListener : IDisposable
     {
+        private static readonly EventHandler<SocketAsyncEventArgs> _asyncCompleted = OnAsyncCompleted;
+
         private readonly bool _ownsChannelFactory;
         private Socket _socket;
-        private Socket Socket => _socket;
-        private ChannelFactory _channelFactory;
-        private ChannelFactory ChannelFactory => _channelFactory;
-        private Action<SocketConnection> Callback { get; set; }
-        static readonly EventHandler<SocketAsyncEventArgs> _asyncCompleted = OnAsyncCompleted;
 
         public SocketListener(ChannelFactory channelFactory = null)
         {
             _ownsChannelFactory = channelFactory != null;
             _channelFactory = channelFactory ?? new ChannelFactory();
         }
+
+        private Socket Socket => _socket;
+        private ChannelFactory _channelFactory;
+        private ChannelFactory ChannelFactory => _channelFactory;
+        private Action<SocketConnection> Callback { get; set; }
 
         public void Dispose() => Dispose(true);
 
@@ -29,7 +31,12 @@ namespace Channels.Networking.Sockets
                 GC.SuppressFinalize(this);
                 _socket?.Dispose();
                 _socket = null;
-                if (_ownsChannelFactory) { _channelFactory?.Dispose(); }
+
+                if (_ownsChannelFactory)
+                {
+                    _channelFactory?.Dispose();
+                }
+
                 _channelFactory = null;
             }
         }
@@ -53,7 +60,13 @@ namespace Channels.Networking.Sockets
         {
             if (_socket != null)
             {
-                try { _socket.Shutdown(SocketShutdown.Both); } catch { }
+                try
+                {
+                    _socket.Shutdown(SocketShutdown.Both);
+                }
+                catch
+                {
+                }
                 _socket.Dispose();
                 _socket = null;
             }

@@ -11,26 +11,13 @@ namespace Channels.Networking.Sockets
         private Socket _socket;
         private Channel _input, _output;
         private ChannelFactory _channelFactory;
-        private readonly bool _ownsChannelFactory;
+        private Task _writes;
+        private Task _reads;
 
-        static readonly EventHandler<SocketAsyncEventArgs> _asyncCompleted = OnAsyncCompleted;
+        private static readonly EventHandler<SocketAsyncEventArgs> _asyncCompleted = OnAsyncCompleted;
 
-        public IReadableChannel Input => _input ?? CreateInput();
-        public IWritableChannel Output => _output ?? CreateOutput();
-
-        private Channel CreateInput()
-        {
-            _input = ChannelFactory.CreateChannel();
-            ProcessReads();
-            return _input;
-        }
-
-        private Channel CreateOutput()
-        {
-            _output = ChannelFactory.CreateChannel();
-            ProcessWrites();
-            return _output;
-        }
+        public IReadableChannel Input => _input;
+        public IWritableChannel Output => _output;
 
         private Socket Socket => _socket;
         private ChannelFactory ChannelFactory => _channelFactory;
@@ -39,20 +26,23 @@ namespace Channels.Networking.Sockets
         {
             socket.NoDelay = true;
             _socket = socket;
-            if (channelFactory == null)
-            {
-                _ownsChannelFactory = true;
-                channelFactory = new ChannelFactory();
-            }
+
             _channelFactory = channelFactory;
+
+            _input = ChannelFactory.CreateChannel();
+            _output = ChannelFactory.CreateChannel();
+
+            _writes = ProcessWrites();
+            _reads = ProcessReads();
         }
 
         // try with a trivial pool at first
         private static SocketAsyncEventArgs spare;
+
         internal static SocketAsyncEventArgs GetOrCreateSocketAsyncEventArgs()
         {
             var obj = Interlocked.Exchange(ref spare, null);
-            if(obj == null)
+            if (obj == null)
             {
                 obj = new SocketAsyncEventArgs();
                 obj.Completed += _asyncCompleted; // only for new, otherwise multi-fire
@@ -68,20 +58,30 @@ namespace Channels.Networking.Sockets
             }
         }
 
-        private async void ProcessReads()
+        private async Task ProcessReads()
         {
+            Console.WriteLine("Started processing reads");
+
             SocketAsyncEventArgs args = null;
             try
             {
                 // if the consumer says they don't want the data, we need to shut down the receive
                 GC.KeepAlive(_input.ReaderCompleted.ContinueWith(delegate
-                {// GC.KeepAlive here just to shut the compiler up
-                    try { Socket.Shutdown(SocketShutdown.Receive); } catch { }
+                {
+                    // GC.KeepAlive here just to shut the compiler up
+                    try
+                    {
+                        Socket.Shutdown(SocketShutdown.Receive);
+                    }
+                    catch
+                    {
+                    }
                 }));
 
                 args = GetOrCreateSocketAsyncEventArgs();
                 var pending = new SemaphoreSlim(0, 1);
                 args.UserToken = pending;
+
                 while (!_input.ReaderCompleted.IsCompleted)
                 {
                     // we need a buffer to read into
@@ -100,19 +100,23 @@ namespace Channels.Networking.Sockets
                         {
                             // if ReceiveAsync returns sync, we have the conch - nothing to do - we already received
                         }
+
                         // either way, need to validate
                         if (args.SocketError != SocketError.Success)
                         {
                             throw new SocketException((int)args.SocketError);
                         }
+
                         int len = args.BytesTransferred;
                         if (len <= 0)
                         {
                             // end of the socket
                             break;
                         }
+
                         buffer.CommitBytes(len);
                         await buffer.FlushAsync();
+
                         flushed = true;
                     }
                     finally
@@ -123,26 +127,35 @@ namespace Channels.Networking.Sockets
                         }
                     }
                 }
-                _input.CompleteWriting();
             }
             catch (Exception ex)
             {
-                _input?.CompleteWriting(ex);
+                _input.CompleteWriting(ex);
             }
             finally
             {
+                _input.CompleteWriting();
+
+                Console.WriteLine("Done Processing reads");
+
                 try // we're not going to be reading anything else
                 {
                     Socket.Shutdown(SocketShutdown.Receive);
                 }
-                catch { }
+                catch
+                {
+                }
+
                 RecycleSocketAsyncEventArgs(args);
             }
         }
 
-        private async void ProcessWrites()
+        private async Task ProcessWrites()
         {
+            Console.WriteLine("Started processing writes");
+
             SocketAsyncEventArgs args = null;
+
             try
             {
                 args = GetOrCreateSocketAsyncEventArgs();
@@ -160,6 +173,7 @@ namespace Channels.Networking.Sockets
                         {
                             break;
                         }
+
                         foreach (var span in buffer)
                         {
                             SetBuffer(span, args);
@@ -173,11 +187,13 @@ namespace Channels.Networking.Sockets
                             {
                                 // if SendAsync returns sync, we have the conch - nothing to do - we already sent
                             }
+
                             // either way, need to validate
                             if (args.SocketError != SocketError.Success)
                             {
                                 throw new SocketException((int)args.SocketError);
                             }
+
                             if (args.BytesTransferred != span.Length)
                             {
                                 throw new NotImplementedException("We didn't send everything; oops!");
@@ -189,19 +205,24 @@ namespace Channels.Networking.Sockets
                         buffer.Consumed();
                     }
                 }
-                _output.CompleteReading();
             }
             catch (Exception ex)
             {
-                _output?.CompleteReading(ex);
+                _output.CompleteReading(ex);
             }
             finally
             {
+                Console.WriteLine("Done Processing writes");
+                _output.CompleteReading();
+
                 try // we're not going to be sending anything else
                 {
                     Socket.Shutdown(SocketShutdown.Send);
                 }
-                catch { }
+                catch
+                {
+                }
+
                 RecycleSocketAsyncEventArgs(args);
             }
         }
@@ -223,10 +244,13 @@ namespace Channels.Networking.Sockets
         {
             if (disposing)
             {
+                Console.WriteLine("Disposing the socket");
+                _writes.Wait();
+                _reads.Wait();
+
                 GC.SuppressFinalize(this);
                 _socket?.Dispose();
                 _socket = null;
-                if (_ownsChannelFactory) { _channelFactory?.Dispose(); }
                 _channelFactory = null;
             }
         }
@@ -265,7 +289,9 @@ namespace Channels.Networking.Sockets
                         break;
                 }
             }
-            catch { }
+            catch
+            {
+            }
         }
 
         private static void ReleasePending(SocketAsyncEventArgs e)

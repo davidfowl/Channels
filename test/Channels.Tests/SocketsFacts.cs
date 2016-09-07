@@ -13,7 +13,6 @@ namespace Channels.Tests
 {
     public class SocketsFacts
     {
-
         [Fact]
         public void CanCreateWorkingEchoServer_ChannelLibuvServer_NonChannelClient()
         {
@@ -34,33 +33,15 @@ namespace Channels.Tests
                 {
                     server.Stop();
                 }
+
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
             }
+
             Assert.Equal(MessageToSend, reply);
         }
 
-        private static string SendBasicSocketMessage(IPEndPoint endpoint, string message)
-        {
-            // create the client the old way
-            using (var socket = new Socket(SocketType.Stream, ProtocolType.Tcp))
-            {
-                socket.Connect(endpoint);
-                var data = Encoding.UTF8.GetBytes(message);
-                socket.Send(data);
-                socket.Shutdown(SocketShutdown.Send);
-
-                byte[] buffer = new byte[data.Length];
-                int offset = 0, bytesReceived;
-                while (offset <= buffer.Length
-                    && (bytesReceived = socket.Receive(buffer, offset, buffer.Length - offset, SocketFlags.None)) > 0)
-                {
-                    offset += bytesReceived;
-                }
-                socket.Shutdown(SocketShutdown.Receive);
-                return Encoding.UTF8.GetString(buffer, 0, offset);
-            }
-        }
-
-        // [Fact]
+        [Fact]
         public void CanCreateWorkingEchoServer_ChannelSocketServer_NonChannelClient()
         {
             var endpoint = new IPEndPoint(IPAddress.Loopback, 5010);
@@ -73,6 +54,9 @@ namespace Channels.Tests
                 server.Start(endpoint);
 
                 reply = SendBasicSocketMessage(endpoint, MessageToSend);
+
+                GC.Collect();
+                GC.WaitForPendingFinalizers();
             }
             Assert.Equal(MessageToSend, reply);
         }
@@ -117,44 +101,69 @@ namespace Channels.Tests
             Assert.Equal(MessageToSend, reply);
         }
 
+        private static string SendBasicSocketMessage(IPEndPoint endpoint, string message)
+        {
+            // create the client the old way
+            using (var socket = new Socket(SocketType.Stream, ProtocolType.Tcp))
+            {
+                socket.Connect(endpoint);
+                var data = Encoding.UTF8.GetBytes(message);
+                socket.Send(data);
+                socket.Shutdown(SocketShutdown.Send);
+
+                byte[] buffer = new byte[data.Length];
+                int offset = 0, bytesReceived;
+                while (offset <= buffer.Length
+                    && (bytesReceived = socket.Receive(buffer, offset, buffer.Length - offset, SocketFlags.None)) > 0)
+                {
+                    offset += bytesReceived;
+                }
+                socket.Shutdown(SocketShutdown.Receive);
+                return Encoding.UTF8.GetString(buffer, 0, offset);
+            }
+        }
 
         private void Echo(SocketConnection connection)
         {
             Echo(connection.Input, connection.Output, connection);
         }
+
         private void Echo(UvTcpConnection connection)
         {
             Echo(connection.Input, connection.Output, null);
         }
+
         private async void Echo(IReadableChannel input, IWritableChannel output, IDisposable lifetime)
         {
             try
             {
                 while (true)
                 {
-                    ReadableBuffer request = await input.ReadAsync();
-                    if (request.IsEmpty && input.Completion.IsCompleted)
+                    var request = await input.ReadAsync();
+
+                    try
+                    {
+                        if (request.IsEmpty && input.Completion.IsCompleted)
+                        {
+                            break;
+                        }
+
+                        var response = output.Alloc();
+                        response.Append(ref request);
+                        await response.FlushAsync();
+                    }
+                    finally
                     {
                         request.Consumed();
-                        break;
                     }
-
-                    int len = request.Length;
-                    var response = output.Alloc();
-                    response.Append(ref request);
-                    await response.FlushAsync();
-                    request.Consumed();
                 }
-                input.CompleteReading();
-                output.CompleteWriting();
-            }
-            catch (Exception ex)
-            {
-                if (!(input?.Completion?.IsCompleted ?? true)) input.CompleteReading(ex);
-                if (!(output?.Completion?.IsCompleted ?? true)) output.CompleteWriting(ex);
             }
             finally
             {
+                input.CompleteReading();
+
+                output.CompleteWriting();
+
                 lifetime?.Dispose();
             }
         }

@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 
@@ -11,6 +13,8 @@ namespace Channels
     /// </summary>
     public class MemoryPoolBlock
     {
+        private List<Operation> operations = new List<Operation>();
+
         private readonly int _offset;
         private readonly int _length;
 
@@ -25,6 +29,7 @@ namespace Channels
             _length = length;
 
             _referenceCount = 1;
+            operations.Add(Operation.Capture());
         }
 
         /// <summary>
@@ -39,6 +44,8 @@ namespace Channels
 
         private int _referenceCount;
 
+        public string Id => $"Pool:{Pool.GetHashCode()}, Slab:{Slab.Id}, Block:{_offset}), ReferenceCount: {_referenceCount}";
+
 #if DEBUG
         public bool IsLeased { get; set; }
         public string Leaser { get; set; }
@@ -47,11 +54,24 @@ namespace Channels
         ~MemoryPoolBlock()
         {
 #if DEBUG
+            operations.Add(Operation.Capture());
+
+            //foreach (var op in operations)
+            //{
+            //    Console.WriteLine(op.Name);
+            //    Console.WriteLine(op.StackTrace);
+            //    Console.WriteLine("------------------------------------------------------------");
+            //}
+
             Debug.Assert(Slab == null || !Slab.IsActive, $"{Environment.NewLine}{Environment.NewLine}*** Block being garbage collected instead of returned to pool: {Leaser} ***{Environment.NewLine}");
 #endif
             if (Slab != null && Slab.IsActive)
             {
-                Pool.Return(this);
+                Pool.Return(new MemoryPoolBlock(_offset, _length)
+                {
+                    Pool = Pool,
+                    Slab = Slab
+                });
             }
         }
 
@@ -76,6 +96,7 @@ namespace Channels
         /// </summary>
         public void Reset()
         {
+            operations.Add(Operation.Capture());
             _referenceCount = 1;
         }
 
@@ -99,14 +120,25 @@ namespace Channels
         internal void AddReference()
         {
             Interlocked.Increment(ref _referenceCount);
+            operations.Add(Operation.Capture());
         }
 
         internal void RemoveReference()
         {
+            operations.Add(Operation.Capture());
+
             if (Interlocked.Decrement(ref _referenceCount) == 0)
             {
                 Pool.Return(this);
             }
+        }
+
+        private struct Operation
+        {
+            public string Name;
+            public string StackTrace;
+
+            public static Operation Capture([CallerMemberName] string memberName = "") => new Operation { Name = memberName, StackTrace = Environment.StackTrace };
         }
     }
 }

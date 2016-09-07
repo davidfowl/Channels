@@ -1,5 +1,6 @@
 using System;
 using System.Runtime.InteropServices;
+using System.Threading;
 
 namespace Channels
 {
@@ -24,6 +25,10 @@ namespace Channels
         internal Action<MemoryPoolSlab> _deallocationCallback;
         private bool _disposedValue;
 
+        private static int _id;
+
+        public int Id { get; private set; }
+
         /// <summary>
         /// True as long as the blocks from this slab are to be considered returnable to the pool. In order to shrink the 
         /// memory pool size an entire slab must be removed. That is done by (1) setting IsActive to false and removing the
@@ -40,6 +45,8 @@ namespace Channels
             _nativeData = data;
             _length = length;
             _isActive = true;
+
+            Id = Interlocked.Increment(ref _id);
         }
 
         public MemoryPoolSlab(byte[] data)
@@ -48,6 +55,8 @@ namespace Channels
             _length = data.Length;
             _gcHandle = GCHandle.Alloc(data, GCHandleType.Pinned);
             _isActive = true;
+
+            Id = Interlocked.Increment(ref _id);
         }
 
         /// <summary>

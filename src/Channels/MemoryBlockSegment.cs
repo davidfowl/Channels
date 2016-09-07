@@ -68,6 +68,7 @@ namespace Channels
 
         public void Dispose()
         {
+            Console.WriteLine("Disposed segment with block=(" + Block.Id + ")");
             Block.RemoveReference();
         }
 

@@ -112,6 +112,19 @@ namespace Channels
                     return;
                 }
 
+                var h = buffer.Head;
+                while (true)
+                {
+                    Console.WriteLine($"{GetHashCode()}: Appended segment with block=({h.Block.Id})");
+
+                    if (h == buffer.Tail)
+                    {
+                        break;
+                    }
+
+                    h = h.Next;
+                }
+
                 if (_head == null)
                 {
                     // Update the head to point to the head of the buffer. This
@@ -320,6 +333,8 @@ namespace Channels
         {
             Debug.Assert(_completedWriting, "Not completed writing");
             Debug.Assert(_completedReading, "Not completed reading");
+
+            Console.WriteLine("Disposing channel " + GetHashCode());
 
             lock (_sync)
             {
