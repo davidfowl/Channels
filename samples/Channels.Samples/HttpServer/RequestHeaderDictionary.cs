@@ -57,8 +57,19 @@ namespace Channels.Samples.Http
             };
         }
 
-        private string GetHeaderKey(ref ReadableBuffer key)
+        private unsafe string GetHeaderKey(ref ReadableBuffer key)
         {
+            // Uppercase the things
+            foreach (var span in key)
+            {
+                var ptr = (byte*)span.UnsafePointer;
+                for (int i = 0; i < span.Length; i++)
+                {
+                    var mask = IsAlpha(span[i]) ? 0xdf : 0xff;
+                    *ptr++ = (byte)(span[i] & mask);
+                }
+            }
+
             if (EqualsIgnoreCase(ref key, AcceptBytes))
             {
                 return "Accept";
@@ -102,22 +113,11 @@ namespace Channels.Samples.Http
             return key.GetAsciiString();
         }
 
-        private unsafe bool EqualsIgnoreCase(ref ReadableBuffer key, byte[] buffer)
+        private bool EqualsIgnoreCase(ref ReadableBuffer key, byte[] buffer)
         {
             if (key.Length != buffer.Length)
             {
                 return false;
-            }
-
-            // Uppercase the things
-            foreach (var span in key)
-            {
-                var ptr = (byte*)span.UnsafePointer;
-                for (int i = 0; i < span.Length; i++)
-                {
-                    var mask = IsAlpha(span[i]) ? 0xdf : 0xff;
-                    *ptr++ = (byte)(span[i] & mask);
-                }
             }
 
             return key.Equals(buffer, 0, buffer.Length);
