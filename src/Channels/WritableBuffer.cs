@@ -163,19 +163,25 @@ namespace Channels
 
         public void CommitBytes(int bytesWritten)
         {
-            Debug.Assert(_tail != null);
-            Debug.Assert(!_tail.ReadOnly);
-            Debug.Assert(_tail.Block != null);
-            Debug.Assert(_tail.Next == null);
-            Debug.Assert(_tail.End == _tailIndex);
+            if (bytesWritten > 0)
+            {
+                Debug.Assert(_tail != null);
+                Debug.Assert(!_tail.ReadOnly);
+                Debug.Assert(_tail.Block != null);
+                Debug.Assert(_tail.Next == null);
+                Debug.Assert(_tail.End == _tailIndex);
 
-            var block = _tail.Block;
-            var blockIndex = _tailIndex + bytesWritten;
+                var block = _tail.Block;
+                var blockIndex = _tailIndex + bytesWritten;
 
-            Debug.Assert(blockIndex <= block.Data.Length);
+                Debug.Assert(blockIndex <= block.Data.Length);
 
-            _tail.End = blockIndex;
-            _tailIndex = blockIndex;
+                _tail.End = blockIndex;
+                _tailIndex = blockIndex;
+            } else if (bytesWritten < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(bytesWritten));
+            } // and if zero, just do nothing; don't need to validate tail etc
         }
     }
 }
