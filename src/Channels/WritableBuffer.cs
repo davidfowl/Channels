@@ -178,7 +178,8 @@ namespace Channels
 
                 _tail.End = blockIndex;
                 _tailIndex = blockIndex;
-            } else if (bytesWritten < 0)
+            }
+            else if (bytesWritten < 0)
             {
                 throw new ArgumentOutOfRangeException(nameof(bytesWritten));
             } // and if zero, just do nothing; don't need to validate tail etc
