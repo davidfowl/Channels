@@ -1,4 +1,4 @@
-# Channels (Zero Copy Streams)
+# Channels (Push based Streams)
 
 [![Join the chat at https://gitter.im/davidfowl/Channels](https://badges.gitter.im/davidfowl/Channels.svg)](https://gitter.im/davidfowl/Channels?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
