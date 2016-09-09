@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using System.Text;
@@ -48,7 +49,7 @@ namespace Channels.Tests
                 Assert.False(buffer.IsSingleSpan);
                 var helloBuffer = buffer.Slice(blockSize - 5);
                 Assert.False(helloBuffer.IsSingleSpan);
-                var spans = helloBuffer.ToList();
+                var spans = helloBuffer.AsEnumerable().ToList();
                 Assert.Equal(2, spans.Count);
                 var helloBytes = new byte[spans[0].Length];
                 spans[0].TryCopyTo(helloBytes);

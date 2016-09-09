@@ -9,7 +9,7 @@ using System.Text;
 
 namespace Channels
 {
-    public struct ReadableBuffer : IDisposable, IEnumerable<Span<byte>>
+    public struct ReadableBuffer : IDisposable
     {
         private static readonly int VectorWidth = Vector<byte>.Count;
 
@@ -70,6 +70,14 @@ namespace Channels
             _span = buffer._span;
 
             _length = buffer._length;
+        }
+
+        public IEnumerable<Span<byte>> AsEnumerable()
+        {
+            foreach (var span in this)
+            {
+                yield return span;
+            }
         }
 
         public ReadCursor IndexOf(ref Vector<byte> byte0Vector)
@@ -286,16 +294,6 @@ namespace Channels
         public Enumerator GetEnumerator()
         {
             return new Enumerator(ref this);
-        }
-
-        IEnumerator<Span<byte>> IEnumerable<Span<byte>>.GetEnumerator()
-        {
-            return GetEnumerator();
-        }
-
-        IEnumerator IEnumerable.GetEnumerator()
-        {
-            return GetEnumerator();
         }
 
         public struct Enumerator : IEnumerator<Span<byte>>
