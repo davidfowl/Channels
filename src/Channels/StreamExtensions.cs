@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Channels
@@ -8,56 +9,86 @@ namespace Channels
     {
         public static async Task CopyToAsync(this Stream stream, IWritableChannel channel)
         {
-            byte[] managed = null;
-
-            while (true)
+            try
             {
-                var buffer = channel.Alloc(2048);
+                await stream.CopyToAsync(new StreamChannel(channel));
+            }
+            catch(Exception ex)
+            {
+                channel.CompleteWriting(ex);
+            }
+            finally
+            {
+                channel.CompleteWriting();
+            }
+        }
 
-                try
+        private class StreamChannel : Stream
+        {
+            private IWritableChannel _channel;
+
+            public StreamChannel(IWritableChannel channel)
+            {
+                _channel = channel;
+            }
+
+            public override bool CanRead => false;
+
+            public override bool CanSeek => false;
+
+            public override bool CanWrite => true;
+
+            public override long Length
+            {
+                get
                 {
-                    ArraySegment<byte> data;
-                    unsafe
-                    {
-                        if (!buffer.Memory.TryGetArray(null, out data))
-                        {
-                            // The span is backed by native memory so we need to use a managed array to read
-                            // from the stream and copy that back to the native buffer
-                            if (managed == null)
-                            {
-                                managed = new byte[2048];
-                            }
-
-                            data = new ArraySegment<byte>(managed);
-                        }
-                    }
-
-                    int bytesRead = await stream.ReadAsync(data.Array, data.Offset, data.Count);
-
-                    if (managed != null)
-                    {
-                        buffer.Write(new Span<byte>(managed, 0, bytesRead));
-                    }
-                    else
-                    {
-                        buffer.CommitBytes(bytesRead);
-                    }
-
-                    if (bytesRead == 0)
-                    {
-                        channel.CompleteWriting();
-                        break;
-                    }
-                    else
-                    {
-                        await buffer.FlushAsync();
-                    }
+                    throw new NotSupportedException();
                 }
-                catch (Exception error)
+            }
+
+            public override long Position
+            {
+                get
                 {
-                    channel.CompleteWriting(error);
-                    break;
+                    throw new NotSupportedException();
                 }
+
+                set
+                {
+                    throw new NotSupportedException();
+                }
+            }
+
+            public override void Flush()
+            {
+                throw new NotSupportedException();
+            }
+
+            public override int Read(byte[] buffer, int offset, int count)
+            {
+                throw new NotSupportedException();
+            }
+
+            public override long Seek(long offset, SeekOrigin origin)
+            {
+                throw new NotSupportedException();
+            }
+
+            public override void SetLength(long value)
+            {
+                throw new NotSupportedException();
+            }
+
+            public override void Write(byte[] buffer, int offset, int count)
+            {
+                throw new NotSupportedException();
+            }
+
+            public override async Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+            {
+                var channelBuffer = _channel.Alloc();
+                channelBuffer.Write(new Span<byte>(buffer, offset, count));
+                await channelBuffer.FlushAsync();
             }
         }
     }
