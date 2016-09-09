@@ -120,7 +120,7 @@ namespace Channels.Samples.Http
                 return false;
             }
 
-            return key.Equals(buffer.Slice());
+            return key.Equals(buffer);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

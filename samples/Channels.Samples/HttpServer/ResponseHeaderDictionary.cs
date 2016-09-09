@@ -96,22 +96,22 @@ namespace Channels.Samples.Http
         {
             foreach (var header in _headers)
             {
-                buffer.Write(_headersStartBytes.Slice());
+                buffer.Write(_headersStartBytes);
                 WritableBufferExtensions.WriteAsciiString(ref buffer, header.Key);
-                buffer.Write(_headersSeperatorBytes.Slice());
+                buffer.Write(_headersSeperatorBytes);
                 WritableBufferExtensions.WriteAsciiString(ref buffer, header.Value);
             }
 
             if (chunk)
             {
-                buffer.Write(_chunkedHeaderBytes.Slice());
+                buffer.Write(_chunkedHeaderBytes);
             }
 
-            buffer.Write(_serverHeaderBytes.Slice());
+            buffer.Write(_serverHeaderBytes);
             var date = _dateHeaderValueManager.GetDateHeaderValues().Bytes;
-            buffer.Write(date.Slice());
+            buffer.Write(date);
 
-            buffer.Write(_headersEndBytes.Slice());
+            buffer.Write(_headersEndBytes);
         }
 
         public void Reset() => _headers.Clear();

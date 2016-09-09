@@ -225,7 +225,7 @@ namespace Channels
         public byte[] ToArray()
         {
             var buffer = new byte[Length];
-            CopyTo(buffer.Slice());
+            CopyTo(buffer);
             return buffer;
         }
 
