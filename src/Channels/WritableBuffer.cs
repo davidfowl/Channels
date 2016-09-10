@@ -10,7 +10,6 @@ namespace Channels
 {
     public struct WritableBuffer
     {
-        private MemoryPool _pool;
         private Channel _channel;
 
         private MemoryBlockSegment _tail;
@@ -21,10 +20,9 @@ namespace Channels
 
         private bool _comitted;
 
-        internal WritableBuffer(Channel channel, MemoryPool pool, MemoryBlockSegment segment)
+        internal WritableBuffer(Channel channel, MemoryBlockSegment segment)
         {
             _channel = channel;
-            _pool = pool;
 
             _tail = segment;
             _tailIndex = segment?.End ?? 0;
@@ -51,7 +49,7 @@ namespace Channels
         {
             if (_tail == null)
             {
-                _tail = new MemoryBlockSegment(_pool.Lease());
+                _tail = _channel.SegmentFactory.Create(_channel.Pool.Lease());
                 _tailIndex = _tail.End;
                 _head = _tail;
                 _headIndex = _tail.Start;
@@ -69,8 +67,8 @@ namespace Channels
             // If inadequate bytes left or if the segment is readonly
             if (bytesLeftInBlock == 0 || bytesLeftInBlock < count || segment.ReadOnly)
             {
-                var nextBlock = _pool.Lease();
-                var nextSegment = new MemoryBlockSegment(nextBlock);
+                var nextBlock = _channel.Pool.Lease();
+                var nextSegment = _channel.SegmentFactory.Create(nextBlock);
                 segment.End = blockIndex;
                 Volatile.Write(ref segment.Next, nextSegment);
                 segment = nextSegment;
@@ -125,7 +123,7 @@ namespace Channels
         public void Append(ref ReadableBuffer buffer)
         {
             MemoryBlockSegment clonedEnd;
-            var clonedBegin = MemoryBlockSegment.Clone(buffer.Start, buffer.End, out clonedEnd);
+            var clonedBegin = MemoryBlockSegment.Clone(_channel.SegmentFactory, buffer.Start, buffer.End, out clonedEnd);
 
             if (_tail == null)
             {
