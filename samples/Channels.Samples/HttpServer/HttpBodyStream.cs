@@ -183,5 +183,10 @@ namespace Channels.Samples.Http
             return tcs.Task;
         }
 #endif
+        public override Task CopyToAsync(Stream destination, int bufferSize, CancellationToken cancellationToken)
+        {
+            return _connection.Input.CopyToAsync(destination, bufferSize, cancellationToken);
+        }
+
     }
 }

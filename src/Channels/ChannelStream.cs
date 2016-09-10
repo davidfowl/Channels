@@ -10,13 +10,11 @@ namespace Channels
         private readonly static Task<int> _initialCachedTask = Task.FromResult(0);
         private Task<int> _cachedTask = _initialCachedTask;
 
-        private readonly IReadableChannel _input;
-        private readonly IWritableChannel _output;
+        private readonly IChannel _channel;
 
-        public ChannelStream(IReadableChannel input, IWritableChannel output)
+        public ChannelStream(IChannel channel)
         {
-            _input = input;
-            _output = output;
+            _channel = channel;
         }
 
         public override bool CanRead => true;
@@ -84,12 +82,12 @@ namespace Channels
 
         public override void Write(byte[] buffer, int offset, int count)
         {
-            _output.WriteAsync(new Span<byte>(buffer, offset, count)).GetAwaiter().GetResult();
+            _channel.Output.WriteAsync(new Span<byte>(buffer, offset, count)).GetAwaiter().GetResult();
         }
 
         public override Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken token)
         {
-            return _output.WriteAsync(new Span<byte>(buffer, offset, count));
+            return _channel.Output.WriteAsync(new Span<byte>(buffer, offset, count));
         }
 
         public override void Flush()
@@ -105,7 +103,7 @@ namespace Channels
 
         private ValueTask<int> ReadAsync(ArraySegment<byte> buffer)
         {
-            return _input.ReadAsync(new Span<byte>(buffer.Array, buffer.Offset, buffer.Count));
+            return _channel.Input.ReadAsync(new Span<byte>(buffer.Array, buffer.Offset, buffer.Count));
         }
 
 #if NET451
@@ -185,5 +183,14 @@ namespace Channels
             return tcs.Task;
         }
 #endif
+        public override Task CopyToAsync(Stream destination, int bufferSize, CancellationToken cancellationToken)
+        {
+            return _channel.Input.CopyToAsync(destination, bufferSize, cancellationToken);
+        }
+
+        protected override void Dispose(bool disposing)
+        {
+            _channel.Dispose();
+        }
     }
 }

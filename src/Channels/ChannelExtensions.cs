@@ -4,10 +4,19 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Channels
 {
+    public static class ChannelExtensions
+    {
+        public static Stream GetStream(this IChannel channel)
+        {
+            return new ChannelStream(channel);
+        }
+    }
+
     public static class WritableChannelExtensions
     {
         public static Task WriteAsync(this IWritableChannel channel, Span<byte> source)
@@ -52,17 +61,21 @@ namespace Channels
             return new ValueTask<int>(input.ReadAsyncAwaited(destination));
         }
 
-        public static async Task CopyToAsync(this IReadableChannel input, Stream stream)
+        public static Task CopyToAsync(this IReadableChannel input, Stream stream)
         {
-            while (true)
+            return input.CopyToAsync(stream, 4096, CancellationToken.None);
+        }
+
+        public static async Task CopyToAsync(this IReadableChannel input, Stream stream, int bufferSize, CancellationToken cancellationToken)
+        {
+            // TODO: Use bufferSize argument
+            while (!cancellationToken.IsCancellationRequested)
             {
                 var inputBuffer = await input.ReadAsync();
 
-                var fin = input.Completion.IsCompleted;
-
                 try
                 {
-                    if (inputBuffer.IsEmpty && fin)
+                    if (inputBuffer.IsEmpty && input.Completion.IsCompleted)
                     {
                         return;
                     }
