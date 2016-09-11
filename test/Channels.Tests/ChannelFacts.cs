@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -26,6 +27,31 @@ namespace Channels.Tests
                 var array = new byte[11];
                 buffer.FirstSpan.TryCopyTo(array);
                 Assert.Equal("Hello World", Encoding.ASCII.GetString(array));
+            }
+        }
+
+        [Fact]
+        public async Task ReadingCanBeCancelled()
+        {
+            using (var cf = new ChannelFactory())
+            {
+                var channel = cf.CreateChannel();
+                var cts = new CancellationTokenSource();
+                cts.Token.Register(() =>
+                {
+                    channel.CompleteWriting(new OperationCanceledException(cts.Token));
+                });
+
+                var ignore = Task.Run(async () =>
+                {
+                    await Task.Delay(1000);
+                    cts.Cancel();
+                });
+
+                await Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                {
+                    var buffer = await channel.ReadAsync();
+                });
             }
         }
 

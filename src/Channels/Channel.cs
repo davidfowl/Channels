@@ -22,9 +22,6 @@ namespace Channels
         private MemoryBlockSegment _head;
         private MemoryBlockSegment _tail;
 
-        private bool _completedWriting;
-        private bool _completedReading;
-
         private int _consumingState;
         private int _producingState;
         private object _sync = new object();
@@ -216,11 +213,9 @@ namespace Channels
         {
             lock (_sync)
             {
-                _completedWriting = true;
-
                 if (error != null)
                 {
-                    _readingTcs.TrySetResult(error);
+                    _readingTcs.TrySetException(error);
                 }
                 else
                 {
@@ -229,7 +224,7 @@ namespace Channels
 
                 Complete();
 
-                if (_completedReading)
+                if (_writingTcs.Task.IsCompleted)
                 {
                     Dispose();
                 }
@@ -240,28 +235,23 @@ namespace Channels
         {
             lock (_sync)
             {
-                _completedReading = true;
-
                 if (error != null)
                 {
-                    _writingTcs.TrySetResult(error);
+                    _writingTcs.TrySetException(error);
                 }
                 else
                 {
                     _writingTcs.TrySetResult(null);
                 }
 
-                if (_completedWriting)
+                if (_readingTcs.Task.IsCompleted)
                 {
                     Dispose();
                 }
             }
         }
 
-        public ChannelAwaitable ReadAsync()
-        {
-            return new ChannelAwaitable(this);
-        }
+        public ChannelAwaitable ReadAsync() => new ChannelAwaitable(this);
 
         internal void OnCompleted(Action continuation)
         {
@@ -307,10 +297,10 @@ namespace Channels
                 throw new InvalidOperationException("can't GetResult unless completed");
             }
 
-            var error = _readingTcs.Task.Exception?.InnerException;
-            if (error != null)
+            if (_readingTcs.Task.IsCompleted)
             {
-                throw error;
+                // Observe any exceptions if the reading task is completed
+                _readingTcs.Task.GetAwaiter().GetResult();
             }
 
             return Read();
@@ -318,8 +308,8 @@ namespace Channels
 
         private void Dispose()
         {
-            Debug.Assert(_completedWriting, "Not completed writing");
-            Debug.Assert(_completedReading, "Not completed reading");
+            Debug.Assert(_writingTcs.Task.IsCompleted, "Not completed writing");
+            Debug.Assert(_readingTcs.Task.IsCompleted, "Not completed reading");
 
             lock (_sync)
             {
