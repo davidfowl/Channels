@@ -6,7 +6,7 @@ using Channels.Networking.Libuv.Interop;
 
 namespace Channels.Networking.Libuv
 {
-    public class UvTcpConnection
+    public class UvTcpConnection : IChannel
     {
         private const int EOF = -4095;
 
@@ -36,6 +36,13 @@ namespace Channels.Networking.Libuv
             StartReading();
             _sendingTask = ProcessWrites();
         }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+        protected virtual void Dispose(bool disposing) { }
 
         public IWritableChannel Output => _output;
 

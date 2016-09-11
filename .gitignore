@@ -30,3 +30,4 @@ runtimes/
 .build/
 .testPublish/
 launchSettings.json
+*.tmp
