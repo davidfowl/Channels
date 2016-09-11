@@ -101,11 +101,18 @@ namespace Channels
             }
         }
 
-        internal int Seek(int bytes)
+        internal ReadCursor Seek(int bytes)
+        {
+            int count;
+            return Seek(bytes, out count);
+        }
+
+        internal ReadCursor Seek(int bytes, out int bytesSeeked)
         {
             if (IsEnd)
             {
-                return 0;
+                bytesSeeked = 0;
+                return this;
             }
 
             var wasLastSegment = _segment.Next == null;
@@ -113,8 +120,8 @@ namespace Channels
 
             if (following >= bytes)
             {
-                _index += bytes;
-                return bytes;
+                bytesSeeked = bytes;
+                return new ReadCursor(Segment, _index + bytes);
             }
 
             var segment = _segment;
@@ -123,9 +130,8 @@ namespace Channels
             {
                 if (wasLastSegment)
                 {
-                    _segment = segment;
-                    _index = index + following;
-                    return following;
+                    bytesSeeked = following;
+                    return new ReadCursor(segment, index + following);
                 }
                 else
                 {
@@ -139,20 +145,19 @@ namespace Channels
 
                 if (following >= bytes)
                 {
-                    _segment = segment;
-                    _index = index + bytes;
-                    return bytes;
+                    bytesSeeked = bytes;
+                    return new ReadCursor(segment, index + bytes);
                 }
             }
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal bool TryGetBuffer(ReadCursor end, out PooledBufferSpan span)
+        internal ReadCursor TryGetBuffer(ReadCursor end, out PooledBufferSpan span)
         {
             if (IsDefault)
             {
                 span = default(PooledBufferSpan);
-                return false;
+                return this;
             }
 
             var segment = _segment;
@@ -165,21 +170,19 @@ namespace Channels
                 if (following > 0)
                 {
                     span = new PooledBufferSpan(segment.Buffer, index, following);
-
-                    _index = index + following;
-                    return true;
+                    return new ReadCursor(segment, index + following);
                 }
 
                 span = default(PooledBufferSpan);
-                return false;
+                return this;
             }
             else
             {
-                return TryGetBufferMultiSegment(end, out span);
+                return TryGetBufferMultiBlock(end, out span);
             }
         }
 
-        private bool TryGetBufferMultiSegment(ReadCursor end, out PooledBufferSpan span)
+        private ReadCursor TryGetBufferMultiBlock(ReadCursor end, out PooledBufferSpan span)
         {
             var segment = _segment;
             var index = _index;
@@ -212,7 +215,7 @@ namespace Channels
                 if (wasLastSegment)
                 {
                     span = default(PooledBufferSpan);
-                    return false;
+                    return this;
                 }
                 else
                 {
@@ -222,10 +225,7 @@ namespace Channels
             }
 
             span = new PooledBufferSpan(segment.Buffer, index, following);
-
-            _segment = segment;
-            _index = index + following;
-            return true;
+            return new ReadCursor(segment, index + following);
         }
 
         public override string ToString()

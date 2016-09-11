@@ -226,9 +226,7 @@ namespace Channels
 
                 if (found)
                 {
-                    cursor = _start;
-                    // TODO: Avoid extra seek(s)
-                    cursor.Seek(seek);
+                    cursor = _start.Seek(seek);
                     slice = Slice(_start, cursor);
                     return true;
                 }
@@ -246,14 +244,8 @@ namespace Channels
         /// <param name="length">The length of the slice</param>
         public ReadableBuffer Slice(int start, int length)
         {
-            var begin = _start;
-            if (start != 0)
-            {
-                begin.Seek(start);
-            }
-            var end = begin;
-            end.Seek(length);
-            return Slice(begin, end);
+            var begin = _start.Seek(start);
+            return Slice(begin, begin.Seek(length));
         }
 
         /// <summary>
@@ -263,12 +255,7 @@ namespace Channels
         /// <param name="end">The end (inclusive) of the slice</param>
         public ReadableBuffer Slice(int start, ReadCursor end)
         {
-            var begin = _start;
-            if (start != 0)
-            {
-                begin.Seek(start);
-            }
-            return Slice(begin, end);
+            return Slice(_start.Seek(start), end);
         }
 
         /// <summary>
@@ -288,9 +275,7 @@ namespace Channels
         /// <param name="length">The length of the slice</param>
         public ReadableBuffer Slice(ReadCursor start, int length)
         {
-            var end = start;
-            end.Seek(length);
-            return Slice(start, end);
+            return Slice(start, start.Seek(length));
         }
 
         /// <summary>
@@ -310,9 +295,7 @@ namespace Channels
         {
             if (start == 0) return this;
 
-            var begin = _start;
-            begin.Seek(start);
-            return new ReadableBuffer(_channel, begin, _end);
+            return new ReadableBuffer(_channel, _start.Seek(start), _end);
         }
 
         /// <summary>
@@ -615,9 +598,9 @@ namespace Channels
             public bool MoveNext()
             {
                 var start = _buffer.Start;
-                bool moved = start.TryGetBuffer(_buffer.End, out _current);
-                _buffer = _buffer.Slice(start);
-                return moved;
+                var newStart = start.TryGetBuffer(_buffer.End, out _current);
+                _buffer = _buffer.Slice(newStart);
+                return start != newStart;
             }
 
             /// <summary>
