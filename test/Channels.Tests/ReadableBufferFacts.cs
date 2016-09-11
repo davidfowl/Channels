@@ -22,7 +22,7 @@ namespace Channels.Tests
                 byte[] data = new byte[512];
                 for (int i = 0; i < data.Length; i++) data[i] = 42;
                 int totalBytes = 0;
-                var writeBuffer = channel.Alloc();
+                var writeBuffer = channel.Output.Alloc();
                 for (int i = 0; i < Size / data.Length; i++)
                 {
                     writeBuffer.Write(data);
@@ -31,7 +31,7 @@ namespace Channels.Tests
                 await writeBuffer.FlushAsync();
 
                 // now read it back
-                var readBuffer = await channel.ReadAsync();
+                var readBuffer = await channel.Input.ReadAsync();
                 Assert.False(readBuffer.IsSingleSpan);
                 Assert.Equal(totalBytes, readBuffer.Length);
                 TestIndexOfWorksForAllLocations(ref readBuffer, 42);
@@ -51,12 +51,12 @@ namespace Channels.Tests
                 var rand = new Random(12345);
                 rand.NextBytes(data);
 
-                var writeBuffer = channel.Alloc();
+                var writeBuffer = channel.Output.Alloc();
                 writeBuffer.Write(data);
                 await writeBuffer.FlushAsync();
 
                 // now read it back
-                var readBuffer = await channel.ReadAsync();
+                var readBuffer = await channel.Input.ReadAsync();
                 Assert.False(readBuffer.IsSingleSpan);
                 Assert.Equal(data.Length, readBuffer.Length);
 
@@ -99,13 +99,13 @@ namespace Channels.Tests
             {
                 var channel = cf.CreateChannel();
 
-                var writeBuffer = channel.Alloc();
+                var writeBuffer = channel.Output.Alloc();
                 writeBuffer.Ensure(50);
                 writeBuffer.CommitBytes(50); // not even going to pretend to write data here - we're going to cheat
                 await writeBuffer.FlushAsync(); // by overwriting the buffer in-situ
 
                 // now read it back
-                var readBuffer = await channel.ReadAsync();
+                var readBuffer = await channel.Input.ReadAsync();
 
                 ReadUInt64GivesExpectedValues(ref readBuffer);
             }
@@ -123,12 +123,12 @@ namespace Channels.Tests
             {
                 var channel = cf.CreateChannel();
 
-                var writeBuffer = channel.Alloc();
+                var writeBuffer = channel.Output.Alloc();
                 var bytes = Encoding.ASCII.GetBytes(input);
                 writeBuffer.Write(bytes);
                 await writeBuffer.FlushAsync();
 
-                var buffer = await channel.ReadAsync();
+                var buffer = await channel.Input.ReadAsync();
                 var trimmed = buffer.TrimStart();
                 var outputBytes = trimmed.ToArray();
 

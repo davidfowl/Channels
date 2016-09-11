@@ -19,8 +19,8 @@ namespace Channels.Tests
                 var channel = cf.CreateChannel();
                 var bytes = Encoding.ASCII.GetBytes("Hello World");
 
-                await channel.WriteAsync(bytes);
-                var buffer = await channel.ReadAsync();
+                await channel.Output.WriteAsync(bytes);
+                var buffer = await channel.Input.ReadAsync();
 
                 Assert.Equal(11, buffer.Length);
                 Assert.True(buffer.IsSingleSpan);
@@ -39,7 +39,7 @@ namespace Channels.Tests
                 var cts = new CancellationTokenSource();
                 cts.Token.Register(() =>
                 {
-                    channel.CompleteWriting(new OperationCanceledException(cts.Token));
+                    channel.Output.CompleteWriting(new OperationCanceledException(cts.Token));
                 });
 
                 var ignore = Task.Run(async () =>
@@ -50,7 +50,7 @@ namespace Channels.Tests
 
                 await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                 {
-                    var buffer = await channel.ReadAsync();
+                    var buffer = await channel.Input.ReadAsync();
                 });
             }
         }
@@ -66,12 +66,12 @@ namespace Channels.Tests
                 // [padding..hello]  ->  [  world   ]
                 var paddingBytes = Enumerable.Repeat((byte)'a', blockSize - 5).ToArray();
                 var bytes = Encoding.ASCII.GetBytes("Hello World");
-                var writeBuffer = channel.Alloc();
+                var writeBuffer = channel.Output.Alloc();
                 writeBuffer.Write(paddingBytes);
                 writeBuffer.Write(bytes);
                 await writeBuffer.FlushAsync();
 
-                var buffer = await channel.ReadAsync();
+                var buffer = await channel.Input.ReadAsync();
                 Assert.False(buffer.IsSingleSpan);
                 var helloBuffer = buffer.Slice(blockSize - 5);
                 Assert.False(helloBuffer.IsSingleSpan);
@@ -94,8 +94,8 @@ namespace Channels.Tests
                 var channel = cf.CreateChannel();
                 var bytes = Encoding.ASCII.GetBytes("Hello World");
 
-                await channel.WriteAsync(bytes);
-                var buffer = await channel.ReadAsync();
+                await channel.Output.WriteAsync(bytes);
+                var buffer = await channel.Input.ReadAsync();
                 var delim = buffer.IndexOf(ref CommonVectors.LF);
 
                 Assert.True(delim == ReadCursor.NotFound);
@@ -115,12 +115,12 @@ namespace Channels.Tests
                 // [padding..hello]  ->  [  world   ]
                 var paddingBytes = Enumerable.Repeat((byte)'a', blockSize - 5).ToArray();
                 var bytes = Encoding.ASCII.GetBytes("Hello World");
-                var writeBuffer = channel.Alloc();
+                var writeBuffer = channel.Output.Alloc();
                 writeBuffer.Write(paddingBytes);
                 writeBuffer.Write(bytes);
                 await writeBuffer.FlushAsync();
 
-                var buffer = await channel.ReadAsync();
+                var buffer = await channel.Input.ReadAsync();
                 var delim = buffer.IndexOf(ref vecUpperR);
                 Assert.True(delim == ReadCursor.NotFound);
             }
@@ -137,12 +137,12 @@ namespace Channels.Tests
                 // [padding..hello]  ->  [  world   ]
                 var paddingBytes = Enumerable.Repeat((byte)'a', blockSize - 5).ToArray();
                 var bytes = Encoding.ASCII.GetBytes("Hello World");
-                var writeBuffer = channel.Alloc();
+                var writeBuffer = channel.Output.Alloc();
                 writeBuffer.Write(paddingBytes);
                 writeBuffer.Write(bytes);
                 await writeBuffer.FlushAsync();
 
-                var buffer = await channel.ReadAsync();
+                var buffer = await channel.Input.ReadAsync();
                 var delim = buffer.IndexOf(ref CommonVectors.Space);
                 Assert.False(buffer.IsSingleSpan);
                 Assert.False(delim == ReadCursor.NotFound);
