@@ -14,10 +14,10 @@ namespace Channels
             _channel = new Channel(pool);
         }
 
-        public Task Completion => ((IReadableChannel)_channel).Completion;
+        public Task Completion => _channel.Input.Completion;
 
-        public void CompleteReading(Exception error = null) => _channel.CompleteReading(error);
+        public void CompleteReading(Exception error = null) => _channel.Input.CompleteReading(error);
 
-        public ChannelAwaitable ReadAsync() => _channel.ReadAsync();
+        public ChannelAwaitable ReadAsync() => _channel.Input.ReadAsync();
     }
 }

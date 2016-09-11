@@ -57,12 +57,12 @@ namespace Channels.Networking.Windows.RIO
             _sendTask = ProcessSends();
         }
 
-        public IReadableChannel Input => _input;
-        public IWritableChannel Output => _output;
+        public IReadableChannel Input => _input.Input;
+        public IWritableChannel Output => _output.Output;
 
         private void ProcessReceives()
         {
-            _buffer = _input.Alloc(2048);
+            _buffer = _input.Output.Alloc(2048);
             var receiveBufferSeg = GetSegmentFromSpan(_buffer.Memory);
 
             if (!_rio.RioReceive(_requestQueue, ref receiveBufferSeg, 1, RioReceiveFlags.None, 0))
@@ -75,9 +75,9 @@ namespace Channels.Networking.Windows.RIO
         {
             while (true)
             {
-                var buffer = await _output.ReadAsync();
+                var buffer = await _output.Input.ReadAsync();
 
-                if (buffer.IsEmpty && _output.WriterCompleted.IsCompleted)
+                if (buffer.IsEmpty && _output.Input.Completion.IsCompleted)
                 {
                     break;
                 }
@@ -106,7 +106,7 @@ namespace Channels.Networking.Windows.RIO
                 buffer.Consumed();
             }
 
-            _output.CompleteReading();
+            _output.Input.CompleteReading();
         }
 
         private Task SendAsync(Span<byte> span, bool endOfMessage)
@@ -199,9 +199,9 @@ namespace Channels.Networking.Windows.RIO
 
         public void ReceiveBeginComplete(uint bytesTransferred)
         {
-            if (bytesTransferred == 0 || _input.ReaderCompleted.IsCompleted)
+            if (bytesTransferred == 0 || _input.Output.Completion.IsCompleted)
             {
-                _input.CompleteWriting();
+                _input.Output.CompleteWriting();
             }
             else
             {
