@@ -18,7 +18,7 @@ namespace Channels
 
         public ChannelAwaitable GetAwaiter() => this;
 
-        public void UnsafeOnCompleted(Action continuation) => _channel.UnsafeOnCompleted(continuation);
+        public void UnsafeOnCompleted(Action continuation) => OnCompleted(continuation);
 
         public void OnCompleted(Action continuation) => _channel.OnCompleted(continuation);
     }

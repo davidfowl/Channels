@@ -52,9 +52,9 @@ namespace Channels.Samples.IO
             buffer.CommitBytes((int)numBytes);
             var task = buffer.FlushAsync();
 
-            if (numBytes == 0 || operation.Channel.ReaderCompleted.IsCompleted)
+            if (numBytes == 0 || operation.Channel.Input.Completion.IsCompleted)
             {
-                operation.Channel.CompleteWriting();
+                operation.Channel.Output.CompleteWriting();
 
                 // The operation can be disposed when there's nothing more to produce
                 operation.Dispose();
@@ -98,7 +98,7 @@ namespace Channels.Samples.IO
 
             public unsafe void Read()
             {
-                var buffer = Channel.Alloc(2048);
+                var buffer = Channel.Output.Alloc(2048);
 
                 var data = (IntPtr)buffer.Memory.UnsafePointer;
                 var count = buffer.Memory.Length;
@@ -118,7 +118,7 @@ namespace Channels.Samples.IO
                 int hr = Marshal.GetLastWin32Error();
                 if (hr != 997)
                 {
-                    Channel.CompleteWriting(Marshal.GetExceptionForHR(hr));
+                    Channel.Output.CompleteWriting(Marshal.GetExceptionForHR(hr));
                 }
             }
 

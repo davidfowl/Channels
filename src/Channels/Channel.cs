@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Channels
 {
-    public class Channel : IReadableChannel, IWritableChannel
+    public class Channel : IChannel
     {
         private static readonly Action _awaitableIsCompleted = () => { };
         private static readonly Action _awaitableIsNotCompleted = () => { };
@@ -26,6 +26,9 @@ namespace Channels
         private int _producingState;
         private object _sync = new object();
 
+        private readonly WritableChannel _writeChannel;
+        private readonly ReadableChannel _readChannel;
+
         // REVIEW: This object might be getting a little big :)
         private readonly TaskCompletionSource<object> _readingTcs = new TaskCompletionSource<object>();
         private readonly TaskCompletionSource<object> _writingTcs = new TaskCompletionSource<object>();
@@ -36,22 +39,22 @@ namespace Channels
         {
             _pool = pool;
             _awaitableState = _awaitableIsNotCompleted;
+
+            _writeChannel = new WritableChannel(this);
+            _readChannel = new ReadableChannel(this);
         }
+
+        public IReadableChannel Input => _readChannel;
+
+        public IWritableChannel Output => _writeChannel;
 
         public Task ChannelComplete => _disposedTcs.Task;
 
         public Task ReadingStarted => _startingReadingTcs.Task;
 
-        public Task WriterCompleted => _readingTcs.Task;
-        public Task ReaderCompleted => _writingTcs.Task;
+        internal bool IsCompleted => ReferenceEquals(_awaitableState, _awaitableIsCompleted);
 
-        Task IReadableChannel.Completion => _readingTcs.Task;
-
-        Task IWritableChannel.Completion => _writingTcs.Task;
-
-        public bool IsCompleted => ReferenceEquals(_awaitableState, _awaitableIsCompleted);
-
-        public WritableBuffer Alloc(int minimumSize = 0)
+        private WritableBuffer Alloc(int minimumSize)
         {
             if (Interlocked.CompareExchange(ref _producingState, 1, 0) != 0)
             {
@@ -187,7 +190,7 @@ namespace Channels
 
                 if (!examined.IsDefault &&
                     examined.IsEnd &&
-                    WriterCompleted.Status == TaskStatus.WaitingForActivation)
+                    Input.Completion.Status == TaskStatus.WaitingForActivation)
                 {
                     Interlocked.CompareExchange(
                         ref _awaitableState,
@@ -209,7 +212,7 @@ namespace Channels
             }
         }
 
-        public void CompleteWriting(Exception error = null)
+        private void CompleteWriting(Exception error)
         {
             lock (_sync)
             {
@@ -231,7 +234,7 @@ namespace Channels
             }
         }
 
-        public void CompleteReading(Exception error = null)
+        private void CompleteReading(Exception error)
         {
             lock (_sync)
             {
@@ -251,7 +254,7 @@ namespace Channels
             }
         }
 
-        public ChannelAwaitable ReadAsync() => new ChannelAwaitable(this);
+        private ChannelAwaitable ReadAsync() => new ChannelAwaitable(this);
 
         internal void OnCompleted(Action continuation)
         {
@@ -283,11 +286,6 @@ namespace Channels
                 Task.Run(continuation);
                 Task.Run(awaitableState);
             }
-        }
-
-        internal void UnsafeOnCompleted(Action continuation)
-        {
-            OnCompleted(continuation);
         }
 
         internal ReadableBuffer GetResult()
@@ -327,6 +325,55 @@ namespace Channels
                 _tail = null;
 
                 _disposedTcs.TrySetResult(null);
+            }
+        }
+
+        void IDisposable.Dispose()
+        {
+            // TODO: Figure out what to do here
+        }
+
+        private class WritableChannel : IWritableChannel
+        {
+            private readonly Channel _channel;
+
+            public WritableChannel(Channel channel)
+            {
+                _channel = channel;
+            }
+
+            public Task Completion => _channel._readingTcs.Task;
+
+            public WritableBuffer Alloc(int minimumSize = 0)
+            {
+                return _channel.Alloc(minimumSize);
+            }
+
+            public void CompleteWriting(Exception error = null)
+            {
+                _channel.CompleteWriting(error);
+            }
+        }
+
+        private class ReadableChannel : IReadableChannel
+        {
+            private readonly Channel _channel;
+
+            public ReadableChannel(Channel channel)
+            {
+                _channel = channel;
+            }
+
+            public Task Completion => _channel._writingTcs.Task;
+
+            public void CompleteReading(Exception exception = null)
+            {
+                _channel.CompleteReading(exception);
+            }
+
+            public ChannelAwaitable ReadAsync()
+            {
+                return _channel.ReadAsync();
             }
         }
     }
