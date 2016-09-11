@@ -30,14 +30,14 @@ namespace Channels
 
             var channel = new Channel(_pool);
             ExecuteCopyToAsync(channel, stream);
-            return channel;
+            return channel.Input;
         }
 
         private async void ExecuteCopyToAsync(Channel channel, Stream stream)
         {
             await channel.ReadingStarted;
 
-            await stream.CopyToAsync(channel);
+            await stream.CopyToAsync(channel.Output);
         }
 
         public IWritableChannel MakeWriteableChannel(Stream stream)
@@ -49,44 +49,46 @@ namespace Channels
 
             var channel = new Channel(_pool);
 
-            channel.CopyToAsync(stream).ContinueWith((task) =>
+            channel.Input.CopyToAsync(stream).ContinueWith((task, state) =>
             {
+                var input = (IReadableChannel)state;
                 if (task.IsFaulted)
                 {
-                    channel.CompleteReading(task.Exception);
+                    input.CompleteReading(task.Exception);
                 }
                 else
                 {
-                    channel.CompleteReading();
+                    input.CompleteReading();
                 }
-            });
+            },
+            channel.Input);
 
-            return channel;
+            return channel.Output;
         }
 
         public IWritableChannel MakeWriteableChannel(IWritableChannel channel, Func<IReadableChannel, IWritableChannel, Task> consume)
         {
             var newChannel = new Channel(_pool);
 
-            consume(newChannel, channel).ContinueWith(t =>
+            consume(newChannel.Input, channel).ContinueWith(t =>
             {
             });
 
-            return newChannel;
+            return newChannel.Output;
         }
 
         public IReadableChannel MakeReadableChannel(IReadableChannel channel, Func<IReadableChannel, IWritableChannel, Task> produce)
         {
             var newChannel = new Channel(_pool);
             Execute(channel, newChannel, produce);
-            return newChannel;
+            return newChannel.Input;
         }
 
         private async void Execute(IReadableChannel channel, Channel newChannel, Func<IReadableChannel, IWritableChannel, Task> produce)
         {
             await newChannel.ReadingStarted;
 
-            await produce(channel, newChannel);
+            await produce(channel, newChannel.Output);
         }
 
         public void Dispose() => _pool.Dispose();

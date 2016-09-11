@@ -11,7 +11,7 @@ namespace Channels.Tests
             using (var memoryPool = new MemoryPool())
             {
                 var channel = new Channel(memoryPool);
-                var buffer = channel.Alloc();
+                var buffer = channel.Output.Alloc();
                 buffer.CommitBytes(0); // doing nothing, the hard way
                 await buffer.FlushAsync();
             }
