@@ -16,8 +16,8 @@ namespace Channels.Networking.Libuv
 
         private readonly Queue<ReadableBuffer> _outgoing = new Queue<ReadableBuffer>(1);
 
-        protected readonly Channel _inputChannel;
         protected readonly Channel _outputChannel;
+        protected readonly Channel _inputChannel;
         private readonly UvThread _thread;
         private readonly UvTcpHandle _handle;
 
@@ -30,16 +30,16 @@ namespace Channels.Networking.Libuv
             _thread = thread;
             _handle = handle;
 
-            _inputChannel = _thread.ChannelFactory.CreateChannel();
             _outputChannel = _thread.ChannelFactory.CreateChannel();
+            _inputChannel = _thread.ChannelFactory.CreateChannel();
 
             StartReading();
             _sendingTask = ProcessWrites();
         }
 
-        public IWritableChannel Output => _outputChannel.Output;
+        public IWritableChannel Output => _inputChannel.Output;
 
-        public IReadableChannel Input => _inputChannel.Input;
+        public IReadableChannel Input => _outputChannel.Input;
 
         private async Task ProcessWrites()
         {
@@ -47,14 +47,14 @@ namespace Channels.Networking.Libuv
             {
                 while (true)
                 {
-                    var buffer = await _outputChannel.Input.ReadAsync();
+                    var buffer = await _inputChannel.Input.ReadAsync();
 
                     try
                     {
                         // Make sure we're on the libuv thread
                         await _thread;
 
-                        if (buffer.IsEmpty && _outputChannel.Input.Completion.IsCompleted)
+                        if (buffer.IsEmpty && _inputChannel.Input.Completion.IsCompleted)
                         {
                             break;
                         }
@@ -76,11 +76,11 @@ namespace Channels.Networking.Libuv
             }
             catch (Exception ex)
             {
-                _outputChannel.Input.CompleteReading(ex);
+                _inputChannel.Input.CompleteReading(ex);
             }
             finally
             {
-                _outputChannel.Input.CompleteReading();
+                _inputChannel.Input.CompleteReading();
 
                 // Drain the pending writes
                 if (_outgoing.Count > 0)
@@ -93,7 +93,7 @@ namespace Channels.Networking.Libuv
                 _handle.Dispose();
 
                 // We'll never call the callback after disposing the handle
-                _inputChannel.Output.CompleteWriting();
+                _outputChannel.Output.CompleteWriting();
             }
         }
 
@@ -159,11 +159,11 @@ namespace Channels.Networking.Libuv
                 handle.Libuv.Check(status, out uvError);
                 error = new IOException(uvError.Message, uvError);
 
-                _inputChannel.Output.CompleteWriting(error);
+                _outputChannel.Output.CompleteWriting(error);
             }
-            else if (readCount == 0 || _inputChannel.Input.Completion.IsCompleted)
+            else if (readCount == 0 || _outputChannel.Input.Completion.IsCompleted)
             {
-                _inputChannel.Output.CompleteWriting();
+                _outputChannel.Output.CompleteWriting();
             }
             else
             {
@@ -187,7 +187,7 @@ namespace Channels.Networking.Libuv
 
         private unsafe Uv.uv_buf_t OnAlloc(UvStreamHandle handle, int status)
         {
-            _inputBuffer = _inputChannel.Output.Alloc(2048);
+            _inputBuffer = _outputChannel.Output.Alloc(2048);
             return handle.Libuv.buf_init((IntPtr)_inputBuffer.Memory.UnsafePointer, _inputBuffer.Memory.Length);
         }
     }
