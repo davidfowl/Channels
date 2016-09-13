@@ -6,7 +6,8 @@
   },
   "buildOptions": {
     "allowUnsafe": true,
-    "keyFile": "../../tools/Key.snk"
+    "keyFile": "../../tools/Key.snk",
+    "xmlDoc": true
   },
 
   "dependencies": {
