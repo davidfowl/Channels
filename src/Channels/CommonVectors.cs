@@ -29,6 +29,41 @@ namespace Channels
 
         public static Vector<byte> GetVector(byte vectorByte)
         {
+            if (vectorByte == (byte)'\n')
+            {
+                return CR;
+            }
+
+            if (vectorByte == (byte)'\n')
+            {
+                return LF;
+            }
+
+            if (vectorByte == (byte)':')
+            {
+                return Colon;
+            }
+
+            if (vectorByte == (byte)' ')
+            {
+                return Space;
+            }
+
+            if (vectorByte == (byte)'\t')
+            {
+                return Tab;
+            }
+
+            if (vectorByte == (byte)'?')
+            {
+                return QuestionMark;
+            }
+
+            if (vectorByte == (byte)'%')
+            {
+                return Percentage;
+            }
+
             Vector<byte> vec;
             if (_vectorCache.TryGetValue(vectorByte, out vec))
             {
