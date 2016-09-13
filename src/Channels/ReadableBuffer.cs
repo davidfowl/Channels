@@ -80,16 +80,47 @@ namespace Channels
             }
         }
 
-        public ReadCursor IndexOf(ref Vector<byte> byte0Vector)
+        public unsafe bool TrySliceTo(byte b1, byte b2, out ReadableBuffer slice, out ReadCursor cursor)
+        {
+            byte* twoBytes = stackalloc byte[2];
+            twoBytes[0] = b1;
+            twoBytes[1] = b2;
+            var span = new Span<byte>(twoBytes, 2);
+
+            var buffer = this;
+            while (!buffer.IsEmpty)
+            {
+                // Find the first byte
+                if (!buffer.TrySliceTo(b1, out slice, out cursor))
+                {
+                    return false;
+                }
+
+                // Move the buffer to where you fonud the first byte then search for the next byte
+                buffer = buffer.Slice(cursor);
+
+                if (buffer.StartsWith(span))
+                {
+                    return true;
+                }
+            }
+
+            slice = default(ReadableBuffer);
+            cursor = default(ReadCursor);
+            return false;
+        }
+
+        public bool TrySliceTo(byte value, out ReadableBuffer slice, out ReadCursor cursor)
         {
             if (IsEmpty)
             {
-                return ReadCursor.NotFound;
+                slice = default(ReadableBuffer);
+                cursor = default(ReadCursor);
+                return false;
             }
 
-            byte byte0 = byte0Vector[0];
+            var byte0Vector = CommonVectors.GetVector(value);
 
-            var start = _start;
             var seek = 0;
 
             foreach (var span in this)
@@ -124,24 +155,28 @@ namespace Channels
                     // Slow search
                     for (int i = 0; i < currentSpan.Length; i++)
                     {
-                        if (currentSpan[i] == byte0)
+                        if (currentSpan[i] == value)
                         {
-                            seek += i;
                             found = true;
                             break;
                         }
+                        seek++;
                     }
                 }
 
                 if (found)
                 {
-                    // TODO: Avoid extra seek
-                    start.Seek(seek);
-                    return start;
+                    cursor = _start;
+                    // TODO: Avoid extra seek(s)
+                    cursor.Seek(seek);
+                    slice = Slice(_start, cursor);
+                    return true;
                 }
             }
 
-            return ReadCursor.NotFound;
+            slice = default(ReadableBuffer);
+            cursor = default(ReadCursor);
+            return false;
         }
 
         public ReadableBuffer Slice(int start, int length)

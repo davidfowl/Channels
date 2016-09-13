@@ -69,53 +69,49 @@ namespace Channels.Samples.Http
                     if (_state == ParsingState.StartLine)
                     {
                         // Find \n
-                        var delim = buffer.IndexOf(ref CommonVectors.LF);
-                        if (delim == ReadCursor.NotFound)
+                        ReadCursor delim;
+                        ReadableBuffer startLine;
+                        if (!buffer.TrySliceTo((byte)'\r', (byte)'\n', out startLine, out delim))
                         {
                             continue;
                         }
 
-                        // Grab the entire start line
-                        var startLine = buffer.Slice(0, delim);
 
                         // Move the buffer to the rest
-                        buffer = buffer.Slice(delim).Slice(1);
+                        buffer = buffer.Slice(delim).Slice(2);
 
-                        delim = startLine.IndexOf(ref CommonVectors.Space);
-                        if (delim == ReadCursor.NotFound)
+                        ReadableBuffer method;
+                        if (!startLine.TrySliceTo((byte)' ', out method, out delim))
                         {
                             throw new Exception();
                         }
 
-                        var method = startLine.Slice(0, delim);
                         Method = method.Preserve();
 
                         // Skip ' '
                         startLine = startLine.Slice(delim).Slice(1);
 
-                        delim = startLine.IndexOf(ref CommonVectors.Space);
-                        if (delim == ReadCursor.NotFound)
+                        ReadableBuffer path;
+                        if (!startLine.TrySliceTo((byte)' ', out path, out delim))
                         {
                             throw new Exception();
                         }
 
-                        var path = startLine.Slice(0, delim);
                         Path = path.Preserve();
 
                         // Skip ' '
                         startLine = startLine.Slice(delim).Slice(1);
 
-                        delim = startLine.IndexOf(ref CommonVectors.CR);
-                        if (delim == ReadCursor.NotFound)
+                        var httpVersion = startLine;
+                        if (httpVersion.IsEmpty)
                         {
                             throw new Exception();
                         }
 
-                        var httpVersion = startLine.Slice(0, delim);
                         HttpVersion = httpVersion.Preserve();
 
                         _state = ParsingState.Headers;
-                        consumed = startLine.End;
+                        consumed = buffer.Start;
                     }
 
                     // Parse headers
@@ -157,34 +153,32 @@ namespace Channels.Samples.Http
 
                         // End of the header
                         // \n
-                        var delim = buffer.IndexOf(ref CommonVectors.LF);
-                        if (delim == ReadCursor.NotFound)
+                        ReadCursor delim;
+                        ReadableBuffer headerPair;
+                        if (!buffer.TrySliceTo((byte)'\n', out headerPair, out delim))
                         {
                             break;
                         }
 
-                        var headerPair = buffer.Slice(0, delim);
                         buffer = buffer.Slice(delim).Slice(1);
 
                         // :
-                        delim = headerPair.IndexOf(ref CommonVectors.Colon);
-                        if (delim == ReadCursor.NotFound)
+                        if (!headerPair.TrySliceTo((byte)':', out headerName, out delim))
                         {
                             throw new Exception();
                         }
 
-                        headerName = headerPair.Slice(0, delim).TrimStart();
+                        headerName = headerName.TrimStart();
                         headerPair = headerPair.Slice(delim).Slice(1);
 
                         // \r
-                        delim = headerPair.IndexOf(ref CommonVectors.CR);
-                        if (delim == ReadCursor.NotFound)
+                        if (!headerPair.TrySliceTo((byte)'\r', out headerValue, out delim))
                         {
                             // Bad request
                             throw new Exception();
                         }
 
-                        headerValue = headerPair.Slice(0, delim).TrimStart();
+                        headerValue = headerValue.TrimStart();
                         RequestHeaders.SetHeader(ref headerName, ref headerValue);
 
                         // Move the consumed

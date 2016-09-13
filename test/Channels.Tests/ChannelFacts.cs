@@ -96,9 +96,10 @@ namespace Channels.Tests
 
                 await channel.WriteAsync(bytes);
                 var buffer = await channel.ReadAsync();
-                var delim = buffer.IndexOf(ref CommonVectors.LF);
+                ReadableBuffer slice;
+                ReadCursor cursor;
 
-                Assert.True(delim == ReadCursor.NotFound);
+                Assert.False(buffer.TrySliceTo(10, out slice, out cursor));
             }
         }
 
@@ -121,8 +122,9 @@ namespace Channels.Tests
                 await writeBuffer.FlushAsync();
 
                 var buffer = await channel.ReadAsync();
-                var delim = buffer.IndexOf(ref vecUpperR);
-                Assert.True(delim == ReadCursor.NotFound);
+                ReadableBuffer slice;
+                ReadCursor cursor;
+                Assert.False(buffer.TrySliceTo((byte)'R', out slice, out cursor));
             }
         }
 
@@ -143,11 +145,12 @@ namespace Channels.Tests
                 await writeBuffer.FlushAsync();
 
                 var buffer = await channel.ReadAsync();
-                var delim = buffer.IndexOf(ref CommonVectors.Space);
+                ReadableBuffer slice;
+                ReadCursor cursor;
                 Assert.False(buffer.IsSingleSpan);
-                Assert.False(delim == ReadCursor.NotFound);
+                Assert.True(buffer.TrySliceTo((byte)' ', out slice, out cursor));
 
-                var slice = buffer.Slice(delim).Slice(1);
+                slice = buffer.Slice(cursor).Slice(1);
                 var array = slice.ToArray();
 
                 Assert.Equal("World", Encoding.ASCII.GetString(array));

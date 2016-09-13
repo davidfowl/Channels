@@ -7,9 +7,6 @@ namespace Channels.Samples.Http
 {
     public class FormReader
     {
-        private static Vector<byte> _vectorAnd = new Vector<byte>((byte)'&');
-        private static Vector<byte> _vectorEq = new Vector<byte>((byte)'=');
-
         private Dictionary<string, StringValues> _data = new Dictionary<string, StringValues>();
         private long? _contentLength;
 
@@ -30,22 +27,23 @@ namespace Channels.Samples.Http
             while (!buffer.IsEmpty && _contentLength > 0)
             {
                 var next = buffer;
-                var delim = next.IndexOf(ref _vectorEq);
-
-                if (delim == ReadCursor.NotFound)
+                ReadCursor delim;
+                ReadableBuffer key;
+                if (!next.TrySliceTo((byte)'=', out key, out delim))
                 {
                     break;
                 }
 
-                var key = next.Slice(0, delim);
                 next = next.Slice(delim).Slice(1);
 
-                var value = default(ReadableBuffer);
-
-                delim = next.IndexOf(ref _vectorAnd);
-
-                if (delim == ReadCursor.NotFound)
+                ReadableBuffer value;
+                if (next.TrySliceTo((byte)'&', out value, out delim))
                 {
+                    next = next.Slice(delim).Slice(1);
+                }
+                else
+                {
+
                     var remaining = _contentLength - buffer.Length;
 
                     if (remaining == 0)
@@ -57,11 +55,6 @@ namespace Channels.Samples.Http
                     {
                         break;
                     }
-                }
-                else
-                {
-                    value = next.Slice(0, delim);
-                    next = next.Slice(delim).Slice(1);
                 }
 
                 // TODO: Combine multi value keys

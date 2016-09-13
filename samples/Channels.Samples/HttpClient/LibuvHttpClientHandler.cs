@@ -79,7 +79,7 @@ namespace Channels.Samples
 
                 try
                 {
-                    if (consumed.Equals(state.Consumed))
+                    if (consumed == state.Consumed)
                     {
                         var oldBody = responseBuffer.Slice(0, state.PreviousContentLength);
 
@@ -101,19 +101,17 @@ namespace Channels.Samples
                         break;
                     }
 
-                    var delim = responseBuffer.IndexOf(ref CommonVectors.LF);
-
-                    if (delim == ReadCursor.NotFound)
+                    ReadCursor delim;
+                    ReadableBuffer responseLine;
+                    if (!responseBuffer.TrySliceTo((byte)'\r', (byte)'\n', out responseLine, out delim))
                     {
                         continue;
                     }
 
-                    var responseLine = responseBuffer.Slice(0, delim);
-                    responseBuffer = responseBuffer.Slice(delim).Slice(1);
+                    responseBuffer = responseBuffer.Slice(delim).Slice(2);
 
-                    delim = responseLine.IndexOf(ref CommonVectors.Space);
-
-                    if (delim == ReadCursor.NotFound)
+                    ReadableBuffer httpVersion;
+                    if (!responseLine.TrySliceTo((byte)' ', out httpVersion, out delim))
                     {
                         // Bad request
                         throw new InvalidOperationException();
@@ -121,23 +119,20 @@ namespace Channels.Samples
 
                     consumed = responseBuffer.Start;
 
-                    var httpVersion = responseLine.Slice(0, delim);
                     responseLine = responseLine.Slice(delim).Slice(1);
 
-                    delim = responseLine.IndexOf(ref CommonVectors.Space);
-
-                    if (delim == ReadCursor.NotFound)
+                    ReadableBuffer statusCode;
+                    if (!responseLine.TrySliceTo((byte)' ', out statusCode, out delim))
                     {
                         // Bad request
                         throw new InvalidOperationException();
                     }
 
-                    response.StatusCode = (HttpStatusCode)responseLine.Slice(0, delim).GetUInt32();
+                    response.StatusCode = (HttpStatusCode)statusCode.GetUInt32();
                     responseLine = responseLine.Slice(delim).Slice(1);
 
-                    delim = responseLine.IndexOf(ref CommonVectors.Space);
-
-                    if (delim == ReadCursor.NotFound)
+                    ReadableBuffer remaining;
+                    if (!responseLine.TrySliceTo((byte)' ', out remaining, out delim))
                     {
                         // Bad request
                         throw new InvalidOperationException();
@@ -179,34 +174,31 @@ namespace Channels.Samples
 
                         // End of the header
                         // \n
-                        delim = responseBuffer.IndexOf(ref CommonVectors.LF);
-                        if (delim == ReadCursor.NotFound)
+                        ReadableBuffer headerPair;
+                        if (!responseBuffer.TrySliceTo((byte)'\n', out headerPair, out delim))
                         {
                             break;
                         }
 
-                        var headerPair = responseBuffer.Slice(0, delim);
                         responseBuffer = responseBuffer.Slice(delim).Slice(1);
 
                         // :
-                        delim = headerPair.IndexOf(ref CommonVectors.Colon);
-                        if (delim == ReadCursor.NotFound)
+                        if (!headerPair.TrySliceTo((byte)':', out headerName, out delim))
                         {
                             throw new Exception();
                         }
 
-                        headerName = headerPair.Slice(0, delim).TrimStart();
-                        headerPair = headerPair.Slice(delim).Slice(1);
+                        headerName = headerName.TrimStart();
+                        headerPair = headerPair.Slice(headerName.End).Slice(1);
 
                         // \r
-                        delim = headerPair.IndexOf(ref CommonVectors.CR);
-                        if (delim == ReadCursor.NotFound)
+                        if (!headerPair.TrySliceTo((byte)'\r', out headerValue, out delim))
                         {
                             // Bad request
                             throw new Exception();
                         }
 
-                        headerValue = headerPair.Slice(0, delim).TrimStart();
+                        headerValue = headerValue.TrimStart();
                         var hKey = headerName.GetAsciiString();
                         var hValue = headerValue.GetAsciiString();
 

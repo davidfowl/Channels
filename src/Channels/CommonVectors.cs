@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace Channels
 {
     // Move to text library?
-    public static class CommonVectors
+    internal class CommonVectors
     {
         public static Vector<byte> CR = new Vector<byte>((byte)'\r');
         public static Vector<byte> LF = new Vector<byte>((byte)'\n');
@@ -16,5 +16,25 @@ namespace Channels
         public static Vector<byte> Tab = new Vector<byte>((byte)'\t');
         public static Vector<byte> QuestionMark = new Vector<byte>((byte)'?');
         public static Vector<byte> Percentage = new Vector<byte>((byte)'%');
+
+        private static Dictionary<byte, Vector<byte>> _vectorCache = new Dictionary<byte, Vector<byte>>();
+
+        static CommonVectors()
+        {
+            for (byte i = 0; i < 0x7f; i++)
+            {
+                _vectorCache[i] = new Vector<byte>(i);
+            }
+        }
+
+        public static Vector<byte> GetVector(byte vectorByte)
+        {
+            Vector<byte> vec;
+            if (_vectorCache.TryGetValue(vectorByte, out vec))
+            {
+                return vec;
+            }
+            return new Vector<byte>(vectorByte);
+        }
     }
 }

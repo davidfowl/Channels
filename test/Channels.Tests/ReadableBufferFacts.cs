@@ -139,26 +139,27 @@ namespace Channels.Tests
         private unsafe void TestIndexOfWorksForAllLocations(ref ReadableBuffer readBuffer, byte emptyValue)
         {
             byte huntValue = (byte)~emptyValue;
-            Vector<byte> huntVector = new Vector<byte>(huntValue);
 
             // we're going to fully index the final locations of the buffer, so that we
             // can mutate etc in constant time
             var addresses = BuildPointerIndex(ref readBuffer);
 
             // check it isn't there to start with
-            var found = readBuffer.IndexOf(ref huntVector);
-            Assert.True(found == ReadCursor.NotFound);
+            ReadableBuffer slice;
+            ReadCursor cursor;
+            var found = readBuffer.TrySliceTo(huntValue, out slice, out cursor);
+            Assert.False(found);
 
             // correctness test all values 
             for (int i = 0; i < readBuffer.Length; i++)
             {
                 *addresses[i] = huntValue;
-                found = readBuffer.IndexOf(ref huntVector);
+                found = readBuffer.TrySliceTo(huntValue, out slice, out cursor);
                 *addresses[i] = emptyValue;
 
-                Assert.True(found != ReadCursor.NotFound);
-                var slice = readBuffer.Slice(found);
-                Assert.True(slice.FirstSpan.UnsafePointer == addresses[i]);
+                Assert.True(found);
+                var remaining = readBuffer.Slice(cursor);
+                Assert.True(remaining.FirstSpan.UnsafePointer == addresses[i]);
             }
         }
 
