@@ -155,12 +155,12 @@ namespace Channels.Samples.Http
                         // \n
                         ReadCursor delim;
                         ReadableBuffer headerPair;
-                        if (!buffer.TrySliceTo((byte)'\n', out headerPair, out delim))
+                        if (!buffer.TrySliceTo((byte)'\r', (byte)'\n', out headerPair, out delim))
                         {
                             break;
                         }
 
-                        buffer = buffer.Slice(delim).Slice(1);
+                        buffer = buffer.Slice(delim).Slice(2);
 
                         // :
                         if (!headerPair.TrySliceTo((byte)':', out headerName, out delim))
@@ -171,14 +171,13 @@ namespace Channels.Samples.Http
                         headerName = headerName.TrimStart();
                         headerPair = headerPair.Slice(delim).Slice(1);
 
-                        // \r
-                        if (!headerPair.TrySliceTo((byte)'\r', out headerValue, out delim))
+                        if (headerPair.IsEmpty)
                         {
                             // Bad request
                             throw new Exception();
                         }
 
-                        headerValue = headerValue.TrimStart();
+                        headerValue = headerPair;
                         RequestHeaders.SetHeader(ref headerName, ref headerValue);
 
                         // Move the consumed
