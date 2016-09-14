@@ -36,7 +36,6 @@ namespace Channels
         /// </summary>
         public MemoryBlockSegment Next;
 
-
         /// <summary>
         /// If true, data should not be written into the backing block after the End offset. Data between start and end should never be modified
         /// since this would break cloning.
@@ -47,20 +46,23 @@ namespace Channels
 
 
         // Leasing ctor
-        public MemoryBlockSegment(MemoryPoolBlock block)
+        public void Init(MemoryPoolBlock block)
         {
             Block = block;
             Start = 0;
             End = 0;
+            Next = null;
+
+            ReadOnly = false;
         }
 
         // Cloning ctor
-        private MemoryBlockSegment(MemoryPoolBlock block, int start, int end)
+        internal void Init(MemoryPoolBlock block, int start, int end)
         {
             Block = block;
             Start = start;
             End = end;
-
+            Next = null;
 
             block.AddReference();
             ReadOnly = true;
@@ -88,31 +90,31 @@ namespace Channels
             return builder.ToString();
         }
 
-        public static MemoryBlockSegment Clone(ReadCursor beginBuffer, ReadCursor endBuffer, out MemoryBlockSegment lastBlockSegment)
+        internal static MemoryBlockSegment Clone(SegmentFactory factory, ReadCursor beginBuffer, ReadCursor endBuffer, out MemoryBlockSegment lastBlockSegment)
         {
             var beginOrig = beginBuffer.Segment;
             var endOrig = endBuffer.Segment;
 
             if (beginOrig == endOrig)
             {
-                lastBlockSegment = new MemoryBlockSegment(beginOrig.Block, beginBuffer.Index, endBuffer.Index);
+                lastBlockSegment = factory.Create(beginOrig.Block, beginBuffer.Index, endBuffer.Index);
                 return lastBlockSegment;
             }
 
-            var beginClone = new MemoryBlockSegment(beginOrig.Block, beginBuffer.Index, beginOrig.End);
+            var beginClone = factory.Create(beginOrig.Block, beginBuffer.Index, beginOrig.End);
             var endClone = beginClone;
 
             beginOrig = beginOrig.Next;
 
             while (beginOrig != endOrig)
             {
-                endClone.Next = new MemoryBlockSegment(beginOrig.Block, beginOrig.Start, beginOrig.End);
+                endClone.Next = factory.Create(beginOrig.Block, beginOrig.Start, beginOrig.End);
 
                 endClone = endClone.Next;
                 beginOrig = beginOrig.Next;
             }
 
-            lastBlockSegment = new MemoryBlockSegment(endOrig.Block, endOrig.Start, endBuffer.Index);
+            lastBlockSegment = factory.Create(endOrig.Block, endOrig.Start, endBuffer.Index);
             endClone.Next = lastBlockSegment;
 
             return beginClone;

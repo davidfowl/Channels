@@ -15,7 +15,7 @@ namespace Channels
 
         private static Task _completedTask = Task.FromResult(0);
 
-        private readonly MemoryPool _pool;
+        internal MemoryPool Pool { get; }
 
         private Action _awaitableState;
 
@@ -32,11 +32,18 @@ namespace Channels
         private readonly TaskCompletionSource<object> _startingReadingTcs = new TaskCompletionSource<object>();
         private readonly TaskCompletionSource<object> _disposedTcs = new TaskCompletionSource<object>();
 
-        public Channel(MemoryPool pool)
+        public Channel(MemoryPool pool) : this(pool, new SegmentFactory())
         {
-            _pool = pool;
+        }
+
+        internal Channel(MemoryPool pool, SegmentFactory segmentFactory)
+        {
+            Pool = pool;
+            SegmentFactory = segmentFactory;
             _awaitableState = _awaitableIsNotCompleted;
         }
+
+        internal SegmentFactory SegmentFactory { get; set; }
 
         public Task ChannelComplete => _disposedTcs.Task;
 
@@ -74,7 +81,7 @@ namespace Channels
             if (segment == null && minimumSize > 0)
             {
                 // We're out of tail space so lease a new segment only if the requested size > 0
-                segment = new MemoryBlockSegment(_pool.Lease());
+                segment = SegmentFactory.Create(Pool.Lease());
             }
 
             lock (_sync)
@@ -90,7 +97,7 @@ namespace Channels
                     _tail = segment;
                 }
 
-                return new WritableBuffer(this, _pool, segment);
+                return new WritableBuffer(this, segment);
             }
         }
 
@@ -201,6 +208,7 @@ namespace Channels
                 var returnSegment = returnStart;
                 returnStart = returnStart.Next;
                 returnSegment.Dispose();
+                SegmentFactory.Return(returnSegment);
             }
 
             if (Interlocked.CompareExchange(ref _consumingState, 0, 1) != 1)
@@ -321,6 +329,7 @@ namespace Channels
                     segment = segment.Next;
 
                     returnSegment.Dispose();
+                    SegmentFactory.Return(returnSegment);
                 }
 
                 _head = null;
