@@ -1,23 +1,11 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Numerics;
-using System.Threading.Tasks;
+﻿using System.Numerics;
 
 namespace Channels
 {
     // Move to text library?
     internal class CommonVectors
     {
-        public static Vector<byte> CR = new Vector<byte>((byte)'\r');
-        public static Vector<byte> LF = new Vector<byte>((byte)'\n');
-        public static Vector<byte> Colon = new Vector<byte>((byte)':');
-        public static Vector<byte> Space = new Vector<byte>((byte)' ');
-        public static Vector<byte> Tab = new Vector<byte>((byte)'\t');
-        public static Vector<byte> QuestionMark = new Vector<byte>((byte)'?');
-        public static Vector<byte> Percentage = new Vector<byte>((byte)'%');
-
-        private static Dictionary<byte, Vector<byte>> _vectorCache = new Dictionary<byte, Vector<byte>>();
+        private static Vector<byte>[] _vectorCache = new Vector<byte>[0x7F];
 
         static CommonVectors()
         {
@@ -29,46 +17,11 @@ namespace Channels
 
         public static Vector<byte> GetVector(byte vectorByte)
         {
-            if (vectorByte == (byte)'\n')
+            if (vectorByte < _vectorCache.Length)
             {
-                return CR;
+                return _vectorCache[vectorByte];
             }
 
-            if (vectorByte == (byte)'\n')
-            {
-                return LF;
-            }
-
-            if (vectorByte == (byte)':')
-            {
-                return Colon;
-            }
-
-            if (vectorByte == (byte)' ')
-            {
-                return Space;
-            }
-
-            if (vectorByte == (byte)'\t')
-            {
-                return Tab;
-            }
-
-            if (vectorByte == (byte)'?')
-            {
-                return QuestionMark;
-            }
-
-            if (vectorByte == (byte)'%')
-            {
-                return Percentage;
-            }
-
-            Vector<byte> vec;
-            if (_vectorCache.TryGetValue(vectorByte, out vec))
-            {
-                return vec;
-            }
             return new Vector<byte>(vectorByte);
         }
     }
