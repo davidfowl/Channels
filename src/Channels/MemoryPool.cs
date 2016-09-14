@@ -229,7 +229,12 @@ namespace Channels
 
         PooledBuffer IBufferPool.Lease()
         {
-            return new PooledBuffer(this, Lease(), obj => ((MemoryPoolBlock)obj).Data);
+            return new PooledBuffer(this, Lease());
+        }
+
+        Span<byte> IBufferPool.GetBuffer(object trackingObject)
+        {
+            return ((MemoryPoolBlock)trackingObject).Data;
         }
 
         void IBufferPool.Return(object trackingObject)

@@ -2,6 +2,10 @@
 
 namespace Channels
 {
+    // REVIEW: The interface looks a bit asymmetric but that's in purpose so that
+    // LeasedBuffer doesn't need to expose any of the behind the scenes tracking objects
+    // of the underlying pool
+
     /// <summary>
     /// An interface that represents a <see cref="IBufferPool"/> that channels will use to allocate memory.
     /// </summary>
@@ -15,9 +19,12 @@ namespace Channels
         /// <returns>A <see cref="PooledBuffer"/> which is a wrapper around leased memory</returns>
         PooledBuffer Lease();
 
-        // REVIEW: The interface looks a bit asymmetric but that's in purpose so that
-        // LeasedBuffer doesn't need to expose any of the behind the scenes tracking objects
-        // of the underlying pool
+        /// <summary>
+        /// Returns a <see cref="Span{byte}"/> for the tracking object returned in Lease
+        /// </summary>
+        /// <param name="trackingObject">A tracking object created by lease</param>
+        /// <returns>A span that represents the buffer</returns>
+        Span<byte> GetBuffer(object trackingObject);
 
         /// <summary>
         /// Returns the tracking object created in Lease to the <see cref="IBufferPool"/>

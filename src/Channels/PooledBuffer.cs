@@ -11,17 +11,15 @@ namespace Channels
         private IBufferPool _pool;
         private object _trackingObject;
         private int _refCount;
-        private Func<object, Span<byte>> _spanFactory;
 
-        public PooledBuffer(IBufferPool pool, object trackingObject, Func<object, Span<byte>> spanFactory)
+        public PooledBuffer(IBufferPool pool, object trackingObject)
         {
             _pool = pool;
             _trackingObject = trackingObject;
-            _spanFactory = spanFactory;
             _refCount = 1;
         }
 
-        public Span<byte> Data => _trackingObject == null ? Span<byte>.Empty : _spanFactory(_trackingObject);
+        public Span<byte> Data => _pool.GetBuffer(_trackingObject);
 
         // Keep these internal for now since nobody needs to use these but the channels system
         internal void AddReference()
