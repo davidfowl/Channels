@@ -20,7 +20,7 @@ namespace Channels
         PooledBuffer Lease();
 
         /// <summary>
-        /// Returns a <see cref="Span{byte}"/> for the tracking object returned in Lease
+        /// Returns a <see cref="Span{Byte}"/> for the tracking object returned in Lease
         /// </summary>
         /// <param name="trackingObject">A tracking object created by lease</param>
         /// <returns>A span that represents the buffer</returns>
