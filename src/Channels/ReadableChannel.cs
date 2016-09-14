@@ -9,7 +9,7 @@ namespace Channels
     {
         protected Channel _channel;
 
-        public ReadableChannel(MemoryPool pool)
+        public ReadableChannel(IBufferPool pool)
         {
             _channel = new Channel(pool);
         }

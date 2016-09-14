@@ -13,7 +13,7 @@ namespace Channels
     {
         private static readonly int VectorWidth = Vector<byte>.Count;
 
-        private readonly MemoryBlockSpan _span;
+        private readonly BufferSpan _span;
         private readonly bool _isOwner;
         private readonly Channel _channel;
 
@@ -24,7 +24,7 @@ namespace Channels
         public int Length => _length >= 0 ? _length : GetLength();
         public bool IsEmpty => Length == 0;
 
-        public bool IsSingleSpan => _start.Segment.Block == _end.Segment.Block;
+        public bool IsSingleSpan => _start.Segment == _end.Segment;
 
         public Span<byte> FirstSpan => _span.Data;
 
@@ -58,8 +58,8 @@ namespace Channels
             var begin = buffer._start;
             var end = buffer._end;
 
-            MemoryBlockSegment segmentTail;
-            var segmentHead = MemoryBlockSegment.Clone(begin, end, out segmentTail);
+            BufferSegment segmentTail;
+            var segmentHead = BufferSegment.Clone(begin, end, out segmentTail);
 
             begin = new ReadCursor(segmentHead);
             end = new ReadCursor(segmentTail, segmentTail.End);
@@ -334,12 +334,12 @@ namespace Channels
         public struct Enumerator : IEnumerator<Span<byte>>
         {
             private ReadableBuffer _buffer;
-            private MemoryBlockSpan _current;
+            private BufferSpan _current;
 
             public Enumerator(ref ReadableBuffer buffer)
             {
                 _buffer = buffer;
-                _current = default(MemoryBlockSpan);
+                _current = default(BufferSpan);
             }
 
             public Span<byte> Current => _current.Data;

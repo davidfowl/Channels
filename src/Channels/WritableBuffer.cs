@@ -10,18 +10,18 @@ namespace Channels
 {
     public struct WritableBuffer
     {
-        private MemoryPool _pool;
+        private IBufferPool _pool;
         private Channel _channel;
 
-        private MemoryBlockSegment _tail;
+        private BufferSegment _tail;
         private int _tailIndex;
 
-        private MemoryBlockSegment _head;
+        private BufferSegment _head;
         private int _headIndex;
 
         private bool _comitted;
 
-        internal WritableBuffer(Channel channel, MemoryPool pool, MemoryBlockSegment segment)
+        internal WritableBuffer(Channel channel, IBufferPool pool, BufferSegment segment)
         {
             _channel = channel;
             _pool = pool;
@@ -35,53 +35,52 @@ namespace Channels
             _comitted = false;
         }
 
-        internal MemoryBlockSegment Head => _head;
+        internal BufferSegment Head => _head;
 
         internal int HeadIndex => _headIndex;
 
-        internal MemoryBlockSegment Tail => _tail;
+        internal BufferSegment Tail => _tail;
 
         internal int TailIndex => _tailIndex;
 
         internal bool IsDefault => _tail == null;
 
-        public Span<byte> Memory => IsDefault ? Span<byte>.Empty : _tail.Block.Data.Slice(_tail.End, _tail.Block.Data.Length - _tail.End);
+        public Span<byte> Memory => IsDefault ? Span<byte>.Empty : _tail.Buffer.Data.Slice(_tail.End, _tail.Buffer.Data.Length - _tail.End);
 
         public void Ensure(int count = 1)
         {
             if (_tail == null)
             {
-                _tail = new MemoryBlockSegment(_pool.Lease());
+                _tail = new BufferSegment(_pool.Lease());
                 _tailIndex = _tail.End;
                 _head = _tail;
                 _headIndex = _tail.Start;
             }
 
-            Debug.Assert(_tail.Block != null);
             Debug.Assert(_tail.Next == null);
             Debug.Assert(_tail.End == _tailIndex);
 
             var segment = _tail;
-            var block = _tail.Block;
-            var blockIndex = _tailIndex;
-            var bytesLeftInBlock = block.Data.Length - blockIndex;
+            var buffer = _tail.Buffer;
+            var bufferIndex = _tailIndex;
+            var bytesLeftInBuffer = buffer.Data.Length - bufferIndex;
 
             // If inadequate bytes left or if the segment is readonly
-            if (bytesLeftInBlock == 0 || bytesLeftInBlock < count || segment.ReadOnly)
+            if (bytesLeftInBuffer == 0 || bytesLeftInBuffer < count || segment.ReadOnly)
             {
-                var nextBlock = _pool.Lease();
-                var nextSegment = new MemoryBlockSegment(nextBlock);
-                segment.End = blockIndex;
+                var nextBuffer = _pool.Lease();
+                var nextSegment = new BufferSegment(nextBuffer);
+                segment.End = bufferIndex;
                 Volatile.Write(ref segment.Next, nextSegment);
                 segment = nextSegment;
-                block = nextBlock;
+                buffer = nextBuffer;
 
-                blockIndex = 0;
+                bufferIndex = 0;
 
-                segment.End = blockIndex;
-                segment.Block = block;
+                segment.End = bufferIndex;
+                segment.Buffer = buffer;
                 _tail = segment;
-                _tailIndex = blockIndex;
+                _tailIndex = bufferIndex;
             }
         }
 
@@ -124,8 +123,8 @@ namespace Channels
 
         public void Append(ref ReadableBuffer buffer)
         {
-            MemoryBlockSegment clonedEnd;
-            var clonedBegin = MemoryBlockSegment.Clone(buffer.Start, buffer.End, out clonedEnd);
+            BufferSegment clonedEnd;
+            var clonedBegin = BufferSegment.Clone(buffer.Start, buffer.End, out clonedEnd);
 
             if (_tail == null)
             {
@@ -134,7 +133,6 @@ namespace Channels
             }
             else
             {
-                Debug.Assert(_tail.Block != null);
                 Debug.Assert(_tail.Next == null);
                 Debug.Assert(_tail.End == _tailIndex);
 
@@ -167,17 +165,16 @@ namespace Channels
             {
                 Debug.Assert(_tail != null);
                 Debug.Assert(!_tail.ReadOnly);
-                Debug.Assert(_tail.Block != null);
                 Debug.Assert(_tail.Next == null);
                 Debug.Assert(_tail.End == _tailIndex);
 
-                var block = _tail.Block;
-                var blockIndex = _tailIndex + bytesWritten;
+                var buffer = _tail.Buffer;
+                var bufferIndex = _tailIndex + bytesWritten;
 
-                Debug.Assert(blockIndex <= block.Data.Length);
+                Debug.Assert(bufferIndex <= buffer.Data.Length);
 
-                _tail.End = blockIndex;
-                _tailIndex = blockIndex;
+                _tail.End = bufferIndex;
+                _tailIndex = bufferIndex;
             }
             else if (bytesWritten < 0)
             {

@@ -8,7 +8,7 @@ namespace Channels
     /// <summary>
     /// Used to allocate and distribute re-usable blocks of memory.
     /// </summary>
-    public class MemoryPool : IDisposable
+    public class MemoryPool : IBufferPool
     {
         /// <summary>
         /// The gap between blocks' starting address. 4096 is chosen because most operating systems are 4k pages in size and alignment.
@@ -170,7 +170,6 @@ namespace Channels
 
             if (block.Slab != null && block.Slab.IsActive)
             {
-                block.Reset();
                 _blocks.Enqueue(block);
             }
             else
@@ -226,6 +225,16 @@ namespace Channels
             Dispose(true);
             // N/A: uncomment the following line if the finalizer is overridden above.
             // GC.SuppressFinalize(this);
+        }
+
+        PooledBuffer IBufferPool.Lease()
+        {
+            return new PooledBuffer(this, Lease(), obj => ((MemoryPoolBlock)obj).Data);
+        }
+
+        void IBufferPool.Return(object trackingObject)
+        {
+            Return((MemoryPoolBlock)trackingObject);
         }
     }
 }

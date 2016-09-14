@@ -1,7 +1,6 @@
 using System;
 using System.Diagnostics;
 using System.Text;
-using System.Threading;
 
 namespace Channels
 {
@@ -23,8 +22,6 @@ namespace Channels
         {
             _offset = offset;
             _length = length;
-
-            _referenceCount = 1;
         }
 
         /// <summary>
@@ -36,8 +33,6 @@ namespace Channels
         /// Back-reference to the slab from which this block was taken, or null if it is one-time-use memory.
         /// </summary>
         public MemoryPoolSlab Slab { get; private set; }
-
-        private int _referenceCount;
 
 #if DEBUG
         public bool IsLeased { get; set; }
@@ -72,14 +67,6 @@ namespace Channels
         }
 
         /// <summary>
-        /// called when the block is returned to the pool. mutable values are re-assigned to their guaranteed initialized state.
-        /// </summary>
-        public void Reset()
-        {
-            _referenceCount = 1;
-        }
-
-        /// <summary>
         /// ToString overridden for debugger convenience. This displays the "active" byte information in this block as ASCII characters.
         /// ToString overridden for debugger convenience. This displays the byte information in this block as ASCII characters.
         /// </summary>
@@ -94,19 +81,6 @@ namespace Channels
                 builder.Append((char)data[i]);
             }
             return builder.ToString();
-        }
-
-        internal void AddReference()
-        {
-            Interlocked.Increment(ref _referenceCount);
-        }
-
-        internal void RemoveReference()
-        {
-            if (Interlocked.Decrement(ref _referenceCount) == 0)
-            {
-                Pool.Return(this);
-            }
         }
     }
 }

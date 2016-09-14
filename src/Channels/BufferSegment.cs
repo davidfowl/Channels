@@ -6,13 +6,13 @@ using System.Text;
 
 namespace Channels
 {
-    // TODO: Pool segments?
-    internal class MemoryBlockSegment : IDisposable
+    // TODO: Pool segments
+    internal class BufferSegment : IDisposable
     {
         /// <summary>
-        /// Block tracking object used by the byte buffer memory pool.
+        /// Tracking object used by the byte <see cref="IBufferPool"/>
         /// </summary>
-        public MemoryPoolBlock Block;
+        public PooledBuffer Buffer;
 
         /// <summary>
         /// The Start represents the offset into Array where the range of "active" bytes begins. At the point when the block is leased
@@ -34,7 +34,7 @@ namespace Channels
         /// working memory. The "active" memory is grown when bytes are copied in, End is increased, and Next is assigned. The "active" 
         /// memory is shrunk when bytes are consumed, Start is increased, and blocks are returned to the pool.
         /// </summary>
-        public MemoryBlockSegment Next;
+        public BufferSegment Next;
 
 
         /// <summary>
@@ -47,28 +47,27 @@ namespace Channels
 
 
         // Leasing ctor
-        public MemoryBlockSegment(MemoryPoolBlock block)
+        public BufferSegment(PooledBuffer buffer)
         {
-            Block = block;
+            Buffer = buffer;
             Start = 0;
             End = 0;
         }
 
         // Cloning ctor
-        private MemoryBlockSegment(MemoryPoolBlock block, int start, int end)
+        private BufferSegment(PooledBuffer buffer, int start, int end)
         {
-            Block = block;
+            Buffer = buffer;
             Start = start;
             End = end;
-
-
-            block.AddReference();
             ReadOnly = true;
+
+            Buffer.AddReference();
         }
 
         public void Dispose()
         {
-            Block.RemoveReference();
+            Buffer.RemoveReference();
         }
 
 
@@ -79,7 +78,7 @@ namespace Channels
         public override string ToString()
         {
             var builder = new StringBuilder();
-            var data = Block.Data.Slice(Start, Length);
+            var data = Buffer.Data.Slice(Start, Length);
 
             for (int i = 0; i < Length; i++)
             {
@@ -88,32 +87,32 @@ namespace Channels
             return builder.ToString();
         }
 
-        public static MemoryBlockSegment Clone(ReadCursor beginBuffer, ReadCursor endBuffer, out MemoryBlockSegment lastBlockSegment)
+        public static BufferSegment Clone(ReadCursor beginBuffer, ReadCursor endBuffer, out BufferSegment lastSegment)
         {
             var beginOrig = beginBuffer.Segment;
             var endOrig = endBuffer.Segment;
 
             if (beginOrig == endOrig)
             {
-                lastBlockSegment = new MemoryBlockSegment(beginOrig.Block, beginBuffer.Index, endBuffer.Index);
-                return lastBlockSegment;
+                lastSegment = new BufferSegment(beginOrig.Buffer, beginBuffer.Index, endBuffer.Index);
+                return lastSegment;
             }
 
-            var beginClone = new MemoryBlockSegment(beginOrig.Block, beginBuffer.Index, beginOrig.End);
+            var beginClone = new BufferSegment(beginOrig.Buffer, beginBuffer.Index, beginOrig.End);
             var endClone = beginClone;
 
             beginOrig = beginOrig.Next;
 
             while (beginOrig != endOrig)
             {
-                endClone.Next = new MemoryBlockSegment(beginOrig.Block, beginOrig.Start, beginOrig.End);
+                endClone.Next = new BufferSegment(beginOrig.Buffer, beginOrig.Start, beginOrig.End);
 
                 endClone = endClone.Next;
                 beginOrig = beginOrig.Next;
             }
 
-            lastBlockSegment = new MemoryBlockSegment(endOrig.Block, endOrig.Start, endBuffer.Index);
-            endClone.Next = lastBlockSegment;
+            lastSegment = new BufferSegment(endOrig.Buffer, endOrig.Start, endBuffer.Index);
+            endClone.Next = lastSegment;
 
             return beginClone;
         }

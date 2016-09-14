@@ -8,13 +8,13 @@ namespace Channels
 {
     public class ChannelFactory : IDisposable
     {
-        private readonly MemoryPool _pool;
+        private readonly IBufferPool _pool;
 
         public ChannelFactory() : this(new MemoryPool())
         {
         }
 
-        public ChannelFactory(MemoryPool pool)
+        public ChannelFactory(IBufferPool pool)
         {
             _pool = pool;
         }

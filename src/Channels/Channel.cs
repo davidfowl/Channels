@@ -15,12 +15,12 @@ namespace Channels
 
         private static Task _completedTask = Task.FromResult(0);
 
-        private readonly MemoryPool _pool;
+        private readonly IBufferPool _pool;
 
         private Action _awaitableState;
 
-        private MemoryBlockSegment _head;
-        private MemoryBlockSegment _tail;
+        private BufferSegment _head;
+        private BufferSegment _tail;
 
         private int _consumingState;
         private int _producingState;
@@ -32,7 +32,7 @@ namespace Channels
         private readonly TaskCompletionSource<object> _startingReadingTcs = new TaskCompletionSource<object>();
         private readonly TaskCompletionSource<object> _disposedTcs = new TaskCompletionSource<object>();
 
-        public Channel(MemoryPool pool)
+        public Channel(IBufferPool pool)
         {
             _pool = pool;
             _awaitableState = _awaitableIsNotCompleted;
@@ -58,12 +58,12 @@ namespace Channels
                 throw new InvalidOperationException("Already producing.");
             }
 
-            MemoryBlockSegment segment = null;
+            BufferSegment segment = null;
 
             if (_tail != null && !_tail.ReadOnly)
             {
                 // Try to return the tail so the calling code can append to it
-                int remaining = _tail.Block.Data.Length - _tail.End;
+                int remaining = _tail.Buffer.Data.Length - _tail.End;
 
                 if (minimumSize <= remaining)
                 {
@@ -74,7 +74,7 @@ namespace Channels
             if (segment == null && minimumSize > 0)
             {
                 // We're out of tail space so lease a new segment only if the requested size > 0
-                segment = new MemoryBlockSegment(_pool.Lease());
+                segment = new BufferSegment(_pool.Lease());
             }
 
             lock (_sync)
@@ -172,8 +172,8 @@ namespace Channels
             ReadCursor consumed,
             ReadCursor examined)
         {
-            MemoryBlockSegment returnStart = null;
-            MemoryBlockSegment returnEnd = null;
+            BufferSegment returnStart = null;
+            BufferSegment returnEnd = null;
 
             lock (_sync)
             {

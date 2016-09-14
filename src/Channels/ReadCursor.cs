@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Numerics;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
 using System.Text;
 
 namespace Channels
@@ -10,22 +8,22 @@ namespace Channels
     {
         public static ReadCursor NotFound => default(ReadCursor);
 
-        private MemoryBlockSegment _segment;
+        private BufferSegment _segment;
         private int _index;
 
-        internal ReadCursor(MemoryBlockSegment segment)
+        internal ReadCursor(BufferSegment segment)
         {
             _segment = segment;
             _index = segment?.Start ?? 0;
         }
 
-        internal ReadCursor(MemoryBlockSegment segment, int index)
+        internal ReadCursor(BufferSegment segment, int index)
         {
             _segment = segment;
             _index = index;
         }
 
-        internal MemoryBlockSegment Segment => _segment;
+        internal BufferSegment Segment => _segment;
 
         internal int Index => _index;
 
@@ -52,12 +50,12 @@ namespace Channels
                 }
                 else
                 {
-                    return IsEndMultiBlock();
+                    return IsEndMultiSegment();
                 }
             }
         }
 
-        private bool IsEndMultiBlock()
+        private bool IsEndMultiSegment()
         {
             var segment = _segment.Next;
             while (segment != null)
@@ -110,7 +108,7 @@ namespace Channels
                 return 0;
             }
 
-            var wasLastBlock = _segment.Next == null;
+            var wasLastSegment = _segment.Next == null;
             var following = _segment.End - _index;
 
             if (following >= bytes)
@@ -123,7 +121,7 @@ namespace Channels
             var index = _index;
             while (true)
             {
-                if (wasLastBlock)
+                if (wasLastSegment)
                 {
                     _segment = segment;
                     _index = index + following;
@@ -136,7 +134,7 @@ namespace Channels
                     index = segment.Start;
                 }
 
-                wasLastBlock = segment.Next == null;
+                wasLastSegment = segment.Next == null;
                 following = segment.End - index;
 
                 if (following >= bytes)
@@ -149,11 +147,11 @@ namespace Channels
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal bool TryGetBuffer(ReadCursor end, out MemoryBlockSpan span)
+        internal bool TryGetBuffer(ReadCursor end, out BufferSpan span)
         {
             if (IsDefault)
             {
-                span = default(MemoryBlockSpan);
+                span = default(BufferSpan);
                 return false;
             }
 
@@ -166,22 +164,22 @@ namespace Channels
 
                 if (following > 0)
                 {
-                    span = new MemoryBlockSpan(segment.Block, index, following);
+                    span = new BufferSpan(segment.Buffer, index, following);
 
                     _index = index + following;
                     return true;
                 }
 
-                span = default(MemoryBlockSpan);
+                span = default(BufferSpan);
                 return false;
             }
             else
             {
-                return TryGetBufferMultiBlock(end, out span);
+                return TryGetBufferMultiSegment(end, out span);
             }
         }
 
-        private bool TryGetBufferMultiBlock(ReadCursor end, out MemoryBlockSpan span)
+        private bool TryGetBufferMultiSegment(ReadCursor end, out BufferSpan span)
         {
             var segment = _segment;
             var index = _index;
@@ -195,7 +193,7 @@ namespace Channels
 
             while (true)
             {
-                var wasLastBlock = segment.Next == null || end.Segment == segment;
+                var wasLastSegment = segment.Next == null || end.Segment == segment;
 
                 if (end.Segment == segment)
                 {
@@ -211,9 +209,9 @@ namespace Channels
                     break;
                 }
 
-                if (wasLastBlock)
+                if (wasLastSegment)
                 {
-                    span = default(MemoryBlockSpan);
+                    span = default(BufferSpan);
                     return false;
                 }
                 else
@@ -223,7 +221,7 @@ namespace Channels
                 }
             }
 
-            span = new MemoryBlockSpan(segment.Block, index, following);
+            span = new BufferSpan(segment.Buffer, index, following);
 
             _segment = segment;
             _index = index + following;
@@ -233,7 +231,7 @@ namespace Channels
         public override string ToString()
         {
             var sb = new StringBuilder();
-            var span = Segment.Block.Data.Slice(Index, Segment.End - Index);
+            var span = Segment.Buffer.Data.Slice(Index, Segment.End - Index);
             for (int i = 0; i < span.Length; i++)
             {
                 sb.Append((char)span[i]);

@@ -177,7 +177,7 @@ namespace Channels.Samples.Http
                             throw new Exception();
                         }
 
-                        headerValue = headerPair;
+                        headerValue = headerPair.TrimStart();
                         RequestHeaders.SetHeader(ref headerName, ref headerValue);
 
                         // Move the consumed
