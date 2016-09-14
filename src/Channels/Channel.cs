@@ -86,7 +86,7 @@ namespace Channels
                 else if (segment != null && segment != _tail)
                 {
                     // Append the segment to the tail if it's non-null
-                    Volatile.Write(ref _tail.Next, segment);
+                    _tail.Next = segment;
                     _tail = segment;
                 }
 
@@ -120,7 +120,7 @@ namespace Channels
                 else if (_tail != null && buffer.Head != _tail)
                 {
                     // If we have a tail point next to the head of the buffer
-                    Volatile.Write(ref _tail.Next, buffer.Head);
+                    _tail.Next = buffer.Head;
                 }
 
                 // Always update tail to the buffer's tail

@@ -71,7 +71,7 @@ namespace Channels
                 var nextBuffer = _pool.Lease();
                 var nextSegment = new BufferSegment(nextBuffer);
                 segment.End = bufferIndex;
-                Volatile.Write(ref segment.Next, nextSegment);
+                segment.Next = nextSegment;
                 segment = nextSegment;
                 buffer = nextBuffer;
 
