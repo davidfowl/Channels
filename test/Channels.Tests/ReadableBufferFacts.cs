@@ -136,6 +136,32 @@ namespace Channels.Tests
             }
         }
 
+        [Theory]
+        [InlineData("foo\rbar\r\n", "\r\n", "foo\rbar")]
+        [InlineData("foo\rbar\r\n", "\rbar", "foo")]
+        [InlineData("/pathpath/", "path/", "/path")]
+        [InlineData("hellzhello", "hell", null)]
+        public async Task TrySliceToSpan(string input, string sliceTo, string expected)
+        {
+            var sliceToBytes = Encoding.UTF8.GetBytes(sliceTo);
+
+            using (var cf = new ChannelFactory())
+            {
+                var channel = cf.CreateChannel();
+
+                var writeBuffer = channel.Alloc();
+                var bytes = Encoding.UTF8.GetBytes(input);
+                writeBuffer.Write(bytes);
+                await writeBuffer.FlushAsync();
+
+                var buffer = await channel.ReadAsync();
+                ReadableBuffer slice;
+                ReadCursor cursor;
+                Assert.True(buffer.TrySliceTo(sliceToBytes, out slice, out cursor));
+                Assert.Equal(expected, slice.GetUtf8String());
+            }
+        }
+
         private unsafe void TestIndexOfWorksForAllLocations(ref ReadableBuffer readBuffer, byte emptyValue)
         {
             byte huntValue = (byte)~emptyValue;

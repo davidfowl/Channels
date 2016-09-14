@@ -86,12 +86,16 @@ namespace Channels
             twoBytes[0] = b1;
             twoBytes[1] = b2;
             var span = new Span<byte>(twoBytes, 2);
+            return TrySliceTo(span, out slice, out cursor);
+        }
 
+        public unsafe bool TrySliceTo(Span<byte> span, out ReadableBuffer slice, out ReadCursor cursor)
+        {
             var buffer = this;
             while (!buffer.IsEmpty)
             {
                 // Find the first byte
-                if (!buffer.TrySliceTo(b1, out slice, out cursor))
+                if (!buffer.TrySliceTo(span[0], out slice, out cursor))
                 {
                     return false;
                 }
@@ -101,8 +105,13 @@ namespace Channels
 
                 if (buffer.StartsWith(span))
                 {
+                    slice = Slice(_start, cursor);
                     return true;
                 }
+
+                // REVIEW: We need to check the performance of Slice in a loop like this
+                // Not a match so skip(1) 
+                buffer = buffer.Slice(1);
             }
 
             slice = default(ReadableBuffer);
@@ -110,7 +119,7 @@ namespace Channels
             return false;
         }
 
-        public bool TrySliceTo(byte value, out ReadableBuffer slice, out ReadCursor cursor)
+        public bool TrySliceTo(byte b1, out ReadableBuffer slice, out ReadCursor cursor)
         {
             if (IsEmpty)
             {
@@ -119,7 +128,7 @@ namespace Channels
                 return false;
             }
 
-            var byte0Vector = CommonVectors.GetVector(value);
+            var byte0Vector = CommonVectors.GetVector(b1);
 
             var seek = 0;
 
@@ -155,7 +164,7 @@ namespace Channels
                     // Slow search
                     for (int i = 0; i < currentSpan.Length; i++)
                     {
-                        if (currentSpan[i] == value)
+                        if (currentSpan[i] == b1)
                         {
                             found = true;
                             break;
