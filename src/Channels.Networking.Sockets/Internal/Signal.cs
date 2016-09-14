@@ -68,6 +68,7 @@ namespace Channels.Networking.Sockets.Internal
             lock (SyncLock)
             {
                 continuation = _continuation;
+                _continuation = null;
                 _isCompleted = true;
             }
             if (continuation != null)
