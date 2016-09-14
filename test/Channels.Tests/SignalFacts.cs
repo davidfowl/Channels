@@ -106,5 +106,20 @@ namespace Channels.Tests
             signal.GetResult();
             Assert.False(signal.IsCompleted); // only set "once"
         }
+
+        [Fact]
+        public void CallingSetTwiceOnlyInvokesContinuationOnce()
+        {
+            var signal = new Signal();
+            int count = 0;
+
+            signal.OnCompleted(() => Interlocked.Increment(ref count));
+            signal.Set();
+            signal.GetResult();
+            signal.Set();
+            signal.GetResult();
+
+            Assert.Equal(1, Volatile.Read(ref count));
+        }
     }
 }

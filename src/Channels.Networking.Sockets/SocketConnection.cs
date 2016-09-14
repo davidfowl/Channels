@@ -7,6 +7,9 @@ using System.Threading.Tasks;
 
 namespace Channels.Networking.Sockets
 {
+    /// <summary>
+    /// Represents a channel implementation using the async Socket API
+    /// </summary>
     public class SocketConnection : IChannel
     {
         private static readonly EventHandler<SocketAsyncEventArgs> _asyncCompleted = OnAsyncCompleted;
@@ -36,14 +39,25 @@ namespace Channels.Networking.Sockets
             ProcessWrites();
         }
 
+        /// <summary>
+        /// Provides access to data received from the socket
+        /// </summary>
         public IReadableChannel Input => _input;
 
+        /// <summary>
+        /// Provides access to write data to the socket
+        /// </summary>
         public IWritableChannel Output => _output;
 
         private ChannelFactory ChannelFactory => _channelFactory;
 
         private Socket Socket => _socket;
 
+        /// <summary>
+        /// Begins an asynchronous connect operation to the designated endpoint
+        /// </summary>
+        /// <param name="endPoint">The endpoint to which to connect</param>
+        /// <param name="channelFactory">Optionally allows the underlying channel factory (and hence memory pool) to be specified; if one is not provided, a channel factory will be instantiated and owned by the connection</param>
         public static Task<SocketConnection> ConnectAsync(IPEndPoint endPoint, ChannelFactory channelFactory = null)
         {
             var args = new SocketAsyncEventArgs();
@@ -57,7 +71,9 @@ namespace Channels.Networking.Sockets
             }
             return tcs.Task;
         }
-
+        /// <summary>
+        /// Releases all resources owned by the connection
+        /// </summary>
         public void Dispose() => Dispose(true);
 
         internal static SocketAsyncEventArgs GetOrCreateSocketAsyncEventArgs()
@@ -66,12 +82,15 @@ namespace Channels.Networking.Sockets
             if (obj == null)
             {
                 obj = new SocketAsyncEventArgs();
-                obj.UserToken = new Signal();
                 obj.Completed += _asyncCompleted; // only for new, otherwise multi-fire
+            }
+            if(obj.UserToken is Signal)
+            {
+                ((Signal)obj.UserToken).Reset();
             }
             else
             {
-                ((Signal)obj.UserToken).Reset();
+                obj.UserToken = new Signal();
             }
             return obj;
         }
@@ -83,7 +102,9 @@ namespace Channels.Networking.Sockets
                 Interlocked.Exchange(ref spare, args);
             }
         }
-
+        /// <summary>
+        /// Releases all resources owned by the connection
+        /// </summary>
         protected virtual void Dispose(bool disposing)
         {
             if (disposing)
@@ -201,6 +222,12 @@ namespace Channels.Networking.Sockets
             }
             catch (Exception ex)
             {
+                // don't trust signal after an error; someone else could
+                // still have it and invoke Set
+                if (args != null)
+                {
+                    args.UserToken = null;
+                }
                 _input?.CompleteWriting(ex);
             }
             finally
@@ -263,6 +290,12 @@ namespace Channels.Networking.Sockets
             }
             catch (Exception ex)
             {
+                // don't trust signal after an error; someone else could
+                // still have it and invoke Set
+                if (args != null)
+                {
+                    args.UserToken = null;
+                }
                 _output?.CompleteReading(ex);
             }
             finally
@@ -280,7 +313,8 @@ namespace Channels.Networking.Sockets
         private unsafe void SetBuffer(Span<byte> span, SocketAsyncEventArgs args)
         {
             ArraySegment<byte> segment;
-            if (!span.TryGetArray(default(void*), out segment))
+            void* ignoredPointer;
+            if (!span.TryGetArrayElseGetPointer(out segment, out ignoredPointer))
             {
                 throw new InvalidOperationException("Memory is not backed by an array; oops!");
             }

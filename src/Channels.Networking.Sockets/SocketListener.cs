@@ -4,6 +4,9 @@ using System.Net.Sockets;
 
 namespace Channels.Networking.Sockets
 {
+    /// <summary>
+    /// Allows a managed socket to be used as a server, listening on a designated address and accepting connections from clients
+    /// </summary>
     public class SocketListener : IDisposable
     {
         private readonly bool _ownsChannelFactory;
@@ -14,14 +17,23 @@ namespace Channels.Networking.Sockets
         private Action<SocketConnection> Callback { get; set; }
         static readonly EventHandler<SocketAsyncEventArgs> _asyncCompleted = OnAsyncCompleted;
 
+        /// <summary>
+        /// Creates a new SocketListener instance
+        /// </summary>
+        /// <param name="channelFactory">Optionally allows the underlying channel factory (and hence memory pool) to be specified; if one is not provided, a channel factory will be instantiated and owned by the listener</param>
         public SocketListener(ChannelFactory channelFactory = null)
         {
             _ownsChannelFactory = channelFactory == null;
             _channelFactory = channelFactory ?? new ChannelFactory();
         }
 
+        /// <summary>
+        /// Releases all resources owned by the listener
+        /// </summary>
         public void Dispose() => Dispose(true);
-
+        /// <summary>
+        /// Releases all resources owned by the listener
+        /// </summary>
         protected virtual void Dispose(bool disposing)
         {
             if (disposing)
@@ -34,6 +46,10 @@ namespace Channels.Networking.Sockets
             }
         }
 
+        /// <summary>
+        /// Commences listening for and accepting connection requests from clients
+        /// </summary>
+        /// <param name="endpoint">The endpoint on which to listen</param>
         public void Start(IPEndPoint endpoint)
         {
             if (_socket == null)
@@ -49,6 +65,9 @@ namespace Channels.Networking.Sockets
             }
         }
 
+        /// <summary>
+        /// Stops the server from listening; no further connections will be accepted
+        /// </summary>
         public void Stop()
         {
             if (_socket != null)
@@ -75,7 +94,9 @@ namespace Channels.Networking.Sockets
                 args.AcceptSocket = GetReusableSocket();
             }
         }
-
+        /// <summary>
+        /// Specifies a callback to be invoked whenever a connection is accepted
+        /// </summary>
         public void OnConnection(Action<SocketConnection> callback)
         {
             Callback = callback;
