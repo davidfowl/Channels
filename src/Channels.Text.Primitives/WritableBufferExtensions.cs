@@ -21,18 +21,19 @@ namespace Channels.Text.Primitives
             int bytesPerChar = encoding.GetMaxByteCount(1);
             fixed (char* s = value)
             {
-                int charsToWrite = value.Length, charOffset = 0;
-                while (charsToWrite != 0)
+                int remainingChars = value.Length, charOffset = 0;
+                while (remainingChars != 0)
                 {
-                    buffer.Ensure(charsToWrite * bytesPerChar);
+                    buffer.Ensure(bytesPerChar);
+
                     var memory = buffer.Memory;
-                    int charsThisBatch = Math.Min(charsToWrite, memory.Length / bytesPerChar);
-                    
+                    var charsThisBatch = Math.Min(remainingChars, memory.Length / bytesPerChar);
+
                     int bytesWritten = encoding.GetBytes(s + charOffset, charsThisBatch,
                         (byte*)memory.UnsafePointer, memory.Length);
 
                     charOffset += charsThisBatch;
-                    charsToWrite -= charsThisBatch;
+                    remainingChars -= charsThisBatch;
                     buffer.CommitBytes(bytesWritten);
                 }
             }
