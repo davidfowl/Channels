@@ -8,6 +8,9 @@ using System.Threading.Tasks;
 
 namespace Channels
 {
+    /// <summary>
+    /// Default <see cref="IWritableChannel"/> and <see cref="IReadableChannel"/> implementation.
+    /// </summary>
     public class Channel : IReadableChannel, IWritableChannel
     {
         private static readonly Action _awaitableIsCompleted = () => { };
@@ -19,8 +22,8 @@ namespace Channels
 
         private Action _awaitableState;
 
-        private BufferSegment _head;
-        private BufferSegment _tail;
+        private PooledBufferSegment _head;
+        private PooledBufferSegment _tail;
 
         private int _consumingState;
         private int _producingState;
@@ -30,35 +33,55 @@ namespace Channels
         private readonly TaskCompletionSource<object> _readingTcs = new TaskCompletionSource<object>();
         private readonly TaskCompletionSource<object> _writingTcs = new TaskCompletionSource<object>();
         private readonly TaskCompletionSource<object> _startingReadingTcs = new TaskCompletionSource<object>();
-        private readonly TaskCompletionSource<object> _disposedTcs = new TaskCompletionSource<object>();
 
+        /// <summary>
+        /// Initializes the <see cref="Channel"/> with the specifed <see cref="IBufferPool"/>.
+        /// </summary>
+        /// <param name="pool"></param>
         public Channel(IBufferPool pool)
         {
             _pool = pool;
             _awaitableState = _awaitableIsNotCompleted;
         }
 
-        public Task ChannelComplete => _disposedTcs.Task;
-
+        /// <summary>
+        /// A <see cref="Task"/> that completes when the consumer starts consuming the <see cref="IReadableChannel"/>.
+        /// </summary>
         public Task ReadingStarted => _startingReadingTcs.Task;
 
+        /// <summary>
+        /// Gets a task that completes when the channel is completed and has no more data to be read.
+        /// </summary>
         public Task WriterCompleted => _readingTcs.Task;
+
+        /// <summary>
+        /// Gets a task that completes when the consumer is completed reading.
+        /// </summary>
+        /// <remarks>When this task is triggered, the producer should stop producing data.</remarks>
         public Task ReaderCompleted => _writingTcs.Task;
 
         Task IReadableChannel.Completion => _readingTcs.Task;
 
         Task IWritableChannel.Completion => _writingTcs.Task;
 
-        public bool IsCompleted => ReferenceEquals(_awaitableState, _awaitableIsCompleted);
+        internal bool IsCompleted => ReferenceEquals(_awaitableState, _awaitableIsCompleted);
 
+        /// <summary>
+        /// Allocates memory from the channel to write into.
+        /// </summary>
+        /// <param name="minimumSize">The minimum size buffer to allocate</param>
+        /// <returns>A <see cref="WritableBuffer"/> that can be written to.</returns>
         public WritableBuffer Alloc(int minimumSize = 0)
         {
+            // TODO: Make this configurable for channel creation
+            const int bufferSize = 4096;
+
             if (Interlocked.CompareExchange(ref _producingState, 1, 0) != 0)
             {
                 throw new InvalidOperationException("Already producing.");
             }
 
-            BufferSegment segment = null;
+            PooledBufferSegment segment = null;
 
             if (_tail != null && !_tail.ReadOnly)
             {
@@ -74,7 +97,7 @@ namespace Channels
             if (segment == null && minimumSize > 0)
             {
                 // We're out of tail space so lease a new segment only if the requested size > 0
-                segment = new BufferSegment(_pool.Lease());
+                segment = new PooledBufferSegment(_pool.Lease(bufferSize));
             }
 
             lock (_sync)
@@ -90,7 +113,7 @@ namespace Channels
                     _tail = segment;
                 }
 
-                return new WritableBuffer(this, _pool, segment);
+                return new WritableBuffer(this, _pool, segment, bufferSize);
             }
         }
 
@@ -172,8 +195,8 @@ namespace Channels
             ReadCursor consumed,
             ReadCursor examined)
         {
-            BufferSegment returnStart = null;
-            BufferSegment returnEnd = null;
+            PooledBufferSegment returnStart = null;
+            PooledBufferSegment returnEnd = null;
 
             lock (_sync)
             {
@@ -209,13 +232,17 @@ namespace Channels
             }
         }
 
-        public void CompleteWriting(Exception error = null)
+        /// <summary>
+        /// Marks the channel as being complete, meaning no more items will be written to it.
+        /// </summary>
+        /// <param name="exception">Optional Exception indicating a failure that's causing the channel to complete.</param>
+        public void CompleteWriting(Exception exception = null)
         {
             lock (_sync)
             {
-                if (error != null)
+                if (exception != null)
                 {
-                    _readingTcs.TrySetException(error);
+                    _readingTcs.TrySetException(exception);
                 }
                 else
                 {
@@ -231,13 +258,17 @@ namespace Channels
             }
         }
 
-        public void CompleteReading(Exception error = null)
+        /// <summary>
+        /// Signal to the producer that the consumer is done reading.
+        /// </summary>
+        /// <param name="exception">Optional Exception indicating a failure that's causing the channel to complete.</param>
+        public void CompleteReading(Exception exception = null)
         {
             lock (_sync)
             {
-                if (error != null)
+                if (exception != null)
                 {
-                    _writingTcs.TrySetException(error);
+                    _writingTcs.TrySetException(exception);
                 }
                 else
                 {
@@ -251,6 +282,10 @@ namespace Channels
             }
         }
 
+        /// <summary>
+        /// Asynchronously reads a sequence of bytes from the current <see cref="IReadableChannel"/>.
+        /// </summary>
+        /// <returns>A <see cref="ChannelAwaitable"/> representing the asynchronous read operation.</returns>
         public ChannelAwaitable ReadAsync() => new ChannelAwaitable(this);
 
         internal void OnCompleted(Action continuation)
@@ -325,8 +360,6 @@ namespace Channels
 
                 _head = null;
                 _tail = null;
-
-                _disposedTcs.TrySetResult(null);
             }
         }
     }

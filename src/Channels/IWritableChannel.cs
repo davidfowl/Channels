@@ -26,7 +26,7 @@ namespace Channels
         /// <summary>
         /// Marks the channel as being complete, meaning no more items will be written to it.
         /// </summary>
-        /// <param name="error">Optional Exception indicating a failure that's causing the channel to complete.</param>
-        void CompleteWriting(Exception error = null);
+        /// <param name="exception">Optional Exception indicating a failure that's causing the channel to complete.</param>
+        void CompleteWriting(Exception exception = null);
     }
 }

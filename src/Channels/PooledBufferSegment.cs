@@ -7,7 +7,7 @@ using System.Text;
 namespace Channels
 {
     // TODO: Pool segments
-    internal class BufferSegment : IDisposable
+    internal class PooledBufferSegment : IDisposable
     {
         /// <summary>
         /// Tracking object used by the byte <see cref="IBufferPool"/>
@@ -34,7 +34,7 @@ namespace Channels
         /// working memory. The "active" memory is grown when bytes are copied in, End is increased, and Next is assigned. The "active" 
         /// memory is shrunk when bytes are consumed, Start is increased, and blocks are returned to the pool.
         /// </summary>
-        public BufferSegment Next;
+        public PooledBufferSegment Next;
 
 
         /// <summary>
@@ -47,7 +47,7 @@ namespace Channels
 
 
         // Leasing ctor
-        public BufferSegment(PooledBuffer buffer)
+        public PooledBufferSegment(PooledBuffer buffer)
         {
             Buffer = buffer;
             Start = 0;
@@ -55,7 +55,7 @@ namespace Channels
         }
 
         // Cloning ctor
-        private BufferSegment(PooledBuffer buffer, int start, int end)
+        private PooledBufferSegment(PooledBuffer buffer, int start, int end)
         {
             Buffer = buffer;
             Start = start;
@@ -87,31 +87,31 @@ namespace Channels
             return builder.ToString();
         }
 
-        public static BufferSegment Clone(ReadCursor beginBuffer, ReadCursor endBuffer, out BufferSegment lastSegment)
+        public static PooledBufferSegment Clone(ReadCursor beginBuffer, ReadCursor endBuffer, out PooledBufferSegment lastSegment)
         {
             var beginOrig = beginBuffer.Segment;
             var endOrig = endBuffer.Segment;
 
             if (beginOrig == endOrig)
             {
-                lastSegment = new BufferSegment(beginOrig.Buffer, beginBuffer.Index, endBuffer.Index);
+                lastSegment = new PooledBufferSegment(beginOrig.Buffer, beginBuffer.Index, endBuffer.Index);
                 return lastSegment;
             }
 
-            var beginClone = new BufferSegment(beginOrig.Buffer, beginBuffer.Index, beginOrig.End);
+            var beginClone = new PooledBufferSegment(beginOrig.Buffer, beginBuffer.Index, beginOrig.End);
             var endClone = beginClone;
 
             beginOrig = beginOrig.Next;
 
             while (beginOrig != endOrig)
             {
-                endClone.Next = new BufferSegment(beginOrig.Buffer, beginOrig.Start, beginOrig.End);
+                endClone.Next = new PooledBufferSegment(beginOrig.Buffer, beginOrig.Start, beginOrig.End);
 
                 endClone = endClone.Next;
                 beginOrig = beginOrig.Next;
             }
 
-            lastSegment = new BufferSegment(endOrig.Buffer, endOrig.Start, endBuffer.Index);
+            lastSegment = new PooledBufferSegment(endOrig.Buffer, endOrig.Start, endBuffer.Index);
             endClone.Next = lastSegment;
 
             return beginClone;

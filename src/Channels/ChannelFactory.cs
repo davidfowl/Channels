@@ -6,6 +6,9 @@ using System.Threading.Tasks;
 
 namespace Channels
 {
+    /// <summary>
+    /// Factory used to creaet instances of various channels.
+    /// </summary>
     public class ChannelFactory : IDisposable
     {
         private readonly IBufferPool _pool;

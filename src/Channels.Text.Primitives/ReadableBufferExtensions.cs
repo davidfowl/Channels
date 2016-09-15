@@ -4,8 +4,16 @@ using System.Text.Utf8;
 
 namespace Channels.Text.Primitives
 {
+    /// <summary>
+    /// Extension methods 
+    /// </summary>
     public static class ReadableBufferExtensions
     {
+        /// <summary>
+        /// Trim whitespace starting from the specified <see cref="ReadableBuffer"/>.
+        /// </summary>
+        /// <param name="buffer">The <see cref="ReadableBuffer"/> to trim</param>
+        /// <returns>A new <see cref="ReadableBuffer"/> with the starting whitespace trimmed.</returns>
         public static ReadableBuffer TrimStart(this ReadableBuffer buffer)
         {
             int start = 0;
@@ -30,6 +38,10 @@ namespace Channels.Text.Primitives
             return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r';
         }
 
+        /// <summary>
+        /// Parses a <see cref="uint"/> from the specified <see cref="ReadableBuffer"/>
+        /// </summary>
+        /// <param name="buffer">The <see cref="ReadableBuffer"/> to parse</param>
         public unsafe static uint GetUInt32(this ReadableBuffer buffer)
         {
             ReadOnlySpan<byte> textSpan;
@@ -62,6 +74,11 @@ namespace Channels.Text.Primitives
             }
             return value;
         }
+
+        /// <summary>
+        /// Parses a <see cref="ulong"/> from the specified <see cref="ReadableBuffer"/>
+        /// </summary>
+        /// <param name="buffer">The <see cref="ReadableBuffer"/> to parse</param>
         public unsafe static ulong GetUInt64(this ReadableBuffer buffer)
         {
             byte* addr;
@@ -97,6 +114,10 @@ namespace Channels.Text.Primitives
             return value;
         }
 
+        /// <summary>
+        /// Decodes the ASCII encoded bytes in the <see cref="ReadableBuffer"/> into a <see cref="string"/>
+        /// </summary>
+        /// <param name="buffer">The buffer to decode</param>
         public unsafe static string GetAsciiString(this ReadableBuffer buffer)
         {
             if (buffer.IsEmpty)
@@ -125,6 +146,10 @@ namespace Channels.Text.Primitives
             return asciiString;
         }
 
+        /// <summary>
+        /// Decodes the utf8 encoded bytes in the <see cref="ReadableBuffer"/> into a <see cref="string"/>
+        /// </summary>
+        /// <param name="buffer">The buffer to decode</param>
         public static unsafe string GetUtf8String(this ReadableBuffer buffer)
         {
             if (buffer.IsEmpty)

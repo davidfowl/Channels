@@ -11,13 +11,12 @@ namespace Channels
     /// </summary>
     public interface IBufferPool : IDisposable
     {
-        // REVIEW: Do we need a size?
-
         /// <summary>
         /// Leases a <see cref="PooledBuffer"/> from the <see cref="IBufferPool"/>
         /// </summary>
+        /// <param name="size">The size of the requested buffer</param>
         /// <returns>A <see cref="PooledBuffer"/> which is a wrapper around leased memory</returns>
-        PooledBuffer Lease();
+        PooledBuffer Lease(int size);
 
         /// <summary>
         /// Returns a <see cref="Span{Byte}"/> for the tracking object returned in Lease

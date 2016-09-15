@@ -227,8 +227,9 @@ namespace Channels
             // GC.SuppressFinalize(this);
         }
 
-        PooledBuffer IBufferPool.Lease()
+        PooledBuffer IBufferPool.Lease(int size)
         {
+            // REVIEW: throw if size > block size
             return new PooledBuffer(this, Lease());
         }
 

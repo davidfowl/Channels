@@ -9,11 +9,14 @@ using System.Text;
 
 namespace Channels
 {
+    /// <summary>
+    /// Represents a buffer that can read a sequential series of bytes.
+    /// </summary>
     public struct ReadableBuffer : IDisposable
     {
         private static readonly int VectorWidth = Vector<byte>.Count;
 
-        private readonly BufferSpan _span;
+        private readonly PooledBufferSpan _span;
         private readonly bool _isOwner;
         private readonly Channel _channel;
 
@@ -21,15 +24,34 @@ namespace Channels
         private ReadCursor _end;
         private int _length;
 
+        /// <summary>
+        /// Length of the <see cref="ReadableBuffer"/> in bytes.
+        /// </summary>
         public int Length => _length >= 0 ? _length : GetLength();
+
+        /// <summary>
+        /// Determines if the <see cref="ReadableBuffer"/> is empty.
+        /// </summary>
         public bool IsEmpty => Length == 0;
 
+        /// <summary>
+        /// Determins if the <see cref="ReadableBuffer"/> is a single <see cref="Span{Byte}"/>.
+        /// </summary>
         public bool IsSingleSpan => _start.Segment == _end.Segment;
 
+        /// <summary>
+        /// The first <see cref="Span{Byte}"/> in the <see cref="ReadableBuffer"/>.
+        /// </summary>
         public Span<byte> FirstSpan => _span.Data;
 
+        /// <summary>
+        /// A cursor to the start of the <see cref="ReadableBuffer"/>.
+        /// </summary>
         public ReadCursor Start => _start;
 
+        /// <summary>
+        /// A cursor to the end of the <see cref="ReadableBuffer"/>
+        /// </summary>
         public ReadCursor End => _end;
 
         internal ReadableBuffer(Channel channel, ReadCursor start, ReadCursor end) :
@@ -58,8 +80,8 @@ namespace Channels
             var begin = buffer._start;
             var end = buffer._end;
 
-            BufferSegment segmentTail;
-            var segmentHead = BufferSegment.Clone(begin, end, out segmentTail);
+            PooledBufferSegment segmentTail;
+            var segmentHead = PooledBufferSegment.Clone(begin, end, out segmentTail);
 
             begin = new ReadCursor(segmentHead);
             end = new ReadCursor(segmentTail, segmentTail.End);
@@ -72,6 +94,10 @@ namespace Channels
             _length = buffer._length;
         }
 
+        /// <summary>
+        /// Returns an enumerable of <see cref="Span{Byte}"/>
+        /// </summary>
+        /// <returns>An enumerable of <see cref="Span{Byte}"/></returns>
         public IEnumerable<Span<byte>> AsEnumerable()
         {
             foreach (var span in this)
@@ -80,6 +106,15 @@ namespace Channels
             }
         }
 
+        /// <summary>
+        /// Searches for 2 sequential bytes in the <see cref="ReadableBuffer"/> and returns a sliced <see cref="ReadableBuffer"/> that
+        /// contains all data up to and excluding the first byte, and a <see cref="ReadCursor"/> that points to the second byte.
+        /// </summary>
+        /// <param name="b1">The first byte to search for</param>
+        /// <param name="b2">The second byte to search for</param>
+        /// <param name="slice">A <see cref="ReadableBuffer"/> slice that contains all data up to and excluding the first byte.</param>
+        /// <param name="cursor">A <see cref="ReadCursor"/> that points to the second byte</param>
+        /// <returns>True if the byte sequence was found, false if not found</returns>
         public unsafe bool TrySliceTo(byte b1, byte b2, out ReadableBuffer slice, out ReadCursor cursor)
         {
             byte* twoBytes = stackalloc byte[2];
@@ -89,6 +124,14 @@ namespace Channels
             return TrySliceTo(span, out slice, out cursor);
         }
 
+        /// <summary>
+        /// Searches for a span of bytes in the <see cref="ReadableBuffer"/> and returns a sliced <see cref="ReadableBuffer"/> that
+        /// contains all data up to and excluding the first byte of the span, and a <see cref="ReadCursor"/> that points to the last byte of the span.
+        /// </summary>
+        /// <param name="span">The <see cref="Span{Byte}"/> byte to search for</param>
+        /// <param name="slice">A <see cref="ReadableBuffer"/> that matches all data up to and excluding the first byte</param>
+        /// <param name="cursor">A <see cref="ReadCursor"/> that points to the second byte</param>
+        /// <returns>True if the byte sequence was found, false if not found</returns>
         public unsafe bool TrySliceTo(Span<byte> span, out ReadableBuffer slice, out ReadCursor cursor)
         {
             var buffer = this;
@@ -119,6 +162,14 @@ namespace Channels
             return false;
         }
 
+        /// <summary>
+        /// Searches for a byte in the <see cref="ReadableBuffer"/> and returns a sliced <see cref="ReadableBuffer"/> that
+        /// contains all data up to and excluding the byte, and a <see cref="ReadCursor"/> that points to the byte.
+        /// </summary>
+        /// <param name="b1">The first byte to search for</param>
+        /// <param name="slice">A <see cref="ReadableBuffer"/> slice that contains all data up to and excluding the first byte.</param>
+        /// <param name="cursor">A <see cref="ReadCursor"/> that points to the second byte</param>
+        /// <returns>True if the byte sequence was found, false if not found</returns>
         public bool TrySliceTo(byte b1, out ReadableBuffer slice, out ReadCursor cursor)
         {
             if (IsEmpty)
@@ -188,6 +239,11 @@ namespace Channels
             return false;
         }
 
+        /// <summary>
+        /// Forms a slice out of the given <see cref="ReadableBuffer"/>, beginning at 'start', and is at most length bytes
+        /// </summary>
+        /// <param name="start">The index at which to begin this slice.</param>
+        /// <param name="length">The length of the slice</param>
         public ReadableBuffer Slice(int start, int length)
         {
             var begin = _start;
@@ -200,6 +256,11 @@ namespace Channels
             return Slice(begin, end);
         }
 
+        /// <summary>
+        /// Forms a slice out of the given <see cref="ReadableBuffer"/>, beginning at 'start', ending at 'end' (inclusive).
+        /// </summary>
+        /// <param name="start">The index at which to begin this slice.</param>
+        /// <param name="end">The end (inclusive) of the slice</param>
         public ReadableBuffer Slice(int start, ReadCursor end)
         {
             var begin = _start;
@@ -210,11 +271,21 @@ namespace Channels
             return Slice(begin, end);
         }
 
+        /// <summary>
+        /// Forms a slice out of the given <see cref="ReadableBuffer"/>, beginning at 'start', ending at 'end' (inclusive).
+        /// </summary>
+        /// <param name="start">The starting (inclusive) <see cref="ReadCursor"/> at which to begin this slice.</param>
+        /// <param name="end">The ending (inclusive) <see cref="ReadCursor"/> of the slice</param>
         public ReadableBuffer Slice(ReadCursor start, ReadCursor end)
         {
             return new ReadableBuffer(_channel, start, end);
         }
 
+        /// <summary>
+        /// Forms a slice out of the given <see cref="ReadableBuffer"/>, beginning at 'start', and is at most length bytes
+        /// </summary>
+        /// <param name="start">The starting (inclusive) <see cref="ReadCursor"/> at which to begin this slice.</param>
+        /// <param name="length">The length of the slice</param>
         public ReadableBuffer Slice(ReadCursor start, int length)
         {
             var end = start;
@@ -222,11 +293,19 @@ namespace Channels
             return Slice(start, end);
         }
 
+        /// <summary>
+        /// Forms a slice out of the given <see cref="ReadableBuffer"/>, beginning at 'start', ending at the existing <see cref="ReadableBuffer"/>'s end.
+        /// </summary>
+        /// <param name="start">The starting (inclusive) <see cref="ReadCursor"/> at which to begin this slice.</param>
         public ReadableBuffer Slice(ReadCursor start)
         {
             return new ReadableBuffer(_channel, start, _end);
         }
 
+        /// <summary>
+        /// Forms a slice out of the given <see cref="ReadableBuffer"/>, beginning at 'start', ending at the existing <see cref="ReadableBuffer"/>'s end.
+        /// </summary>
+        /// <param name="start">The start index at which to begin this slice.</param>
         public ReadableBuffer Slice(int start)
         {
             if (start == 0) return this;
@@ -236,6 +315,10 @@ namespace Channels
             return new ReadableBuffer(_channel, begin, _end);
         }
 
+        /// <summary>
+        /// Returns the first byte in the <see cref="ReadableBuffer"/>.
+        /// </summary>
+        /// <returns>-1 if the buffer is empty, the first byte otherwise.</returns>
         public int Peek()
         {
             if (IsEmpty)
@@ -247,11 +330,21 @@ namespace Channels
             return span[0];
         }
 
+        /// <summary>
+        /// Increases the reference count of the <see cref="ReadableBuffer"/>. This transfers ownership of the buffer
+        /// from the <see cref="IReadableChannel"/> to the caller of this method. Preserved buffers must be disposed to avoid
+        /// memory leaks.
+        /// </summary>
+        /// <returns></returns>
         public ReadableBuffer Preserve()
         {
             return new ReadableBuffer(ref this);
         }
 
+        /// <summary>
+        /// Copy the <see cref="ReadableBuffer"/> to the specified <see cref="Span{Byte}"/>.
+        /// </summary>
+        /// <param name="destination">The destination <see cref="Span{Byte}"/>.</param>
         public void CopyTo(Span<byte> destination)
         {
             if (Length > destination.Length)
@@ -266,6 +359,9 @@ namespace Channels
             }
         }
 
+        /// <summary>
+        /// Converts the <see cref="ReadableBuffer"/> to a <see cref="T:byte[]"/>
+        /// </summary>
         public byte[] ToArray()
         {
             var buffer = new byte[Length];
@@ -281,6 +377,9 @@ namespace Channels
             return length;
         }
 
+        /// <summary>
+        /// Disposes preserved buffers. If the buffer hasn't been preserved this method will no-op.
+        /// </summary>
         public void Dispose()
         {
             if (!_isOwner)
@@ -307,21 +406,37 @@ namespace Channels
             _end = default(ReadCursor);
         }
 
+        /// <summary>
+        /// Mark the entire <see cref="ReadableBuffer"/> as consumed.
+        /// </summary>
         public void Consumed()
         {
             _channel.EndRead(End, End);
         }
 
+        /// <summary>
+        /// Mark up the the specified <see cref="ReadCursor"/> as consumed.
+        /// </summary>
+        /// <param name="consumed">The <see cref="ReadCursor"/> that points to the position in the <see cref="ReadableBuffer"/> up to where bytes were consumed.</param>
         public void Consumed(ReadCursor consumed)
         {
             _channel.EndRead(consumed, consumed);
         }
 
+        /// <summary>
+        /// Mark up the the specified <see cref="ReadCursor"/> as consumed.
+        /// </summary>
+        /// <param name="consumed">The <see cref="ReadCursor"/> that points to the position in the <see cref="ReadableBuffer"/> up to where bytes were consumed.</param>
+        /// <param name="examined">TODO</param>
         public void Consumed(ReadCursor consumed, ReadCursor examined)
         {
             _channel.EndRead(consumed, examined);
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <returns></returns>
         public override string ToString()
         {
             var sb = new StringBuilder();
@@ -335,48 +450,19 @@ namespace Channels
             return sb.ToString();
         }
 
+        /// <summary>
+        /// Returns an enumerator over the <see cref="ReadableBuffer"/>
+        /// </summary>
         public Enumerator GetEnumerator()
         {
             return new Enumerator(ref this);
         }
 
-        public struct Enumerator : IEnumerator<Span<byte>>
-        {
-            private ReadableBuffer _buffer;
-            private BufferSpan _current;
-
-            public Enumerator(ref ReadableBuffer buffer)
-            {
-                _buffer = buffer;
-                _current = default(BufferSpan);
-            }
-
-            public Span<byte> Current => _current.Data;
-
-            object IEnumerator.Current
-            {
-                get { return _current; }
-            }
-
-            public void Dispose()
-            {
-
-            }
-
-            public bool MoveNext()
-            {
-                var start = _buffer.Start;
-                bool moved = start.TryGetBuffer(_buffer.End, out _current);
-                _buffer = _buffer.Slice(start);
-                return moved;
-            }
-
-            public void Reset()
-            {
-                throw new NotSupportedException();
-            }
-        }
-
+        /// <summary>
+        /// Checks to see if the <see cref="ReadableBuffer"/> starts with the specified <see cref="Span{Byte}"/>.
+        /// </summary>
+        /// <param name="value">The <see cref="Span{Byte}"/> to compare to</param>
+        /// <returns>True if the bytes StartsWith, false if not</returns>
         public bool StartsWith(Span<byte> value)
         {
             if (Length < value.Length)
@@ -388,6 +474,11 @@ namespace Channels
             return Slice(0, value.Length).Equals(value);
         }
 
+        /// <summary>
+        /// Checks to see if the <see cref="ReadableBuffer"/> is Equal to the specified <see cref="Span{Byte}"/>.
+        /// </summary>
+        /// <param name="value">The <see cref="Span{Byte}"/> to compare to</param>
+        /// <returns>True if the bytes are equal, false if not</returns>
         public bool Equals(Span<byte> value)
         {
             if (value.Length != Length)
@@ -468,6 +559,63 @@ namespace Channels
                 return offset + 7;
             }
             throw new InvalidOperationException();
+        }
+
+        /// <summary>
+        /// An enumerator over the <see cref="ReadableBuffer"/>
+        /// </summary>
+        public struct Enumerator : IEnumerator<Span<byte>>
+        {
+            private ReadableBuffer _buffer;
+            private PooledBufferSpan _current;
+
+            /// <summary>
+            /// 
+            /// </summary>
+            /// <param name="buffer"></param>
+            public Enumerator(ref ReadableBuffer buffer)
+            {
+                _buffer = buffer;
+                _current = default(PooledBufferSpan);
+            }
+
+            /// <summary>
+            /// The current <see cref="Span{Byte}"/>
+            /// </summary>
+            public Span<byte> Current => _current.Data;
+
+            object IEnumerator.Current
+            {
+                get { return _current; }
+            }
+
+            /// <summary>
+            /// 
+            /// </summary>
+            public void Dispose()
+            {
+
+            }
+
+            /// <summary>
+            /// Moves to the next <see cref="Span{Byte}"/> in the <see cref="ReadableBuffer"/>
+            /// </summary>
+            /// <returns></returns>
+            public bool MoveNext()
+            {
+                var start = _buffer.Start;
+                bool moved = start.TryGetBuffer(_buffer.End, out _current);
+                _buffer = _buffer.Slice(start);
+                return moved;
+            }
+
+            /// <summary>
+            /// 
+            /// </summary>
+            public void Reset()
+            {
+                throw new NotSupportedException();
+            }
         }
     }
 }

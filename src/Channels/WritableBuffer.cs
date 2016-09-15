@@ -3,25 +3,28 @@
 
 using System;
 using System.Diagnostics;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace Channels
 {
+    /// <summary>
+    /// Represents a buffer that can write a sequential series of bytes.
+    /// </summary>
     public struct WritableBuffer
     {
         private IBufferPool _pool;
         private Channel _channel;
 
-        private BufferSegment _tail;
+        private PooledBufferSegment _tail;
         private int _tailIndex;
 
-        private BufferSegment _head;
+        private PooledBufferSegment _head;
         private int _headIndex;
 
         private bool _comitted;
+        private int _bufferSize;
 
-        internal WritableBuffer(Channel channel, IBufferPool pool, BufferSegment segment)
+        internal WritableBuffer(Channel channel, IBufferPool pool, PooledBufferSegment segment, int bufferSize)
         {
             _channel = channel;
             _pool = pool;
@@ -33,25 +36,33 @@ namespace Channels
             _headIndex = _tailIndex;
 
             _comitted = false;
+            _bufferSize = bufferSize;
         }
 
-        internal BufferSegment Head => _head;
+        internal PooledBufferSegment Head => _head;
 
         internal int HeadIndex => _headIndex;
 
-        internal BufferSegment Tail => _tail;
+        internal PooledBufferSegment Tail => _tail;
 
         internal int TailIndex => _tailIndex;
 
         internal bool IsDefault => _tail == null;
 
+        /// <summary>
+        /// Free memory
+        /// </summary>
         public Span<byte> Memory => IsDefault ? Span<byte>.Empty : _tail.Buffer.Data.Slice(_tail.End, _tail.Buffer.Data.Length - _tail.End);
 
+        /// <summary>
+        /// Ensures the specified number of bytes are available
+        /// </summary>
+        /// <param name="count"></param>
         public void Ensure(int count = 1)
         {
             if (_tail == null)
             {
-                _tail = new BufferSegment(_pool.Lease());
+                _tail = new PooledBufferSegment(_pool.Lease(_bufferSize));
                 _tailIndex = _tail.End;
                 _head = _tail;
                 _headIndex = _tail.Start;
@@ -68,8 +79,8 @@ namespace Channels
             // If inadequate bytes left or if the segment is readonly
             if (bytesLeftInBuffer == 0 || bytesLeftInBuffer < count || segment.ReadOnly)
             {
-                var nextBuffer = _pool.Lease();
-                var nextSegment = new BufferSegment(nextBuffer);
+                var nextBuffer = _pool.Lease(_bufferSize);
+                var nextSegment = new PooledBufferSegment(nextBuffer);
                 segment.End = bufferIndex;
                 segment.Next = nextSegment;
                 segment = nextSegment;
@@ -84,6 +95,10 @@ namespace Channels
             }
         }
 
+        /// <summary>
+        /// Writes the source <see cref="Span{Byte}"/> to the <see cref="WritableBuffer"/>.
+        /// </summary>
+        /// <param name="source">The <see cref="Span{Byte}"/> to write</param>
         public void Write(Span<byte> source)
         {
             if (IsDefault)
@@ -121,10 +136,14 @@ namespace Channels
             }
         }
 
+        /// <summary>
+        /// Appends the <see cref="ReadableBuffer"/> to the <see cref="WritableBuffer"/> in-place without copies.
+        /// </summary>
+        /// <param name="buffer">The <see cref="ReadableBuffer"/> to append</param>
         public void Append(ref ReadableBuffer buffer)
         {
-            BufferSegment clonedEnd;
-            var clonedBegin = BufferSegment.Clone(buffer.Start, buffer.End, out clonedEnd);
+            PooledBufferSegment clonedEnd;
+            var clonedBegin = PooledBufferSegment.Clone(buffer.Start, buffer.End, out clonedEnd);
 
             if (_tail == null)
             {
@@ -143,6 +162,9 @@ namespace Channels
             _tailIndex = clonedEnd.End;
         }
 
+        /// <summary>
+        /// Commits the written data to the underlying <see cref="IWritableChannel"/>.
+        /// </summary>
         public void Commit()
         {
             if (!_comitted)
@@ -153,12 +175,20 @@ namespace Channels
             }
         }
 
+        /// <summary>
+        /// Writes the committed data to the underlying <see cref="IWritableChannel"/>.
+        /// </summary>
+        /// <returns>A task that completes when the data is written</returns>
         public Task FlushAsync()
         {
             Commit();
             return _channel.CompleteWriteAsync();
         }
 
+        /// <summary>
+        /// Updates the number of written bytes in the <see cref="WritableBuffer"/>.
+        /// </summary>
+        /// <param name="bytesWritten">number of bytes written to available memory</param>
         public void CommitBytes(int bytesWritten)
         {
             if (bytesWritten > 0)
