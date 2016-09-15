@@ -68,7 +68,7 @@ namespace Channels.Text.Primitives
 
             uint value;
             var utf8Buffer = new Utf8String(textSpan);
-            if (!InvariantParser.TryParse(utf8Buffer, out value))
+            if (!PrimitiveParser.TryParse(utf8Buffer, out value))
             {
                 throw new InvalidOperationException();
             }
@@ -100,14 +100,14 @@ namespace Channels.Text.Primitives
             {
                 // Heap allocated copy to parse into array (should be rare)
                 var arr = buffer.ToArray();
-                if (!InvariantParser.TryParse(arr, 0, FormattingData.InvariantUtf8, Format.Parsed.HexUppercase, out value, out consumed))
+                if (!PrimitiveParser.TryParse(arr, 0, EncodingData.InvariantUtf8, Format.Parsed.HexUppercase, out value, out consumed))
                 {
                     throw new InvalidOperationException();
                 }
                 return value;
             }
 
-            if (!InvariantParser.TryParse(addr, 0, len, FormattingData.InvariantUtf8, Format.Parsed.HexUppercase, out value, out consumed))
+            if (!PrimitiveParser.TryParse(addr, 0, len, EncodingData.InvariantUtf8, Format.Parsed.HexUppercase, out value, out consumed))
             {
                 throw new InvalidOperationException();
             }

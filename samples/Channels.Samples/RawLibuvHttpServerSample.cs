@@ -35,7 +35,7 @@ namespace Channels.Samples
                 // Dump the request
                 Console.WriteLine(input.GetAsciiString());
 
-                var formatter = connection.Output.GetFormatter(FormattingData.InvariantUtf8);
+                var formatter = connection.Output.GetFormatter(EncodingData.InvariantUtf8);
 
                 unsafe
                 {

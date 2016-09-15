@@ -6,7 +6,7 @@ namespace Channels.Samples.Formatting
 {
     public static class WritableChannelExtensions
     {
-        public static WriteableBufferFormatter GetFormatter(this IWritableChannel channel, FormattingData formattingData)
+        public static WriteableBufferFormatter GetFormatter(this IWritableChannel channel, EncodingData formattingData)
         {
             var buffer = channel.Alloc(2048);
             return new WriteableBufferFormatter(ref buffer, formattingData);
@@ -17,15 +17,15 @@ namespace Channels.Samples.Formatting
     {
         private WritableBuffer _writableBuffer;
 
-        public WriteableBufferFormatter(ref WritableBuffer writableBuffer, FormattingData formattingData)
+        public WriteableBufferFormatter(ref WritableBuffer writableBuffer, EncodingData formattingData)
         {
             _writableBuffer = writableBuffer;
-            FormattingData = formattingData;
+            Encoding = formattingData;
         }
 
         public WritableBuffer Buffer => _writableBuffer;
 
-        public FormattingData FormattingData { get; }
+        public EncodingData Encoding { get; }
 
         public Span<byte> FreeBuffer
         {
