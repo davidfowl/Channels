@@ -34,32 +34,31 @@ namespace Channels.Text.Primitives
         // REVIEW: See if we can use IFormatter here
         public static void WriteUInt32(ref WritableBuffer buffer, uint value) => WriteUInt64(ref buffer, value);
 
-        public static unsafe void WriteUInt64(ref WritableBuffer buffer, ulong value)
+        public static void WriteUInt64(ref WritableBuffer buffer, ulong value)
         {
             // optimized versions for 0-1000
             int len;
-            byte* addr;
             if (value < 10)
             {
                 buffer.Ensure(len = 1);
-                addr = (byte*)buffer.Memory.UnsafePointer;
-                *addr = (byte)('0' + value);
+                var span = buffer.Memory;
+                span[0] = (byte)('0' + value);
             }
             else if (value < 100)
             {
                 buffer.Ensure(len = 2);
-                addr = (byte*)buffer.Memory.UnsafePointer;
-                *addr++ = (byte)('0' + value / 10);
-                *addr = (byte)('0' + value % 10);
+                var span = buffer.Memory;
+                span[0] = (byte)('0' + value / 10);
+                span[1] = (byte)('0' + value % 10);
             }
             else if (value < 1000)
             {
                 buffer.Ensure(len = 3);
-                addr = (byte*)buffer.Memory.UnsafePointer;
-                addr[2] = (byte)('0' + value % 10);
+                var span = buffer.Memory;
+                span[2] = (byte)('0' + value % 10);
                 value /= 10;
-                *addr++ = (byte)('0' + value / 10);
-                *addr = (byte)('0' + value % 10);
+                span[0] = (byte)('0' + value / 10);
+                span[1] = (byte)('0' + value % 10);
             }
             else
             {
@@ -77,10 +76,12 @@ namespace Channels.Text.Primitives
 
                 // now we'll walk *backwards* from the last character, adding the digit each time
                 // and dividing by 10
-                addr = (byte*)buffer.Memory.UnsafePointer + len;
+                int index = len - 1;
+                var span = buffer.Memory;
+
                 do
                 {
-                    *--addr = (byte)('0' + value % 10);
+                    span[index--] = (byte)('0' + value % 10);
                     value /= 10;
                 } while (value != 0);
             }
