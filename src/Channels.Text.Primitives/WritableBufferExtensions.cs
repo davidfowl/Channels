@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System;
+using System.Text;
 
 namespace Channels.Text.Primitives
 {
@@ -8,26 +9,32 @@ namespace Channels.Text.Primitives
         private static readonly Encoding Utf8Encoding = Encoding.UTF8;
         private static readonly Encoding ASCIIEncoding = Encoding.ASCII;
 
-        public static unsafe void WriteAsciiString(ref WritableBuffer buffer, string value)
-        {
-            // One byte per char
-            buffer.Ensure(value.Length);
+        public static void WriteAsciiString(ref WritableBuffer buffer, string value)
+            => WriteString(ref buffer, value, ASCIIEncoding);
 
+        public static void WriteUtf8String(ref WritableBuffer buffer, string value)
+            => WriteString(ref buffer, value, Utf8Encoding);
+
+        // review: make public?
+        private static unsafe void WriteString(ref WritableBuffer buffer, string value, Encoding encoding)
+        {
+            int bytesPerChar = encoding.GetMaxByteCount(1);
             fixed (char* s = value)
             {
-                int written = ASCIIEncoding.GetBytes(s, value.Length, (byte*)buffer.Memory.UnsafePointer, value.Length);
-                buffer.CommitBytes(written);
-            }
-        }
+                int charsToWrite = value.Length, charOffset = 0;
+                while (charsToWrite != 0)
+                {
+                    buffer.Ensure(charsToWrite * bytesPerChar);
+                    var memory = buffer.Memory;
+                    int charsThisBatch = Math.Min(charsToWrite, memory.Length / bytesPerChar);
+                    
+                    int bytesWritten = encoding.GetBytes(s + charOffset, charsThisBatch,
+                        (byte*)memory.UnsafePointer, memory.Length);
 
-        public static unsafe void WriteUtf8String(ref WritableBuffer buffer, string value)
-        {
-            fixed (char* s = value)
-            {
-                var byteCount = Utf8Encoding.GetByteCount(value);
-                buffer.Ensure(byteCount);
-                int written = Utf8Encoding.GetBytes(s, value.Length, (byte*)buffer.Memory.UnsafePointer, byteCount);
-                buffer.CommitBytes(written);
+                    charOffset += charsThisBatch;
+                    charsToWrite -= charsThisBatch;
+                    buffer.CommitBytes(bytesWritten);
+                }
             }
         }
 
