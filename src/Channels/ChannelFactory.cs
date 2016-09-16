@@ -43,6 +43,11 @@ namespace Channels
             await stream.CopyToAsync(channel);
         }
 
+        public IChannel MakeChannel(Stream stream)
+        {
+            return new StreamChannel(this, stream);
+        }
+
         public IWritableChannel MakeWriteableChannel(Stream stream)
         {
             if (!stream.CanWrite)
