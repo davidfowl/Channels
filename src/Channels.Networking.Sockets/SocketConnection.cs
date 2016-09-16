@@ -109,6 +109,10 @@ namespace Channels.Networking.Sockets
         {
             if (disposing)
             {
+                _input?.CompleteReading();
+                _input = null;
+                _output?.CompleteWriting();
+                _output = null;
                 GC.SuppressFinalize(this);
                 _socket?.Dispose();
                 _socket = null;
@@ -214,7 +218,11 @@ namespace Channels.Networking.Sockets
                     {
                         if (!flushed)
                         {
-                            await buffer.FlushAsync();
+                            try
+                            {
+                                await buffer.FlushAsync();
+                            }
+                            catch { }
                         }
                     }
                 }

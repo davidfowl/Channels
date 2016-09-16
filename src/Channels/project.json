@@ -1,4 +1,4 @@
-﻿{
+{
   "version": "0.2.0-beta-*",
   "description": "An abstraction for doing efficient asynchronous IO",
   "packOptions": {
@@ -20,6 +20,11 @@
 
   "frameworks": {
     "net451": {},
-    "netstandard1.3": {}
+    "netstandard1.3": {
+      "dependencies": {
+        "System.Collections.NonGeneric": "4.0.1",
+        "System.Net.NameResolution": "4.0.0"
+      }
+    }
   }
 }

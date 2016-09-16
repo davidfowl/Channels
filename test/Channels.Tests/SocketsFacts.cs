@@ -1,4 +1,5 @@
-﻿using Channels.Networking.Libuv;
+﻿using Channels.Networking;
+using Channels.Networking.Libuv;
 using Channels.Networking.Sockets;
 using Channels.Text.Primitives;
 using System;
@@ -16,135 +17,111 @@ namespace Channels.Tests
 
         static readonly Span<byte> _ping = new Span<byte>(Encoding.ASCII.GetBytes("PING")), _pong = new Span<byte>(Encoding.ASCII.GetBytes("PING"));
 
-        //[Fact]
-        public void CanCreateWorkingEchoServer_ChannelLibuvServer_NonChannelClient()
-        {
-            var endpoint = new IPEndPoint(IPAddress.Loopback, 5010);
-            const string MessageToSend = "Hello world!";
-            string reply = null;
+        [Fact(Skip = "glitching")]
+        public Task CanCreateWorkingEchoServer_ChannelLibuvServer_NonChannelClient()
+            => EchoTest_NonChannelClient<UvTcpTransportProvider>("127.0.0.1:5010");
 
-            using (var thread = new UvThread())
+        private async Task EchoTest_NonChannelClient<TServerProvider>(string configuration, string messageToSend = "Hello world!")
+            where TServerProvider : TransportProvider, new()
+        {
+            string reply;
+            using (var provider = new TServerProvider())
+            using (var server = await provider.StartServerAsync(configuration, Echo))
             {
-                var server = new UvTcpListener(thread, endpoint);
-                server.OnConnection(Echo);
-                server.Start();
-                try
-                {
-                    reply = SendBasicSocketMessage(endpoint, MessageToSend);
-                }
-                finally
-                {
-                    server.Stop();
-                }
+                var endpoint = await TransportProvider.ParseIPEndPoint(configuration);
+                reply = SendBasicSocketMessage(endpoint, messageToSend);
             }
-            Assert.Equal(MessageToSend, reply);
+            Assert.Equal(messageToSend, reply);
         }
+
+        [Theory]
+        [InlineData("127.0.0.1:5010")]
+        [InlineData("localhost:5010")]
+        [InlineData("[::1]:5010", Skip = "disabled because: linux")]
+        [InlineData("[0000:0000:0000:0000:0000:0000:0000:0001]:5010", Skip = "disabled because: linux")]
+        public Task CanCreateWorkingEchoServer_ChannelSocketServer_ChannelSocketClient(string config)
+            => RunEchoTest<SocketTransportProvider, SocketTransportProvider>(config);
 
         [Fact]
-        public async Task CanCreateWorkingEchoServer_ChannelSocketServer_ChannelSocketClient()
+        public Task CanCreateWorkingEchoServer_DirectClientServer()
+            => RunEchoTest<DirectTransportProvider, DirectTransportProvider>("foo");
+
+        private async Task RunEchoTest<TServerProvider, TClientProvider>(string config, string messageToSend = "Hello world!")
+            where TServerProvider : TransportProvider, new()
+            where TClientProvider : TransportProvider, new()
         {
-            var endpoint = new IPEndPoint(IPAddress.Loopback, 5010);
-            const string MessageToSend = "Hello world!";
             string reply = null;
 
-            using (var server = new SocketListener())
+            using (TransportProvider serverProvider = new TServerProvider())
+            using (TransportProvider clientProvider = // re-use if possible
+                typeof(TServerProvider) == typeof(TClientProvider) ? serverProvider : new TClientProvider())
+            using (var server = await serverProvider.StartServerAsync(config, Echo))
+            using (var client = await clientProvider.ConnectAsync(config))
             {
-                server.OnConnection(Echo);
-                server.Start(endpoint);
+                var output = client.Output.Alloc();
+                WritableBufferExtensions.WriteUtf8String(ref output, messageToSend);
+                await output.FlushAsync();
+                client.Output.CompleteWriting();
 
-
-                using (var client = await SocketConnection.ConnectAsync(endpoint))
+                while (true)
                 {
-                    var output = client.Output.Alloc();
-                    WritableBufferExtensions.WriteUtf8String(ref output, MessageToSend);
-                    await output.FlushAsync();
-                    client.Output.CompleteWriting();
-
-                    while (true)
+                    var input = await client.Input.ReadAsync();
+                    // wait for the end of the data before processing anything
+                    if (client.Input.Completion.IsCompleted)
                     {
-                        var input = await client.Input.ReadAsync();
-                        // wait for the end of the data before processing anything
-                        if (client.Input.Completion.IsCompleted)
-                        {
-                            reply = input.GetUtf8String();
-                            input.Consumed();
-                            break;
-                        }
-                        else
-                        {
-                            input.Consumed(input.Start, input.End);
-                        }
+                        reply = input.GetUtf8String();
+                        input.Consumed();
+                        break;
+                    }
+                    else
+                    {
+                        input.Consumed(input.Start, input.End);
                     }
                 }
             }
-            Assert.Equal(MessageToSend, reply);
+            Assert.Equal(messageToSend, reply);
         }
+
 
         [Fact]
-        public void CanCreateWorkingEchoServer_ChannelSocketServer_NonChannelClient()
+        public Task CanCreateWorkingEchoServer_ChannelSocketServer_NonChannelClient()
+            => EchoTest_NonChannelClient<SocketTransportProvider>("127.0.0.1:5010");
+
+        [Fact]
+        public Task RunStressPingPongTest_Direct()
+            => RunPingPongTest<DirectTransportProvider, DirectTransportProvider>("foo", messagesPerClient: 50000);
+
+
+        private async Task RunPingPongTest<TServerProvider, TClientProvider>(string config, int messagesPerClient = 1000, int clientCount = 5)
+            where TServerProvider : TransportProvider, new()
+            where TClientProvider : TransportProvider, new()
         {
-            var endpoint = new IPEndPoint(IPAddress.Loopback, 5010);
-            const string MessageToSend = "Hello world!";
-            string reply = null;
 
-            using (var server = new SocketListener())
+            using (TransportProvider serverProvider = new TServerProvider())
+            using (TransportProvider clientProvider = // re-use if possible
+                typeof(TServerProvider) == typeof(TClientProvider) ? serverProvider : new TClientProvider())
+            using (var server = await serverProvider.StartServerAsync(config, PongServer))
             {
-                server.OnConnection(Echo);
-                server.Start(endpoint);
-
-                reply = SendBasicSocketMessage(endpoint, MessageToSend);
-            }
-            Assert.Equal(MessageToSend, reply);
-        }
-
-        //[Fact]
-        public async Task RunStressPingPongTest_Libuv()
-        {
-            var endpoint = new IPEndPoint(IPAddress.Loopback, 5020);
-
-            using (var thread = new UvThread())
-            {
-                var server = new UvTcpListener(thread, endpoint);
-                server.OnConnection(PongServer);
-                server.Start();
-
-                const int SendCount = 500, ClientCount = 5;
-                for (int loop = 0; loop < ClientCount; loop++)
+                for (int loop = 0; loop < clientCount; loop++)
                 {
-                    using (var client = await new UvTcpClient(thread, endpoint).ConnectAsync())
+                    using (var client = await clientProvider.ConnectAsync(config))
                     {
-                        var tuple = await PingClient(client, SendCount);
-                        Assert.Equal(SendCount, tuple.Item1);
-                        Assert.Equal(SendCount, tuple.Item2);
-                        Console.WriteLine($"Ping: {tuple.Item1}; Pong: {tuple.Item2}; Time: {tuple.Item3}ms");
+                        var tuple = await PingClient(client, messagesPerClient);
+                        Assert.Equal(messagesPerClient, tuple.Item1);
+                        Assert.Equal(messagesPerClient, tuple.Item2);
+                        Console.WriteLine($"Ping ({client.GetType().Name}): {tuple.Item1}; Pong ({server.GetType().Name}): {tuple.Item2}; Time: {tuple.Item3}ms, {(messagesPerClient * 1000M) / tuple.Item3:#.00}/s");
                     }
                 }
             }
         }
 
-        //[Fact]
-        public async Task RunStressPingPongTest_Socket()
-        {
-            var endpoint = new IPEndPoint(IPAddress.Loopback, 5020);
+        [Fact(Skip = "glitching")]
+        public Task RunStressPingPongTest_Libuv()
+            => RunPingPongTest<UvTcpTransportProvider, UvTcpTransportProvider>("127.0.0.1:5020");
 
-            using (var server = new SocketListener())
-            {
-                server.OnConnection(PongServer);
-                server.Start(endpoint);
-
-                const int SendCount = 500, ClientCount = 5;
-                for (int loop = 0; loop < ClientCount; loop++)
-                {
-                    using (var client = await SocketConnection.ConnectAsync(endpoint))
-                    {
-                        var tuple = await PingClient(client, SendCount);
-                        Assert.Equal(SendCount, tuple.Item1);
-                        Assert.Equal(SendCount, tuple.Item2);
-                        Console.WriteLine($"Ping: {tuple.Item1}; Pong: {tuple.Item2}; Time: {tuple.Item3}ms");
-                    }
-                }
-            }
-        }
+        [Fact]
+        public Task RunStressPingPongTest_Socket()
+            => RunPingPongTest<SocketTransportProvider, SocketTransportProvider>("127.0.0.1:5020");
 
         static async Task<Tuple<int, int, int>> PingClient(IChannel channel, int messagesToSend)
         {
