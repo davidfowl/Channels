@@ -15,9 +15,14 @@ namespace Channels
         private IBufferPool _pool;
         private Channel _channel;
 
+        // the "tail" is the **end** of the data that we're writing - essentially the
+        // write-head
         private PooledBufferSegment _tail;
         private int _tailIndex;
 
+        // the "head" is the **start** of the data that we're writing; from the head,
+        // you can iterate forward via .Next to access all of the data written
+        // in this session
         private PooledBufferSegment _head;
         private int _headIndex;
 
@@ -53,6 +58,19 @@ namespace Channels
         /// Free memory
         /// </summary>
         public Span<byte> Memory => IsDefault ? Span<byte>.Empty : _tail.Buffer.Data.Slice(_tail.End, _tail.Buffer.Data.Length - _tail.End);
+
+        /// <summary>
+        /// Obtain a readable buffer over the data written to this buffer
+        /// </summary>
+        public ReadableBuffer AsReadableBuffer()
+        {
+            if (Head == null)
+            {
+                return new ReadableBuffer(); // empty
+            }
+
+            return new ReadableBuffer(null, new ReadCursor(Head, HeadIndex), new ReadCursor(Tail, TailIndex), isOwner: false);
+        }
 
         /// <summary>
         /// Ensures the specified number of bytes are available

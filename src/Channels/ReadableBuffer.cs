@@ -406,11 +406,20 @@ namespace Channels
             _end = default(ReadCursor);
         }
 
+        private void ThrowIfNotConsumable()
+        {
+            if (_channel == null)
+            {
+                throw new InvalidOperationException("This data is not from a read operation and cannot be consumed");
+            }
+        }
+
         /// <summary>
         /// Mark the entire <see cref="ReadableBuffer"/> as consumed.
         /// </summary>
         public void Consumed()
         {
+            ThrowIfNotConsumable();
             _channel.EndRead(End, End);
         }
 
@@ -420,6 +429,7 @@ namespace Channels
         /// <param name="consumed">The <see cref="ReadCursor"/> that points to the position in the <see cref="ReadableBuffer"/> up to where bytes were consumed.</param>
         public void Consumed(ReadCursor consumed)
         {
+            ThrowIfNotConsumable();
             _channel.EndRead(consumed, consumed);
         }
 
@@ -430,6 +440,7 @@ namespace Channels
         /// <param name="examined">TODO</param>
         public void Consumed(ReadCursor consumed, ReadCursor examined)
         {
+            ThrowIfNotConsumable();
             _channel.EndRead(consumed, examined);
         }
 

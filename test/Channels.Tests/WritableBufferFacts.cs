@@ -2,6 +2,7 @@
 using Channels.Text.Primitives;
 using Xunit;
 using System;
+using System.Text;
 
 namespace Channels.Tests
 {
@@ -62,7 +63,7 @@ namespace Channels.Tests
                 channel.CompleteWriting();
 
                 int offset = 0;
-                while(true)
+                while (true)
                 {
                     var input = await channel.ReadAsync();
                     if (input.Length == 0) break;
@@ -153,6 +154,85 @@ namespace Channels.Tests
                 {
                     c[i] = (char)(rand.Next(127) + 1); // want range 1-127
                 }
+            }
+        }
+
+
+        [Fact]
+        public void CanReReadDataThatHasNotBeenFlushed_SmallData()
+        {
+            using (var memoryPool = new MemoryPool())
+            {
+                var channel = new Channel(memoryPool);
+                var output = channel.Alloc();
+
+                Assert.True(output.AsReadableBuffer().IsEmpty);
+                Assert.Equal(0, output.AsReadableBuffer().Length);
+
+
+                WritableBufferExtensions.WriteUtf8String(ref output, "hello world");
+                var readable = output.AsReadableBuffer();
+
+                // check that looks about right
+                Assert.False(readable.IsEmpty);
+                Assert.Equal(11, readable.Length);
+                Assert.True(readable.Equals(Encoding.UTF8.GetBytes("hello world")));
+                Assert.True(readable.Slice(1, 3).Equals(Encoding.UTF8.GetBytes("ell")));
+
+                // check it all works after we write more
+                WritableBufferExtensions.WriteUtf8String(ref output, "more data");
+
+                // note that the snapshotted readable should not have changed by this
+                Assert.False(readable.IsEmpty);
+                Assert.Equal(11, readable.Length);
+                Assert.True(readable.Equals(Encoding.UTF8.GetBytes("hello world")));
+                Assert.True(readable.Slice(1, 3).Equals(Encoding.UTF8.GetBytes("ell")));
+
+                // if we fetch it again, we can see everything
+                readable = output.AsReadableBuffer();
+                Assert.False(readable.IsEmpty);
+                Assert.Equal(20, readable.Length);
+                Assert.True(readable.Equals(Encoding.UTF8.GetBytes("hello worldmore data")));
+            }
+        }
+
+        [Fact]
+        public void CanReReadDataThatHasNotBeenFlushed_LargeData()
+        {
+            using (var memoryPool = new MemoryPool())
+            {
+                var channel = new Channel(memoryPool);
+
+                var output = channel.Alloc();
+
+                byte[] predictablyGibberish = new byte[512];
+                const int SEED = 1235412;
+                Random random = new Random(SEED);
+                for (int i = 0; i < 50; i++)
+                {
+                    for (int j = 0; j < predictablyGibberish.Length; j++)
+                    {
+                        // doing it this way to be 100% sure about repeating the PRNG order
+                        predictablyGibberish[j] = (byte)random.Next(0, 256);
+                    }
+                    output.Write(predictablyGibberish);
+                }
+
+                var readable = output.AsReadableBuffer();
+                Assert.False(readable.IsSingleSpan);
+                Assert.False(readable.IsEmpty);
+                Assert.Equal(50 * 512, readable.Length);
+
+                random = new Random(SEED);
+                int correctCount = 0;
+                foreach (var span in readable)
+                {
+                    for (int i = 0; i < span.Length; i++)
+                    {
+                        if (span[i] == (byte)random.Next(0, 256)) correctCount++;
+                    }
+                }
+                Assert.Equal(50 * 512, correctCount);
             }
         }
     }
