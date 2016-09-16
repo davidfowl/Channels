@@ -1,13 +1,11 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Text;
 using System.Text.Formatting;
-using System.Threading.Tasks;
 using Channels.Networking.Libuv;
 using Channels.Samples.Formatting;
-using Channels.Text.Primitives;
+using Channels.Samples.Http;
 
 namespace Channels.Samples
 {
@@ -23,38 +21,69 @@ namespace Channels.Samples
             var listener = new UvTcpListener(thread, new IPEndPoint(ip, port));
             listener.OnConnection(async connection =>
             {
-                // Wait for data
-                var input = await connection.Input.ReadAsync();
-
-                if (input.IsEmpty && connection.Input.Completion.IsCompleted)
-                {
-                    // No more data
-                    return;
-                }
-
-                // Dump the request
-                Console.WriteLine(input.GetAsciiString());
-
+                var httpParser = new HttpRequestParser();
                 var formatter = connection.Output.GetFormatter(EncodingData.InvariantUtf8);
 
-                unsafe
+                try
                 {
-                    formatter.Append("HTTP/1.1 200 OK");
-                    formatter.Append("\r\nConnection: close");
-                    formatter.Append("\r\n\r\n");
-                    formatter.Append("Hello World!");
+                    while (true)
+                    {
+                        httpParser.Reset();
+
+                        // Wait for data
+                        var input = await connection.Input.ReadAsync();
+
+                        try
+                        {
+                            if (input.IsEmpty && connection.Input.Completion.IsCompleted)
+                            {
+                                // No more data
+                                break;
+                            }
+
+                            // Parse the input http request
+                            var result = httpParser.ParseRequest(ref input);
+
+                            switch (result)
+                            {
+                                case HttpRequestParser.ParseResult.Incomplete:
+                                    // Need more data
+                                    continue;
+                                case HttpRequestParser.ParseResult.Complete:
+                                    break;
+                                case HttpRequestParser.ParseResult.BadRequest:
+                                    throw new Exception();
+                                default:
+                                    break;
+                            }
+
+                            unsafe
+                            {
+                                formatter.Append("HTTP/1.1 200 OK");
+                                formatter.Append("\r\nContent-Length: 13");
+                                formatter.Append("\r\nContent-Type: text/plain");
+                                formatter.Append("\r\n\r\n");
+                                formatter.Append("Hello, World!");
+                            }
+
+                            await formatter.FlushAsync();
+
+                        }
+                        finally
+                        {
+                            // Consume the input
+                            input.Consumed(input.Start);
+                        }
+                    }
                 }
+                finally
+                {
+                    // Close the input channel, which will tell the producer to stop producing
+                    connection.Input.CompleteReading();
 
-                await formatter.Buffer.FlushAsync();
-
-                // Consume the input
-                input.Consumed();
-
-                // Close the input channel, which will tell the producer to stop producing
-                connection.Input.CompleteReading();
-
-                // Close the output channel, which will close the connection
-                connection.Output.CompleteWriting();
+                    // Close the output channel, which will close the connection
+                    connection.Output.CompleteWriting();
+                }
             });
 
             listener.Start();

@@ -1,29 +1,29 @@
 ﻿using System;
 using System.Text;
 using System.Text.Formatting;
+using System.Threading.Tasks;
 
 namespace Channels.Samples.Formatting
 {
     public static class WritableChannelExtensions
     {
-        public static WriteableBufferFormatter GetFormatter(this IWritableChannel channel, EncodingData formattingData)
+        public static WriteableChannelFormatter GetFormatter(this IWritableChannel channel, EncodingData formattingData)
         {
-            var buffer = channel.Alloc(2048);
-            return new WriteableBufferFormatter(ref buffer, formattingData);
+            return new WriteableChannelFormatter(channel, formattingData);
         }
     }
 
-    public class WriteableBufferFormatter : IFormatter
+    public class WriteableChannelFormatter : IFormatter
     {
+        private IWritableChannel _channel;
         private WritableBuffer _writableBuffer;
 
-        public WriteableBufferFormatter(ref WritableBuffer writableBuffer, EncodingData formattingData)
+        public WriteableChannelFormatter(IWritableChannel channel, EncodingData formattingData)
         {
-            _writableBuffer = writableBuffer;
+            _channel = channel;
             Encoding = formattingData;
+            _writableBuffer = _channel.Alloc();
         }
-
-        public WritableBuffer Buffer => _writableBuffer;
 
         public EncodingData Encoding { get; }
 
@@ -43,6 +43,12 @@ namespace Channels.Samples.Formatting
         public void ResizeBuffer(int desiredFreeBytesHint = -1)
         {
             _writableBuffer.Ensure(desiredFreeBytesHint == -1 ? 2048 : desiredFreeBytesHint);
+        }
+
+        public async Task FlushAsync()
+        {
+            await _writableBuffer.FlushAsync();
+            _writableBuffer = _channel.Alloc();
         }
     }
 }
