@@ -1,27 +1,21 @@
 ﻿using System;
-using System.Text;
-using System.Text.Formatting;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
+using System.Text.Formatting;
+using System.Text;
 
-namespace Channels.Samples.Formatting
+namespace Channels.Text.Primitives
 {
-    public static class WritableChannelExtensions
-    {
-        public static WriteableChannelFormatter GetFormatter(this IWritableChannel channel, EncodingData formattingData)
-        {
-            return new WriteableChannelFormatter(channel, formattingData);
-        }
-    }
-
     public class WriteableChannelFormatter : IFormatter
     {
-        private IWritableChannel _channel;
+        private readonly IWritableChannel _channel;
         private WritableBuffer _writableBuffer;
 
-        public WriteableChannelFormatter(IWritableChannel channel, EncodingData formattingData)
+        public WriteableChannelFormatter(IWritableChannel channel, EncodingData encoding)
         {
             _channel = channel;
-            Encoding = formattingData;
+            Encoding = encoding;
             _writableBuffer = _channel.Alloc();
         }
 

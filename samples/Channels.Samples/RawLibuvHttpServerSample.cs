@@ -4,8 +4,7 @@ using System.Net;
 using System.Text;
 using System.Text.Formatting;
 using Channels.Networking.Libuv;
-using Channels.Samples.Formatting;
-using Channels.Samples.Http;
+using Channels.Text.Primitives;
 
 namespace Channels.Samples
 {

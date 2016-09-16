@@ -1,8 +1,8 @@
-﻿using System.Threading.Tasks;
+﻿using System;
+using System.Text;
+using System.Threading.Tasks;
 using Channels.Text.Primitives;
 using Xunit;
-using System;
-using System.Text;
 
 namespace Channels.Tests
 {
