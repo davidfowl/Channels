@@ -166,7 +166,9 @@ namespace Channels.Networking.Libuv
                 handle.Libuv.Check(status, out uvError);
                 error = new IOException(uvError.Message, uvError);
 
-                _input.CompleteWriting(error);
+                // REVIEW: Should we treat ECONNRESET as an error?
+                // Ignore the error for now 
+                _input.CompleteWriting();
             }
             else if (readCount == 0 || _input.ReaderCompleted.IsCompleted)
             {

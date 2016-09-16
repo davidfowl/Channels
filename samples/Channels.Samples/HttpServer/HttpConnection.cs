@@ -16,12 +16,12 @@ namespace Channels.Samples.Http
         private readonly IWritableChannel _output;
         private readonly IHttpApplication<TContext> _application;
 
-        public RequestHeaderDictionary RequestHeaders { get; } = new RequestHeaderDictionary();
+        public RequestHeaderDictionary RequestHeaders => _parser.RequestHeaders;
         public ResponseHeaderDictionary ResponseHeaders { get; } = new ResponseHeaderDictionary();
 
-        public ReadableBuffer HttpVersion { get; set; }
-        public ReadableBuffer Path { get; set; }
-        public ReadableBuffer Method { get; set; }
+        public ReadableBuffer HttpVersion => _parser.HttpVersion;
+        public ReadableBuffer Path => _parser.Path;
+        public ReadableBuffer Method => _parser.Method;
 
         public IReadableChannel Input => _input;
 
@@ -37,7 +37,7 @@ namespace Channels.Samples.Http
 
         private bool _autoChunk;
 
-        private ParsingState _state;
+        private HttpRequestParser _parser = new HttpRequestParser();
 
         public HttpConnection(IHttpApplication<TContext> application, IReadableChannel input, IWritableChannel output)
         {
@@ -54,9 +54,7 @@ namespace Channels.Samples.Http
             while (true)
             {
                 var buffer = await _input.ReadAsync();
-
                 var consumed = buffer.Start;
-                bool needMoreData = true;
 
                 try
                 {
@@ -66,123 +64,26 @@ namespace Channels.Samples.Http
                         return;
                     }
 
-                    if (_state == ParsingState.StartLine)
+                    var result = _parser.ParseRequest(ref buffer);
+
+                    // Update consumed
+                    consumed = buffer.Start;
+
+                    switch (result)
                     {
-                        // Find \n
-                        ReadCursor delim;
-                        ReadableBuffer startLine;
-                        if (!buffer.TrySliceTo((byte)'\r', (byte)'\n', out startLine, out delim))
-                        {
+                        case HttpRequestParser.ParseResult.Incomplete:
+                            // Need more data
                             continue;
-                        }
-
-
-                        // Move the buffer to the rest
-                        buffer = buffer.Slice(delim).Slice(2);
-
-                        ReadableBuffer method;
-                        if (!startLine.TrySliceTo((byte)' ', out method, out delim))
-                        {
+                        case HttpRequestParser.ParseResult.Complete:
+                            // Done
+                            break;
+                        case HttpRequestParser.ParseResult.BadRequest:
+                            // TODO: Don't throw here;
                             throw new Exception();
-                        }
-
-                        Method = method.Preserve();
-
-                        // Skip ' '
-                        startLine = startLine.Slice(delim).Slice(1);
-
-                        ReadableBuffer path;
-                        if (!startLine.TrySliceTo((byte)' ', out path, out delim))
-                        {
-                            throw new Exception();
-                        }
-
-                        Path = path.Preserve();
-
-                        // Skip ' '
-                        startLine = startLine.Slice(delim).Slice(1);
-
-                        var httpVersion = startLine;
-                        if (httpVersion.IsEmpty)
-                        {
-                            throw new Exception();
-                        }
-
-                        HttpVersion = httpVersion.Preserve();
-
-                        _state = ParsingState.Headers;
-                        consumed = buffer.Start;
+                        default:
+                            break;
                     }
 
-                    // Parse headers
-                    // key: value\r\n
-
-                    while (!buffer.IsEmpty)
-                    {
-                        var ch = buffer.Peek();
-
-                        if (ch == -1)
-                        {
-                            break;
-                        }
-
-                        if (ch == '\r')
-                        {
-                            // Check for final CRLF.
-                            buffer = buffer.Slice(1);
-                            ch = buffer.Peek();
-                            buffer = buffer.Slice(1);
-
-                            if (ch == -1)
-                            {
-                                break;
-                            }
-                            else if (ch == '\n')
-                            {
-                                consumed = buffer.Start;
-                                needMoreData = false;
-                                break;
-                            }
-
-                            // Headers don't end in CRLF line.
-                            throw new Exception();
-                        }
-
-                        var headerName = default(ReadableBuffer);
-                        var headerValue = default(ReadableBuffer);
-
-                        // End of the header
-                        // \n
-                        ReadCursor delim;
-                        ReadableBuffer headerPair;
-                        if (!buffer.TrySliceTo((byte)'\r', (byte)'\n', out headerPair, out delim))
-                        {
-                            break;
-                        }
-
-                        buffer = buffer.Slice(delim).Slice(2);
-
-                        // :
-                        if (!headerPair.TrySliceTo((byte)':', out headerName, out delim))
-                        {
-                            throw new Exception();
-                        }
-
-                        headerName = headerName.TrimStart();
-                        headerPair = headerPair.Slice(delim).Slice(1);
-
-                        if (headerPair.IsEmpty)
-                        {
-                            // Bad request
-                            throw new Exception();
-                        }
-
-                        headerValue = headerPair.TrimStart();
-                        RequestHeaders.SetHeader(ref headerName, ref headerValue);
-
-                        // Move the consumed
-                        consumed = buffer.Start;
-                    }
                 }
                 catch (Exception)
                 {
@@ -195,11 +96,6 @@ namespace Channels.Samples.Http
                 finally
                 {
                     buffer.Consumed(consumed);
-                }
-
-                if (needMoreData)
-                {
-                    continue;
                 }
 
                 var context = _application.CreateContext(this);
@@ -260,19 +156,13 @@ namespace Channels.Samples.Http
         private void Reset()
         {
             Body = _initialBody;
-            RequestHeaders.Reset();
+            _parser.Reset();
             ResponseHeaders.Reset();
             HasStarted = false;
             StatusCode = 200;
             _autoChunk = false;
-            _state = ParsingState.StartLine;
             _method = null;
             _path = null;
-
-            HttpVersion.Dispose();
-            Method.Dispose();
-            Path.Dispose();
-
         }
 
         public Task WriteAsync(Span<byte> data)
@@ -319,12 +209,6 @@ namespace Channels.Samples.Http
         private void WriteEndResponse(ref WritableBuffer buffer)
         {
             buffer.Write(_chunkedEndBytes);
-        }
-
-        private enum ParsingState
-        {
-            StartLine,
-            Headers
         }
     }
 }
