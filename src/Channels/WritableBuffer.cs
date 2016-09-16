@@ -60,6 +60,11 @@ namespace Channels
         /// <param name="count"></param>
         public void Ensure(int count = 1)
         {
+            if (count > _bufferSize)
+            {
+                throw new ArgumentOutOfRangeException(nameof(count), $"Cannot allocate more than {_bufferSize} bytes in a single buffer");
+            }
+
             if (_tail == null)
             {
                 _tail = new PooledBufferSegment(_pool.Lease(_bufferSize));
