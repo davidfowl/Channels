@@ -22,7 +22,8 @@ namespace Channels
 
         private static Task _completedTask = Task.FromResult(0);
 
-        private readonly IBufferPool _pool;
+        internal IBufferPool BufferPool { get; }
+        internal IBufferSegmentFactory BufferSegmentFactory { get; }
 
         private Action _awaitableState;
 
@@ -49,9 +50,19 @@ namespace Channels
         /// Initializes the <see cref="Channel"/> with the specifed <see cref="IBufferPool"/>.
         /// </summary>
         /// <param name="pool"></param>
-        public Channel(IBufferPool pool)
+        public Channel(IBufferPool pool) : this(pool, new PooledBufferSegmentFactory())
         {
-            _pool = pool;
+        }
+
+        /// <summary>
+        /// Initializes the <see cref="Channel"/> with the specifed <see cref="IBufferPool"/>.
+        /// </summary>
+        /// <param name="pool"></param>
+        /// <param name="bufferSegmentFactory"></param>
+        internal Channel(IBufferPool pool, IBufferSegmentFactory bufferSegmentFactory)
+        {
+            BufferPool = pool;
+            BufferSegmentFactory = bufferSegmentFactory;
             _awaitableState = _awaitableIsNotCompleted;
         }
 
@@ -127,8 +138,8 @@ namespace Channels
             // If inadequate bytes left or if the segment is readonly
             if (bytesLeftInBuffer == 0 || bytesLeftInBuffer < count || segment.ReadOnly)
             {
-                var nextBuffer = _pool.Lease(_bufferSize);
-                var nextSegment = new BufferSegment(nextBuffer);
+                var nextBuffer = BufferPool.Lease(_bufferSize);
+                var nextSegment = BufferSegmentFactory.Create(nextBuffer);
 
                 segment.Next = nextSegment;
 
@@ -155,7 +166,7 @@ namespace Channels
             if (segment == null)
             {
                 // No free tail space, allocate a new segment
-                segment = new BufferSegment(_pool.Lease(_bufferSize));
+                segment = BufferSegmentFactory.Create(BufferPool.Lease(count));
             }
 
             // Changing commit head shared with Reader
@@ -189,7 +200,7 @@ namespace Channels
             EnsureAlloc();
 
             BufferSegment clonedEnd;
-            var clonedBegin = BufferSegment.Clone(buffer.Start, buffer.End, out clonedEnd);
+            var clonedBegin = BufferSegment.Clone(BufferSegmentFactory, buffer.Start, buffer.End, out clonedEnd);
 
             if (_writingHead == null)
             {
@@ -380,7 +391,7 @@ namespace Channels
             {
                 var returnSegment = returnStart;
                 returnStart = returnStart.Next;
-                returnSegment.Dispose();
+                BufferSegmentFactory.Dispose(returnSegment);
             }
 
             // CompareExchange not required as its setting to current value if test fails
@@ -525,8 +536,8 @@ namespace Channels
                 {
                     var returnSegment = segment;
                     segment = segment.Next;
-
-                    returnSegment.Dispose();
+                    
+                    BufferSegmentFactory.Dispose(returnSegment);
                 }
 
                 _readHead = null;

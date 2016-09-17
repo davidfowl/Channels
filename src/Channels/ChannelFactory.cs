@@ -12,17 +12,24 @@ namespace Channels
     public class ChannelFactory : IDisposable
     {
         private readonly IBufferPool _pool;
+        private readonly IBufferSegmentFactory _bufferSegmentFactory;
 
         public ChannelFactory() : this(new MemoryPool())
         {
         }
 
-        public ChannelFactory(IBufferPool pool)
+        public ChannelFactory(IBufferPool pool) : this(pool, new PooledBufferSegmentFactory())
         {
-            _pool = pool;
+
         }
 
-        public Channel CreateChannel() => new Channel(_pool);
+        internal ChannelFactory(IBufferPool pool, IBufferSegmentFactory bufferSegmentFactory)
+        {
+            _pool = pool;
+            _bufferSegmentFactory = bufferSegmentFactory;
+        }
+
+        public Channel CreateChannel() => new Channel(_pool, _bufferSegmentFactory);
 
         public IReadableChannel MakeReadableChannel(Stream stream)
         {
@@ -31,7 +38,7 @@ namespace Channels
                 throw new InvalidOperationException();
             }
 
-            var channel = new Channel(_pool);
+            var channel = new Channel(_pool, _bufferSegmentFactory);
             ExecuteCopyToAsync(channel, stream);
             return channel;
         }
@@ -55,7 +62,7 @@ namespace Channels
                 throw new InvalidOperationException();
             }
 
-            var channel = new Channel(_pool);
+            var channel = new Channel(_pool, _bufferSegmentFactory);
 
             channel.CopyToAsync(stream).ContinueWith((task) =>
             {
@@ -74,7 +81,7 @@ namespace Channels
 
         public IWritableChannel MakeWriteableChannel(IWritableChannel channel, Func<IReadableChannel, IWritableChannel, Task> consume)
         {
-            var newChannel = new Channel(_pool);
+            var newChannel = new Channel(_pool, _bufferSegmentFactory);
 
             consume(newChannel, channel).ContinueWith(t =>
             {
@@ -85,7 +92,7 @@ namespace Channels
 
         public IReadableChannel MakeReadableChannel(IReadableChannel channel, Func<IReadableChannel, IWritableChannel, Task> produce)
         {
-            var newChannel = new Channel(_pool);
+            var newChannel = new Channel(_pool, _bufferSegmentFactory);
             Execute(channel, newChannel, produce);
             return newChannel;
         }
