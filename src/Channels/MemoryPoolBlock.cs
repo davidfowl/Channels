@@ -46,7 +46,12 @@ namespace Channels
 #endif
             if (Slab != null && Slab.IsActive)
             {
-                Pool.Return(this);
+                // Need to make a new object because this one is being finalized
+                Pool.Return(new MemoryPoolBlock(_offset, _length)
+                {
+                    Pool = Pool,
+                    Slab = Slab
+                });
             }
         }
 
