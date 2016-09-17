@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Numerics;
 using System.Text;
+using System.Text.Formatting;
 using System.Threading.Tasks;
 using Channels.Text.Primitives;
 using Microsoft.AspNetCore.Hosting.Server;
@@ -11,10 +12,12 @@ namespace Channels.Samples.Http
     {
         private static readonly byte[] _http11Bytes = Encoding.UTF8.GetBytes("HTTP/1.1 ");
         private static readonly byte[] _chunkedEndBytes = Encoding.UTF8.GetBytes("0\r\n\r\n");
+        private static readonly byte[] _endChunkBytes = Encoding.ASCII.GetBytes("\r\n");
 
         private readonly IReadableChannel _input;
         private readonly IWritableChannel _output;
         private readonly IHttpApplication<TContext> _application;
+        private readonly WriteableChannelFormatter _outputFormatter;
 
         public RequestHeaderDictionary RequestHeaders => _parser.RequestHeaders;
         public ResponseHeaderDictionary ResponseHeaders { get; } = new ResponseHeaderDictionary();
@@ -45,6 +48,7 @@ namespace Channels.Samples.Http
             _input = input;
             _output = output;
             _initialBody = new HttpBodyStream<TContext>(this);
+            _outputFormatter = _output.GetFormatter(EncodingData.InvariantUtf8);
         }
 
         public async Task ProcessAllRequests()
@@ -126,28 +130,16 @@ namespace Channels.Samples.Http
 
         private Task EndResponse()
         {
-            var buffer = default(WritableBuffer);
-            var hasBuffer = false;
-
             if (!HasStarted)
             {
-                buffer = _output.Alloc();
-
-                WriteBeginResponseHeaders(ref buffer, ref _autoChunk);
-
-                hasBuffer = true;
+                WriteBeginResponseHeaders();
             }
 
             if (_autoChunk)
             {
-                if (!hasBuffer)
-                {
-                    buffer = _output.Alloc();
-                }
+                WriteEndResponse();
 
-                WriteEndResponse(ref buffer);
-
-                return buffer.FlushAsync();
+                return _outputFormatter.FlushAsync();
             }
 
             return Task.CompletedTask;
@@ -167,28 +159,26 @@ namespace Channels.Samples.Http
 
         public Task WriteAsync(Span<byte> data)
         {
-            var buffer = _output.Alloc();
-
             if (!HasStarted)
             {
-                WriteBeginResponseHeaders(ref buffer, ref _autoChunk);
+                WriteBeginResponseHeaders();
             }
 
             if (_autoChunk)
             {
-                ChunkWriter.WriteBeginChunkBytes(ref buffer, data.Length);
-                buffer.Write(data);
-                ChunkWriter.WriteEndChunkBytes(ref buffer);
+                _outputFormatter.Append(data.Length, Format.Parsed.HexLowercase);
+                _outputFormatter.Write(data);
+                _outputFormatter.Write(_endChunkBytes);
             }
             else
             {
-                buffer.Write(data);
+                _outputFormatter.Write(data);
             }
 
-            return buffer.FlushAsync();
+            return _outputFormatter.FlushAsync();
         }
 
-        private void WriteBeginResponseHeaders(ref WritableBuffer buffer, ref bool autoChunk)
+        private void WriteBeginResponseHeaders()
         {
             if (HasStarted)
             {
@@ -197,18 +187,18 @@ namespace Channels.Samples.Http
 
             HasStarted = true;
 
-            buffer.Write(_http11Bytes);
+            _outputFormatter.Write(_http11Bytes);
             var status = ReasonPhrases.ToStatusBytes(StatusCode);
-            buffer.Write(status);
+            _outputFormatter.Write(status);
 
-            autoChunk = !HasContentLength && !HasTransferEncoding && KeepAlive;
+            _autoChunk = !HasContentLength && !HasTransferEncoding && KeepAlive;
 
-            ResponseHeaders.CopyTo(autoChunk, ref buffer);
+            ResponseHeaders.CopyTo(_autoChunk, _outputFormatter);
         }
 
-        private void WriteEndResponse(ref WritableBuffer buffer)
+        private void WriteEndResponse()
         {
-            buffer.Write(_chunkedEndBytes);
+            _outputFormatter.Write(_chunkedEndBytes);
         }
     }
 }

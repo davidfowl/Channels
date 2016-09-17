@@ -25,11 +25,7 @@ namespace Channels.Text.Primitives
         {
             get
             {
-                if (_needAlloc)
-                {
-                    _writableBuffer = _channel.Alloc();
-                    _needAlloc = false;
-                }
+                EnsureBuffer();
 
                 return _writableBuffer.Memory;
             }
@@ -45,10 +41,25 @@ namespace Channels.Text.Primitives
             _writableBuffer.Ensure(desiredFreeBytesHint == -1 ? 2048 : desiredFreeBytesHint);
         }
 
+        public void Write(Span<byte> data)
+        {
+            EnsureBuffer();
+            _writableBuffer.Write(data);
+        }
+
         public async Task FlushAsync()
         {
             await _writableBuffer.FlushAsync();
             _needAlloc = true;
+        }
+
+        private void EnsureBuffer()
+        {
+            if (_needAlloc)
+            {
+                _writableBuffer = _channel.Alloc();
+                _needAlloc = false;
+            }
         }
     }
 }

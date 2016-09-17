@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Text;
+using System.Text.Formatting;
 using Channels;
 using Channels.Text.Primitives;
 using Microsoft.AspNetCore.Http;
@@ -92,26 +93,26 @@ namespace Channels.Samples.Http
             return GetEnumerator();
         }
 
-        public void CopyTo(bool chunk, ref WritableBuffer buffer)
+        public void CopyTo(bool chunk, WriteableChannelFormatter outputFormatter)
         {
             foreach (var header in _headers)
             {
-                buffer.Write(_headersStartBytes);
-                WritableBufferExtensions.WriteAsciiString(ref buffer, header.Key);
-                buffer.Write(_headersSeperatorBytes);
-                WritableBufferExtensions.WriteAsciiString(ref buffer, header.Value);
+                outputFormatter.Write(_headersStartBytes);
+                outputFormatter.Append(header.Key);
+                outputFormatter.Write(_headersSeperatorBytes);
+                outputFormatter.Append(header.Value.ToString());
             }
 
             if (chunk)
             {
-                buffer.Write(_chunkedHeaderBytes);
+                outputFormatter.Write(_chunkedHeaderBytes);
             }
 
-            buffer.Write(_serverHeaderBytes);
+            outputFormatter.Write(_serverHeaderBytes);
             var date = _dateHeaderValueManager.GetDateHeaderValues().Bytes;
-            buffer.Write(date);
+            outputFormatter.Write(date);
 
-            buffer.Write(_headersEndBytes);
+            outputFormatter.Write(_headersEndBytes);
         }
 
         public void Reset() => _headers.Clear();
