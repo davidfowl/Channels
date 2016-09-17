@@ -11,12 +11,12 @@ namespace Channels.Text.Primitives
     {
         private readonly IWritableChannel _channel;
         private WritableBuffer _writableBuffer;
+        private bool _needAlloc = true;
 
         public WriteableChannelFormatter(IWritableChannel channel, EncodingData encoding)
         {
             _channel = channel;
             Encoding = encoding;
-            _writableBuffer = _channel.Alloc();
         }
 
         public EncodingData Encoding { get; }
@@ -25,6 +25,12 @@ namespace Channels.Text.Primitives
         {
             get
             {
+                if (_needAlloc)
+                {
+                    _writableBuffer = _channel.Alloc();
+                    _needAlloc = false;
+                }
+
                 return _writableBuffer.Memory;
             }
         }
@@ -42,7 +48,7 @@ namespace Channels.Text.Primitives
         public async Task FlushAsync()
         {
             await _writableBuffer.FlushAsync();
-            _writableBuffer = _channel.Alloc();
+            _needAlloc = true;
         }
     }
 }
