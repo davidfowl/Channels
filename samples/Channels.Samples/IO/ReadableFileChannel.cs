@@ -52,9 +52,9 @@ namespace Channels.Samples.IO
             buffer.CommitBytes((int)numBytes);
             var task = buffer.FlushAsync();
 
-            if (numBytes == 0 || operation.Channel.ReaderCompleted.IsCompleted)
+            if (numBytes == 0 || operation.Channel.Writing.IsCompleted)
             {
-                operation.Channel.CompleteWriting();
+                operation.Channel.CompleteWriter();
 
                 // The operation can be disposed when there's nothing more to produce
                 operation.Dispose();
@@ -118,7 +118,7 @@ namespace Channels.Samples.IO
                 int hr = Marshal.GetLastWin32Error();
                 if (hr != 997)
                 {
-                    Channel.CompleteWriting(Marshal.GetExceptionForHR(hr));
+                    Channel.CompleteWriter(Marshal.GetExceptionForHR(hr));
                 }
             }
 

@@ -17,12 +17,12 @@ namespace Channels
         /// <summary>
         /// Gets a task that completes when the channel is completed and has no more data to be read.
         /// </summary>
-        Task Completion { get; }
+        Task Reading { get; }
 
         /// <summary>
         /// Signal to the producer that the consumer is done reading.
         /// </summary>
         /// <param name="exception">Optional Exception indicating a failure that's causing the channel to complete.</param>
-        void CompleteReading(Exception exception = null);
+        void Complete(Exception exception = null);
     }
 }

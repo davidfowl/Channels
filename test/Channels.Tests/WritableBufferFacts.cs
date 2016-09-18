@@ -60,7 +60,7 @@ namespace Channels.Tests
                 output.Write(data);
                 var foo = output.Memory.IsEmpty; // trying to see if .Memory breaks
                 await output.FlushAsync();
-                channel.CompleteWriting();
+                channel.CompleteWriter();
 
                 int offset = 0;
                 while (true)
@@ -94,7 +94,7 @@ namespace Channels.Tests
                 WritableBufferExtensions.WriteUtf8String(ref output, data);
                 var foo = output.Memory.IsEmpty; // trying to see if .Memory breaks
                 await output.FlushAsync();
-                channel.CompleteWriting();
+                channel.CompleteWriter();
 
                 int offset = 0;
                 while (true)
@@ -128,7 +128,7 @@ namespace Channels.Tests
                 WritableBufferExtensions.WriteAsciiString(ref output, data);
                 var foo = output.Memory.IsEmpty; // trying to see if .Memory breaks
                 await output.FlushAsync();
-                channel.CompleteWriting();
+                channel.CompleteWriter();
 
                 int offset = 0;
                 while (true)

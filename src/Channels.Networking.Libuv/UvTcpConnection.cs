@@ -61,7 +61,7 @@ namespace Channels.Networking.Libuv
                         // Make sure we're on the libuv thread
                         await _thread;
 
-                        if (buffer.IsEmpty && _output.WriterCompleted.IsCompleted)
+                        if (buffer.IsEmpty && _output.Reading.IsCompleted)
                         {
                             break;
                         }
@@ -83,11 +83,11 @@ namespace Channels.Networking.Libuv
             }
             catch (Exception ex)
             {
-                _output.CompleteReading(ex);
+                _output.CompleteReader(ex);
             }
             finally
             {
-                _output.CompleteReading();
+                _output.CompleteReader();
 
                 // Drain the pending writes
                 if (_outgoing.Count > 0)
@@ -100,7 +100,7 @@ namespace Channels.Networking.Libuv
                 _handle.Dispose();
 
                 // We'll never call the callback after disposing the handle
-                _input.CompleteWriting();
+                _input.CompleteWriter();
             }
         }
 
@@ -168,11 +168,11 @@ namespace Channels.Networking.Libuv
 
                 // REVIEW: Should we treat ECONNRESET as an error?
                 // Ignore the error for now 
-                _input.CompleteWriting();
+                _input.CompleteWriter();
             }
-            else if (readCount == 0 || _input.ReaderCompleted.IsCompleted)
+            else if (readCount == 0 || _input.Writing.IsCompleted)
             {
-                _input.CompleteWriting();
+                _input.CompleteWriter();
             }
             else
             {

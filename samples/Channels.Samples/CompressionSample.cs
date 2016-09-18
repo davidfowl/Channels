@@ -34,9 +34,9 @@ namespace Channels.Samples
                 // Copy from the file channel to the console channel
                 input.CopyToAsync(output).GetAwaiter().GetResult();
 
-                input.CompleteReading();
+                input.Complete();
 
-                output.CompleteWriting();
+                output.Complete();
             }
         }
     }

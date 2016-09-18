@@ -77,7 +77,7 @@ namespace Channels.Networking.Windows.RIO
             {
                 var buffer = await _output.ReadAsync();
 
-                if (buffer.IsEmpty && _output.WriterCompleted.IsCompleted)
+                if (buffer.IsEmpty && _output.Reading.IsCompleted)
                 {
                     break;
                 }
@@ -106,7 +106,7 @@ namespace Channels.Networking.Windows.RIO
                 buffer.Consumed();
             }
 
-            _output.CompleteReading();
+            _output.CompleteReader();
         }
 
         private Task SendAsync(Span<byte> span, bool endOfMessage)
@@ -199,9 +199,9 @@ namespace Channels.Networking.Windows.RIO
 
         public void ReceiveBeginComplete(uint bytesTransferred)
         {
-            if (bytesTransferred == 0 || _input.ReaderCompleted.IsCompleted)
+            if (bytesTransferred == 0 || _input.Writing.IsCompleted)
             {
-                _input.CompleteWriting();
+                _input.CompleteWriter();
             }
             else
             {

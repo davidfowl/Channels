@@ -69,7 +69,7 @@ namespace Channels.Samples.Http
 
                 try
                 {
-                    if (buffer.IsEmpty && _input.Completion.IsCompleted)
+                    if (buffer.IsEmpty && _input.Reading.IsCompleted)
                     {
                         // We're done with this connection
                         return;

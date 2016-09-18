@@ -27,7 +27,7 @@ namespace Channels.Samples
             {
                 var inputBuffer = await _output.ReadAsync();
 
-                var fin = _output.Completion.IsCompleted;
+                var fin = _output.Reading.IsCompleted;
 
                 var consumed = inputBuffer.Start;
 

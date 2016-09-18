@@ -52,17 +52,13 @@ namespace Channels
         /// <summary>
         /// Gets a task that completes when the channel is completed and has no more data to be read.
         /// </summary>
-        public Task WriterCompleted => _readingTcs.Task;
+        public Task Reading => _readingTcs.Task;
 
         /// <summary>
         /// Gets a task that completes when the consumer is completed reading.
         /// </summary>
         /// <remarks>When this task is triggered, the producer should stop producing data.</remarks>
-        public Task ReaderCompleted => _writingTcs.Task;
-
-        Task IReadableChannel.Completion => _readingTcs.Task;
-
-        Task IWritableChannel.Completion => _writingTcs.Task;
+        public Task Writing => _writingTcs.Task;
 
         internal bool IsCompleted => ReferenceEquals(_awaitableState, _awaitableIsCompleted);
 
@@ -210,7 +206,7 @@ namespace Channels
 
                 if (!examined.IsDefault &&
                     examined.IsEnd &&
-                    WriterCompleted.Status == TaskStatus.WaitingForActivation)
+                    Reading.Status == TaskStatus.WaitingForActivation)
                 {
                     Interlocked.CompareExchange(
                         ref _awaitableState,
@@ -232,53 +228,67 @@ namespace Channels
             }
         }
 
+        void IWritableChannel.Complete(Exception exception) => CompleteWriter(exception);
+
         /// <summary>
         /// Marks the channel as being complete, meaning no more items will be written to it.
         /// </summary>
         /// <param name="exception">Optional Exception indicating a failure that's causing the channel to complete.</param>
-        public void CompleteWriting(Exception exception = null)
+        public void CompleteWriter(Exception exception = null)
         {
             lock (_sync)
             {
-                if (exception != null)
-                {
-                    _readingTcs.TrySetException(exception);
-                }
-                else
-                {
-                    _readingTcs.TrySetResult(null);
-                }
+                SignalReader(exception);
 
-                Complete();
-
-                if (_writingTcs.Task.IsCompleted)
+                if (Writing.IsCompleted)
                 {
                     Dispose();
                 }
             }
         }
 
+        private void SignalReader(Exception exception)
+        {
+            if (exception != null)
+            {
+                _readingTcs.TrySetException(exception);
+            }
+            else
+            {
+                _readingTcs.TrySetResult(null);
+            }
+
+            Complete();
+        }
+
+        void IReadableChannel.Complete(Exception exception) => CompleteReader(exception);
+
         /// <summary>
         /// Signal to the producer that the consumer is done reading.
         /// </summary>
         /// <param name="exception">Optional Exception indicating a failure that's causing the channel to complete.</param>
-        public void CompleteReading(Exception exception = null)
+        public void CompleteReader(Exception exception = null)
         {
             lock (_sync)
             {
-                if (exception != null)
-                {
-                    _writingTcs.TrySetException(exception);
-                }
-                else
-                {
-                    _writingTcs.TrySetResult(null);
-                }
+                SignalWriter(exception);
 
-                if (_readingTcs.Task.IsCompleted)
+                if (Reading.IsCompleted)
                 {
                     Dispose();
                 }
+            }
+        }
+
+        private void SignalWriter(Exception exception)
+        {
+            if (exception != null)
+            {
+                _writingTcs.TrySetException(exception);
+            }
+            else
+            {
+                _writingTcs.TrySetResult(null);
             }
         }
 
@@ -332,10 +342,10 @@ namespace Channels
                 throw new InvalidOperationException("can't GetResult unless completed");
             }
 
-            if (_readingTcs.Task.IsCompleted)
+            if (Reading.IsCompleted)
             {
                 // Observe any exceptions if the reading task is completed
-                _readingTcs.Task.GetAwaiter().GetResult();
+                Reading.GetAwaiter().GetResult();
             }
 
             return Read();
@@ -343,8 +353,8 @@ namespace Channels
 
         private void Dispose()
         {
-            Debug.Assert(_writingTcs.Task.IsCompleted, "Not completed writing");
-            Debug.Assert(_readingTcs.Task.IsCompleted, "Not completed reading");
+            Debug.Assert(Writing.IsCompleted, "Not completed writing");
+            Debug.Assert(Reading.IsCompleted, "Not completed reading");
 
             lock (_sync)
             {

@@ -42,7 +42,7 @@ namespace Channels.Samples
             {
                 try
                 {
-                    if (inputBuffer.IsEmpty && input.Completion.IsCompleted)
+                    if (inputBuffer.IsEmpty && input.Reading.IsCompleted)
                     {
                         return;
                     }
