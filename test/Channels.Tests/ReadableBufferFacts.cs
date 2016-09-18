@@ -1,6 +1,8 @@
 ﻿using Channels.Text.Primitives;
 using System;
+using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
@@ -242,6 +244,48 @@ namespace Channels.Tests
             }
             var slice = readBuffer.Slice(0, written);
             Assert.Equal(value, slice.GetUInt64());
+        }
+
+        [Theory]
+        [InlineData("abc,def,ghi",',')]
+        [InlineData("a;b;c;d", ';')]
+        [InlineData("a;b;c;d", ',')]
+        [InlineData("", ',')]
+        public Task Split(string input, char delimiter)
+        {
+            // note: different expectation to string.Split; empty has 0 outputs
+            var expected = input == "" ? new string[0] : input.Split(delimiter);
+
+            using (var channelFactory = new ChannelFactory())
+            {
+                var channel = channelFactory.CreateChannel();
+                var output = channel.Alloc();
+                WritableBufferExtensions.WriteUtf8String(ref output, input);
+
+                var readable = output.AsReadableBuffer();
+
+                // via struct API
+                var iter = readable.Split((byte)delimiter);
+                Assert.Equal(expected.Length, iter.Count());
+                int i = 0;
+                foreach(var item in iter)
+                {
+                    Assert.Equal(expected[i++], item.GetUtf8String());
+                }
+                Assert.Equal(expected.Length, i);
+
+                // via objects/LINQ etc
+                IEnumerable<ReadableBuffer> asObject = iter;
+                Assert.Equal(expected.Length, asObject.Count());
+                i = 0;
+                foreach (var item in asObject)
+                {
+                    Assert.Equal(expected[i++], item.GetUtf8String());
+                }
+                Assert.Equal(expected.Length, i);
+
+                return output.FlushAsync();
+            }
         }
     }
 }
