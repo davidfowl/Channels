@@ -8,9 +8,16 @@ namespace Channels
     /// </summary>
     public abstract class ReadableChannel : IReadableChannel
     {
-        protected Channel _channel;
+        /// <summary>
+        /// The underlying <see cref="Channel"/> the ReadableChannel communicates over.
+        /// </summary>
+        protected readonly Channel _channel;
 
-        public ReadableChannel(IBufferPool pool)
+        /// <summary>
+        /// Creates a base <see cref="ReadableChannel"/>.
+        /// </summary>
+        /// <param name="pool">The <see cref="IBufferPool"/> that buffers will be allocated from.</param>
+        protected ReadableChannel(IBufferPool pool)
         {
             _channel = new Channel(pool);
         }
