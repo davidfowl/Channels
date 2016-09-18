@@ -26,7 +26,10 @@ namespace Channels.Text.Primitives
         /// </summary>
         public int Count()
         {
-            if (_count >= 0) return _count;
+            if (_count >= 0)
+            {
+                return _count;
+            }
 
             int count = 1;
             var current = _buffer;
