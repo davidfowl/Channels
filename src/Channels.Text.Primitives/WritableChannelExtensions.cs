@@ -7,9 +7,9 @@ namespace Channels.Text.Primitives
 {
     public static class WritableChannelExtensions
     {
-        public static WriteableChannelFormatter GetFormatter(this IWritableChannel channel, EncodingData formattingData)
+        public static WritableChannelFormatter GetFormatter(this IWritableChannel channel, EncodingData formattingData)
         {
-            return new WriteableChannelFormatter(channel, formattingData);
+            return new WritableChannelFormatter(channel, formattingData);
         }
     }
 }

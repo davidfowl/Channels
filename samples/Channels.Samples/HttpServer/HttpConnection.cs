@@ -17,7 +17,7 @@ namespace Channels.Samples.Http
         private readonly IReadableChannel _input;
         private readonly IWritableChannel _output;
         private readonly IHttpApplication<TContext> _application;
-        private readonly WriteableChannelFormatter _outputFormatter;
+        private readonly WritableChannelFormatter _outputFormatter;
 
         public RequestHeaderDictionary RequestHeaders => _parser.RequestHeaders;
         public ResponseHeaderDictionary ResponseHeaders { get; } = new ResponseHeaderDictionary();

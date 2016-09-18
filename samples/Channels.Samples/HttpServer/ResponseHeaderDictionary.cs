@@ -93,7 +93,7 @@ namespace Channels.Samples.Http
             return GetEnumerator();
         }
 
-        public void CopyTo(bool chunk, WriteableChannelFormatter outputFormatter)
+        public void CopyTo(bool chunk, WritableChannelFormatter outputFormatter)
         {
             foreach (var header in _headers)
             {

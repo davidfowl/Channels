@@ -7,13 +7,13 @@ using System.Text;
 
 namespace Channels.Text.Primitives
 {
-    public class WriteableChannelFormatter : IFormatter
+    public class WritableChannelFormatter : IFormatter
     {
         private readonly IWritableChannel _channel;
         private WritableBuffer _writableBuffer;
         private bool _needAlloc = true;
 
-        public WriteableChannelFormatter(IWritableChannel channel, EncodingData encoding)
+        public WritableChannelFormatter(IWritableChannel channel, EncodingData encoding)
         {
             _channel = channel;
             Encoding = encoding;
