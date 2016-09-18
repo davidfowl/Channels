@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Numerics;
 using System.Text;
 using System.Text.Formatting;
@@ -26,17 +27,14 @@ namespace Channels.Samples.Http
         public ReadableBuffer Path => _parser.Path;
         public ReadableBuffer Method => _parser.Method;
 
-        public IReadableChannel Input => _input;
-
-        public IWritableChannel Output => _output;
-
         // TODO: Check the http version
         public bool KeepAlive => true; //RequestHeaders.ContainsKey("Connection") && string.Equals(RequestHeaders["Connection"], "keep-alive");
 
         private bool HasContentLength => ResponseHeaders.ContainsKey("Content-Length");
         private bool HasTransferEncoding => ResponseHeaders.ContainsKey("Transfer-Encoding");
 
-        private HttpBodyStream<TContext> _initialBody;
+        private HttpRequestStream<TContext> _requestBody;
+        private HttpResponseStream<TContext> _responseBody;
 
         private bool _autoChunk;
 
@@ -47,9 +45,19 @@ namespace Channels.Samples.Http
             _application = application;
             _input = input;
             _output = output;
-            _initialBody = new HttpBodyStream<TContext>(this);
+            _requestBody = new HttpRequestStream<TContext>(this);
+            _responseBody = new HttpResponseStream<TContext>(this);
             _outputFormatter = _output.GetFormatter(EncodingData.InvariantUtf8);
         }
+
+        public IReadableChannel Input => _input;
+
+        public IWritableChannel Output => _output;
+
+        public HttpRequestStream<TContext> RequestBody { get; set; }
+
+        public HttpResponseStream<TContext> ResponseBody { get; set; }
+
 
         public async Task ProcessAllRequests()
         {
@@ -58,7 +66,6 @@ namespace Channels.Samples.Http
             while (true)
             {
                 var buffer = await _input.ReadAsync();
-                var consumed = buffer.Start;
 
                 try
                 {
@@ -70,12 +77,14 @@ namespace Channels.Samples.Http
 
                     var result = _parser.ParseRequest(ref buffer);
 
-                    // Update consumed
-                    consumed = buffer.Start;
-
                     switch (result)
                     {
                         case HttpRequestParser.ParseResult.Incomplete:
+                            if (_input.Completion.IsCompleted)
+                            {
+                                // Didn't get the whole request and the connection ended
+                                throw new Exception();
+                            }
                             // Need more data
                             continue;
                         case HttpRequestParser.ParseResult.Complete:
@@ -99,7 +108,7 @@ namespace Channels.Samples.Http
                 }
                 finally
                 {
-                    buffer.Consumed(consumed);
+                    buffer.Consumed(buffer.Start, buffer.End);
                 }
 
                 var context = _application.CreateContext(this);
@@ -147,7 +156,8 @@ namespace Channels.Samples.Http
 
         private void Reset()
         {
-            Body = _initialBody;
+            RequestBody = _requestBody;
+            ResponseBody = _responseBody;
             _parser.Reset();
             ResponseHeaders.Reset();
             HasStarted = false;

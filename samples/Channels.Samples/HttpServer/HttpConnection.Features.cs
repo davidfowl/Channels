@@ -51,9 +51,31 @@ namespace Channels.Samples.Http
             _features[key] = value;
         }
 
-        public Stream Body { get; set; }
-
         public bool HasStarted { get; set; }
+
+        Stream IHttpRequestFeature.Body
+        {
+            get
+            {
+                return _requestBody;
+            }
+            set
+            {
+
+            }
+        }
+
+        Stream IHttpResponseFeature.Body
+        {
+            get
+            {
+                return _responseBody;
+            }
+            set
+            {
+
+            }
+        }
 
         IHeaderDictionary IHttpResponseFeature.Headers
         {

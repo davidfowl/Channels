@@ -12,8 +12,6 @@ namespace Channels.Samples
     {
         public static void Run()
         {
-            // This sample makes some assumptions
-
             var ip = IPAddress.Any;
             int port = 5000;
             var thread = new UvThread();
@@ -46,6 +44,11 @@ namespace Channels.Samples
                             switch (result)
                             {
                                 case HttpRequestParser.ParseResult.Incomplete:
+                                    if (connection.Input.Completion.IsCompleted)
+                                    {
+                                        // Didn't get the whole request and the connection ended
+                                        throw new Exception();
+                                    }
                                     // Need more data
                                     continue;
                                 case HttpRequestParser.ParseResult.Complete:
@@ -71,7 +74,7 @@ namespace Channels.Samples
                         finally
                         {
                             // Consume the input
-                            input.Consumed(input.Start);
+                            input.Consumed(input.Start, input.End);
                         }
                     }
                 }

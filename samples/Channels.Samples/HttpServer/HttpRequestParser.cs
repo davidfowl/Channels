@@ -87,9 +87,6 @@ namespace Channels.Samples
                     }
                     else if (ch == '\n')
                     {
-                        //consumed = buffer.Start;
-                        //needMoreData = false;
-                        //break;
                         return ParseResult.Complete;
                     }
 
