@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 namespace Channels
 {
     /// <summary>
-    /// Represents a channel from which data can be read.
+    /// Defines a class that provides a channel from which data can be read.
     /// </summary>
     public interface IReadableChannel
     {
@@ -15,8 +15,9 @@ namespace Channels
         ChannelAwaitable ReadAsync();
 
         /// <summary>
-        /// Gets a task that completes when the channel is completed and has no more data to be read.
+        /// Gets a task that completes when no more data will be added to the channel.
         /// </summary>
+        /// <remarks>This task indicates the producer has completed and will not write anymore data.</remarks>
         Task Reading { get; }
 
         /// <summary>

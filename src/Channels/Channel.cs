@@ -50,14 +50,18 @@ namespace Channels
         public Task ReadingStarted => _startingReadingTcs.Task;
 
         /// <summary>
-        /// Gets a task that completes when the channel is completed and has no more data to be read.
+        /// Gets a task that completes when no more data will be added to the channel.
         /// </summary>
+        /// <remarks>This task indicates the producer has completed and will not write anymore data.</remarks>
         public Task Reading => _readingTcs.Task;
 
         /// <summary>
-        /// Gets a task that completes when the consumer is completed reading.
+        /// Gets a task that completes when no more data will be read from the channel.
         /// </summary>
-        /// <remarks>When this task is triggered, the producer should stop producing data.</remarks>
+        /// <remarks>
+        /// This task indicates the consumer has completed and will not read anymore data.
+        /// When this task is triggered, the producer should stop producing data.
+        /// </remarks>
         public Task Writing => _writingTcs.Task;
 
         internal bool IsCompleted => ReferenceEquals(_awaitableState, _awaitableIsCompleted);

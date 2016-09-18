@@ -3,18 +3,29 @@ using System.Threading.Tasks;
 
 namespace Channels
 {
+    /// <summary>
+    /// Represents a channel from which data can be read.
+    /// </summary>
     public abstract class ReadableChannel : IReadableChannel
     {
-        protected Channel _channel;
+        /// <summary>
+        /// The underlying <see cref="Channel"/> the ReadableChannel communicates over.
+        /// </summary>
+        protected readonly Channel _channel;
 
-        public ReadableChannel(IBufferPool pool)
+        /// <summary>
+        /// Creates a base <see cref="ReadableChannel"/>.
+        /// </summary>
+        /// <param name="pool">The <see cref="IBufferPool"/> that buffers will be allocated from.</param>
+        protected ReadableChannel(IBufferPool pool)
         {
             _channel = new Channel(pool);
         }
 
         /// <summary>
-        /// Gets a task that completes when the channel is completed and has no more data to be read.
+        /// Gets a task that completes when no more data will be added to the channel.
         /// </summary>
+        /// <remarks>This task indicates the producer has completed and will not write anymore data.</remarks>
         public Task Reading => _channel.Reading;
 
         /// <summary>
