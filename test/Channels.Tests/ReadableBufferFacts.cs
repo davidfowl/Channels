@@ -247,7 +247,7 @@ namespace Channels.Tests
         }
 
         [Theory]
-        [InlineData("abc,def,ghi",',')]
+        [InlineData("abc,def,ghi", ',')]
         [InlineData("a;b;c;d", ';')]
         [InlineData("a;b;c;d", ',')]
         [InlineData("", ',')]
@@ -268,7 +268,7 @@ namespace Channels.Tests
                 var iter = readable.Split((byte)delimiter);
                 Assert.Equal(expected.Length, iter.Count());
                 int i = 0;
-                foreach(var item in iter)
+                foreach (var item in iter)
                 {
                     Assert.Equal(expected[i++], item.GetUtf8String());
                 }
