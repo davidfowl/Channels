@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Text;
 using System.Text.Utf8;
 
@@ -180,5 +182,12 @@ namespace Channels.Text.Primitives
 
             return new Utf8String(textSpan).ToString();
         }
+
+        /// <summary>
+        /// Split a buffer into a sequence of tokens using a delimiter
+        /// </summary>
+        public static SplitEnumerable Split(this ReadableBuffer buffer, byte delimiter)
+            => new SplitEnumerable(buffer, delimiter);
+
     }
 }
