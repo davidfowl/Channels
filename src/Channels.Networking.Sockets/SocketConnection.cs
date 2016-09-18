@@ -168,7 +168,7 @@ namespace Channels.Networking.Sockets
             try
             {
                 // if the consumer says they don't want the data, we need to shut down the receive
-                GC.KeepAlive(_input.ReaderCompleted.ContinueWith(delegate
+                GC.KeepAlive(_input.Writing.ContinueWith(delegate
                 {// GC.KeepAlive here just to shut the compiler up
                     try { Socket.Shutdown(SocketShutdown.Receive); } catch { }
                 }));
@@ -178,7 +178,7 @@ namespace Channels.Networking.Sockets
                 await _input.ReadingStarted;
 
                 args = GetOrCreateSocketAsyncEventArgs();
-                while (!_input.ReaderCompleted.IsCompleted)
+                while (!_input.Writing.IsCompleted)
                 {
                     // we need a buffer to read into
                     var buffer = _input.Alloc(2048); // TODO: should this be controllable by the consumer?
@@ -218,7 +218,7 @@ namespace Channels.Networking.Sockets
                         }
                     }
                 }
-                _input.CompleteWriting();
+                _input.CompleteWriter();
             }
             catch (Exception ex)
             {
@@ -228,7 +228,7 @@ namespace Channels.Networking.Sockets
                 {
                     args.UserToken = null;
                 }
-                _input?.CompleteWriting(ex);
+                _input?.CompleteWriter(ex);
             }
             finally
             {
@@ -253,7 +253,7 @@ namespace Channels.Networking.Sockets
                     var buffer = await _output.ReadAsync();
                     try
                     {
-                        if (buffer.IsEmpty && _output.WriterCompleted.IsCompleted)
+                        if (buffer.IsEmpty && _output.Reading.IsCompleted)
                         {
                             break;
                         }
@@ -286,7 +286,7 @@ namespace Channels.Networking.Sockets
                         buffer.Consumed();
                     }
                 }
-                _output.CompleteReading();
+                _output.CompleteReader();
             }
             catch (Exception ex)
             {
@@ -296,7 +296,7 @@ namespace Channels.Networking.Sockets
                 {
                     args.UserToken = null;
                 }
-                _output?.CompleteReading(ex);
+                _output?.CompleteReader(ex);
             }
             finally
             {

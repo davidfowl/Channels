@@ -58,13 +58,13 @@ namespace Channels.Tests
                     var output = client.Output.Alloc();
                     WritableBufferExtensions.WriteUtf8String(ref output, MessageToSend);
                     await output.FlushAsync();
-                    client.Output.CompleteWriting();
+                    client.Output.Complete();
 
                     while (true)
                     {
                         var input = await client.Input.ReadAsync();
                         // wait for the end of the data before processing anything
-                        if (client.Input.Completion.IsCompleted)
+                        if (client.Input.Reading.IsCompleted)
                         {
                             reply = input.GetUtf8String();
                             input.Consumed();
@@ -160,7 +160,7 @@ namespace Channels.Tests
                 while (true)
                 {
                     var inputBuffer = await channel.Input.ReadAsync();
-                    if (inputBuffer.IsEmpty && channel.Input.Completion.IsCompleted)
+                    if (inputBuffer.IsEmpty && channel.Input.Reading.IsCompleted)
                     {
                         inputBuffer.Consumed(inputBuffer.End);
                         break;
@@ -190,8 +190,8 @@ namespace Channels.Tests
                     break;
                 }
             }
-            channel.Input.CompleteReading();
-            channel.Output.CompleteWriting();
+            channel.Input.Complete();
+            channel.Output.Complete();
             watch.Stop();
 
             return Tuple.Create(sendCount, replyCount, (int)watch.ElapsedMilliseconds);
@@ -205,7 +205,7 @@ namespace Channels.Tests
                 while (true)
                 {
                     var inputBuffer = await channel.Input.ReadAsync();
-                    if (inputBuffer.IsEmpty && channel.Input.Completion.IsCompleted)
+                    if (inputBuffer.IsEmpty && channel.Input.Reading.IsCompleted)
                     {
                         inputBuffer.Consumed(inputBuffer.End);
                         break;
@@ -228,8 +228,8 @@ namespace Channels.Tests
                         inputBuffer.Consumed(inputBuffer.End);
                     }
                 }
-                channel.Input.CompleteReading();
-                channel.Output.CompleteWriting();
+                channel.Input.Complete();
+                channel.Output.Complete();
             }
             catch (Exception ex)
             {
@@ -269,7 +269,7 @@ namespace Channels.Tests
                 while (true)
                 {
                     ReadableBuffer request = await channel.Input.ReadAsync();
-                    if (request.IsEmpty && channel.Input.Completion.IsCompleted)
+                    if (request.IsEmpty && channel.Input.Reading.IsCompleted)
                     {
                         request.Consumed();
                         break;
@@ -281,13 +281,13 @@ namespace Channels.Tests
                     await response.FlushAsync();
                     request.Consumed();
                 }
-                channel.Input.CompleteReading();
-                channel.Output.CompleteWriting();
+                channel.Input.Complete();
+                channel.Output.Complete();
             }
             catch (Exception ex)
             {
-                if (!(channel.Input?.Completion?.IsCompleted ?? true)) channel.Input.CompleteReading(ex);
-                if (!(channel.Output?.Completion?.IsCompleted ?? true)) channel.Output.CompleteWriting(ex);
+                if (!(channel.Input?.Reading?.IsCompleted ?? true)) channel.Input.Complete(ex);
+                if (!(channel.Output?.Writing?.IsCompleted ?? true)) channel.Output.Complete(ex);
             }
             finally
             {

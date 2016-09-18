@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 
 namespace Channels
@@ -14,7 +12,7 @@ namespace Channels
         /// Gets a task that completes when the consumer is completed reading.
         /// </summary>
         /// <remarks>When this task is triggered, the producer should stop producing data.</remarks>
-        Task Completion { get; }
+        Task Writing { get; }
 
         /// <summary>
         /// Allocates memory from the channel to write into.
@@ -27,6 +25,6 @@ namespace Channels
         /// Marks the channel as being complete, meaning no more items will be written to it.
         /// </summary>
         /// <param name="exception">Optional Exception indicating a failure that's causing the channel to complete.</param>
-        void CompleteWriting(Exception exception = null);
+        void Complete(Exception exception = null);
     }
 }

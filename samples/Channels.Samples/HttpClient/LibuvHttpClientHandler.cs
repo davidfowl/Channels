@@ -96,7 +96,7 @@ namespace Channels.Samples
                         state.Consumed = default(ReadCursor);
                     }
 
-                    if (responseBuffer.IsEmpty && connection.Input.Completion.IsCompleted)
+                    if (responseBuffer.IsEmpty && connection.Input.Reading.IsCompleted)
                     {
                         break;
                     }
@@ -214,7 +214,7 @@ namespace Channels.Samples
                 catch (Exception ex)
                 {
                     // Close the connection
-                    connection.Output.CompleteWriting(ex);
+                    connection.Output.Complete(ex);
                     break;
                 }
                 finally
@@ -279,7 +279,7 @@ namespace Channels.Samples
         {
             foreach (var state in _connectionPool)
             {
-                state.Value.ConnectionTask.GetAwaiter().GetResult().Output.CompleteWriting();
+                state.Value.ConnectionTask.GetAwaiter().GetResult().Output.Complete();
             }
 
             _thread.Dispose();

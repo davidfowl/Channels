@@ -165,8 +165,8 @@ namespace Channels.Samples.Http
 
             await connection.ProcessAllRequests();
 
-            channel.Output.CompleteWriting();
-            channel.Input.CompleteReading();
+            channel.Output.Complete();
+            channel.Input.Complete();
         }
     }
 }

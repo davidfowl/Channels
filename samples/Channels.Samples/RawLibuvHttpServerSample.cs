@@ -34,7 +34,7 @@ namespace Channels.Samples
 
                         try
                         {
-                            if (input.IsEmpty && connection.Input.Completion.IsCompleted)
+                            if (input.IsEmpty && connection.Input.Reading.IsCompleted)
                             {
                                 // No more data
                                 break;
@@ -78,10 +78,10 @@ namespace Channels.Samples
                 finally
                 {
                     // Close the input channel, which will tell the producer to stop producing
-                    connection.Input.CompleteReading();
+                    connection.Input.Complete();
 
                     // Close the output channel, which will close the connection
-                    connection.Output.CompleteWriting();
+                    connection.Output.Complete();
                 }
             });
 

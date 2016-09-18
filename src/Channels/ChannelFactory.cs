@@ -61,11 +61,11 @@ namespace Channels
             {
                 if (task.IsFaulted)
                 {
-                    channel.CompleteReading(task.Exception);
+                    channel.CompleteReader(task.Exception);
                 }
                 else
                 {
-                    channel.CompleteReading();
+                    channel.CompleteReader();
                 }
             });
 

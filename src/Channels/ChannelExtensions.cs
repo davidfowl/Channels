@@ -40,7 +40,7 @@ namespace Channels
                     break;
                 }
 
-                var fin = input.Completion.IsCompleted;
+                var fin = input.Reading.IsCompleted;
 
                 var inputBuffer = awaiter.GetResult();
                 var sliced = inputBuffer.Slice(0, destination.Length);
@@ -75,7 +75,7 @@ namespace Channels
 
                 try
                 {
-                    if (inputBuffer.IsEmpty && input.Completion.IsCompleted)
+                    if (inputBuffer.IsEmpty && input.Reading.IsCompleted)
                     {
                         return;
                     }
@@ -111,7 +111,7 @@ namespace Channels
             {
                 var inputBuffer = await input.ReadAsync();
 
-                var fin = input.Completion.IsCompleted;
+                var fin = input.Reading.IsCompleted;
 
                 try
                 {
@@ -139,7 +139,7 @@ namespace Channels
             {
                 var inputBuffer = await input.ReadAsync();
 
-                var fin = input.Completion.IsCompleted;
+                var fin = input.Reading.IsCompleted;
 
                 var sliced = inputBuffer.Slice(0, destination.Length);
                 sliced.CopyTo(destination);

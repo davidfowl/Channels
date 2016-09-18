@@ -15,11 +15,11 @@ namespace Channels
             }
             catch(Exception ex)
             {
-                channel.CompleteWriting(ex);
+                channel.Complete(ex);
             }
             finally
             {
-                channel.CompleteWriting();
+                channel.Complete();
             }
         }
 

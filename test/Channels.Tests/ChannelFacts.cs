@@ -39,7 +39,7 @@ namespace Channels.Tests
                 var cts = new CancellationTokenSource();
                 cts.Token.Register(() =>
                 {
-                    channel.CompleteWriting(new OperationCanceledException(cts.Token));
+                    channel.CompleteWriter(new OperationCanceledException(cts.Token));
                 });
 
                 var ignore = Task.Run(async () =>

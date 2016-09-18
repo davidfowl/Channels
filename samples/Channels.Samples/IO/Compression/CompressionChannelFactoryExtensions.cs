@@ -53,7 +53,7 @@ namespace Channels.Samples.IO.Compression
                 {
                     var inputBuffer = await input.ReadAsync();
 
-                    if (inputBuffer.IsEmpty && input.Completion.IsCompleted)
+                    if (inputBuffer.IsEmpty && input.Reading.IsCompleted)
                     {
                         break;
                     }
@@ -118,9 +118,9 @@ namespace Channels.Samples.IO.Compression
                 }
                 while (!finished);
 
-                input.CompleteReading();
+                input.Complete();
 
-                output.CompleteWriting();
+                output.Complete();
 
                 _deflater.Dispose();
             }
@@ -141,7 +141,7 @@ namespace Channels.Samples.IO.Compression
                 {
                     var inputBuffer = await input.ReadAsync();
 
-                    if (inputBuffer.IsEmpty && input.Completion.IsCompleted)
+                    if (inputBuffer.IsEmpty && input.Reading.IsCompleted)
                     {
                         break;
                     }
@@ -169,9 +169,9 @@ namespace Channels.Samples.IO.Compression
                     await writerBuffer.FlushAsync();
                 }
 
-                input.CompleteReading();
+                input.Complete();
 
-                output.CompleteWriting();
+                output.Complete();
 
                 _inflater.Dispose();
             }
