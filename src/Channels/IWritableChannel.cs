@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 namespace Channels
 {
     /// <summary>
-    /// Represents a channel to which data can be written.
+    /// Defines a class that provides a channel to which data can be written.
     /// </summary>
     public interface IWritableChannel
     {

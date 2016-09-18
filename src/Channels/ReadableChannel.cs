@@ -3,6 +3,9 @@ using System.Threading.Tasks;
 
 namespace Channels
 {
+    /// <summary>
+    /// Represents a channel from which data can be read.
+    /// </summary>
     public abstract class ReadableChannel : IReadableChannel
     {
         protected Channel _channel;

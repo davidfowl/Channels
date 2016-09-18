@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 namespace Channels
 {
     /// <summary>
-    /// Represents a channel from which data can be read.
+    /// Defines a class that provides a channel from which data can be read.
     /// </summary>
     public interface IReadableChannel
     {
