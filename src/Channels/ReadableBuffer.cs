@@ -67,8 +67,7 @@ namespace Channels
             _end = end;
             _isOwner = isOwner;
 
-            var begin = start;
-            begin.TryGetBuffer(end, out _span);
+            start.TryGetBuffer(end, out _span, out start);
 
             _length = -1;
         }
@@ -598,9 +597,9 @@ namespace Channels
             public bool MoveNext()
             {
                 var start = _buffer.Start;
-                var newStart = start.TryGetBuffer(_buffer.End, out _current);
-                _buffer = _buffer.Slice(newStart);
-                return start != newStart;
+                var moved = start.TryGetBuffer(_buffer.End, out _current, out start);
+                _buffer = _buffer.Slice(start);
+                return moved;
             }
 
             /// <summary>
