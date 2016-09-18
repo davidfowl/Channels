@@ -13,8 +13,9 @@ namespace Channels
         }
 
         /// <summary>
-        /// Gets a task that completes when the channel is completed and has no more data to be read.
+        /// Gets a task that completes when no more data will be added to the channel.
         /// </summary>
+        /// <remarks>This task indicates the producer has completed and will not write anymore data.</remarks>
         public Task Reading => _channel.Reading;
 
         /// <summary>

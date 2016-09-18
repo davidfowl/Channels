@@ -9,9 +9,12 @@ namespace Channels
     public interface IWritableChannel
     {
         /// <summary>
-        /// Gets a task that completes when the consumer is completed reading.
+        /// Gets a task that completes when no more data will be read from the channel.
         /// </summary>
-        /// <remarks>When this task is triggered, the producer should stop producing data.</remarks>
+        /// <remarks>
+        /// This task indicates the consumer has completed and will not read anymore data.
+        /// When this task is triggered, the producer should stop producing data.
+        /// </remarks>
         Task Writing { get; }
 
         /// <summary>
