@@ -44,7 +44,7 @@ namespace Channels.Samples
                             switch (result)
                             {
                                 case HttpRequestParser.ParseResult.Incomplete:
-                                    if (connection.Input.Completion.IsCompleted)
+                                    if (connection.Input.Reading.IsCompleted)
                                     {
                                         // Didn't get the whole request and the connection ended
                                         throw new Exception();

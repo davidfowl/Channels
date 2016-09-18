@@ -80,7 +80,7 @@ namespace Channels.Samples.Http
                     switch (result)
                     {
                         case HttpRequestParser.ParseResult.Incomplete:
-                            if (_input.Completion.IsCompleted)
+                            if (_input.Reading.IsCompleted)
                             {
                                 // Didn't get the whole request and the connection ended
                                 throw new Exception();
