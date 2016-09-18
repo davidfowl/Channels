@@ -4,7 +4,7 @@ using Channels.Networking.Libuv.Interop;
 
 namespace Channels.Networking.Libuv
 {
-    public class UvTcpListener
+    public class UvTcpListener : IDisposable
     {
         private static Action<UvStreamHandle, int, Exception, object> _onConnectionCallback = OnConnectionCallback;
         private static Action<object> _startListeningCallback = state => ((UvTcpListener)state).Listen();
@@ -39,7 +39,8 @@ namespace Channels.Networking.Libuv
             _thread.Post(_stopListeningCallback, this);
         }
 
-        private void Dispose()
+        // review: should this also stop?
+        public void Dispose()
         {
             _listenSocket.Dispose();
         }
