@@ -65,12 +65,32 @@ namespace Channels
 
         private Action<MemoryPoolSlab> _slabDeallocationCallback;
 
+        public override Span<byte> GetBuffer(MemoryPoolBlock buffer)
+        {
+            return buffer.Data;
+        }
+
+        public override MemoryPoolBlock Lease(int size)
+        {
+            return Lease();
+        }
+
+        public void RegisterSlabAllocationCallback(Action<MemoryPoolSlab> callback)
+        {
+            _slabAllocationCallback = callback;
+        }
+
+        public void RegisterSlabDeallocationCallback(Action<MemoryPoolSlab> callback)
+        {
+            _slabDeallocationCallback = callback;
+        }
+
         /// <summary>
         /// Called to take a block from the pool.
         /// </summary>
         /// <returns>The block that is reserved for the called. It must be passed to Return when it is no longer being used.</returns>
 #if DEBUG
-        public MemoryPoolBlock Lease(
+        private MemoryPoolBlock Lease(
             [CallerMemberName] string memberName = "",
             [CallerFilePath] string sourceFilePath = "",
             [CallerLineNumber] int sourceLineNumber = 0)
@@ -97,26 +117,6 @@ namespace Channels
             block.IsLeased = true;
 #endif
             return block;
-        }
-
-        public override Span<byte> GetBuffer(MemoryPoolBlock buffer)
-        {
-            return buffer.Data;
-        }
-
-        public override MemoryPoolBlock Lease(int size)
-        {
-            return Lease();
-        }
-
-        public void RegisterSlabAllocationCallback(Action<MemoryPoolSlab> callback)
-        {
-            _slabAllocationCallback = callback;
-        }
-
-        public void RegisterSlabDeallocationCallback(Action<MemoryPoolSlab> callback)
-        {
-            _slabDeallocationCallback = callback;
         }
 
         /// <summary>

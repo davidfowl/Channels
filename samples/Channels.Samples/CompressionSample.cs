@@ -9,10 +9,8 @@ namespace Channels.Samples
     {
         public static void Run()
         {
-            using (var pool = new MemoryPool())
+            using (var channelFactory = new ChannelFactory())
             {
-                var channelFactory = new ChannelFactory(pool);
-
                 var filePath = Path.GetFullPath("Program.cs");
 
                 // This is what Stream looks like

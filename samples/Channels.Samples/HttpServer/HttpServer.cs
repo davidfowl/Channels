@@ -91,10 +91,8 @@ namespace Channels.Samples.Http
             _listenSocket.Bind(new IPEndPoint(ip, port));
             _listenSocket.Listen(10);
 
-            using (var pool = new MemoryPool())
+            using (var channelFactory = new ChannelFactory())
             {
-                var channelFactory = new ChannelFactory(pool);
-
                 while (true)
                 {
                     try
