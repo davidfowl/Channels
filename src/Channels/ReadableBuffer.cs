@@ -131,7 +131,7 @@ namespace Channels
         /// <param name="slice">A <see cref="ReadableBuffer"/> that matches all data up to and excluding the first byte</param>
         /// <param name="cursor">A <see cref="ReadCursor"/> that points to the second byte</param>
         /// <returns>True if the byte sequence was found, false if not found</returns>
-        public unsafe bool TrySliceTo(Span<byte> span, out ReadableBuffer slice, out ReadCursor cursor)
+        public bool TrySliceTo(Span<byte> span, out ReadableBuffer slice, out ReadCursor cursor)
         {
             var buffer = this;
             while (!buffer.IsEmpty)

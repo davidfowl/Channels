@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace Channels.Text.Primitives
@@ -9,13 +10,20 @@ namespace Channels.Text.Primitives
         private static readonly Encoding Utf8Encoding = Encoding.UTF8;
         private static readonly Encoding ASCIIEncoding = Encoding.ASCII;
 
-        public static void WriteAsciiString(ref WritableBuffer buffer, string value)
-            => WriteString(ref buffer, value, ASCIIEncoding);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static WritableBuffer WriteAsciiString(this WritableBuffer buffer, string value)
+        {
+            WriteString(ref buffer, value, ASCIIEncoding);
+            return buffer;
+        }
 
-        public static void WriteUtf8String(ref WritableBuffer buffer, string value)
-            => WriteString(ref buffer, value, Utf8Encoding);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static WritableBuffer WriteUtf8String(this WritableBuffer buffer, string value)
+        {
+            WriteString(ref buffer, value, Utf8Encoding);
+            return buffer;
+        }
 
-        // review: make public?
         private static unsafe void WriteString(ref WritableBuffer buffer, string value, Encoding encoding)
         {
             int bytesPerChar = encoding.GetMaxByteCount(1);
@@ -40,9 +48,21 @@ namespace Channels.Text.Primitives
         }
 
         // REVIEW: See if we can use IFormatter here
-        public static void WriteUInt32(ref WritableBuffer buffer, uint value) => WriteUInt64(ref buffer, value);
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static WritableBuffer WriteUInt32(ref WritableBuffer buffer, uint value)
+        {
+            WriteUInt64(ref buffer, value);
+            return buffer;
+        }
 
-        public static void WriteUInt64(ref WritableBuffer buffer, ulong value)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static WritableBuffer WriteUInt64(this WritableBuffer buffer, ulong value)
+        {
+            WriteUInt64(ref buffer, value);
+            return buffer;
+        }
+
+        private static void WriteUInt64(ref WritableBuffer buffer, ulong value)
         {
             // optimized versions for 0-1000
             int len;

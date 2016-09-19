@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using Channels.Networking.Libuv;
@@ -23,8 +21,8 @@ namespace Channels.Samples
             {
                 var buffer = connection.Output.Alloc();
 
-                WritableBufferExtensions.WriteAsciiString(ref buffer, "GET / HTTP/1.1");
-                WritableBufferExtensions.WriteAsciiString(ref buffer, "\r\n\r\n");
+                buffer = buffer.WriteAsciiString("GET / HTTP/1.1");
+                buffer = buffer.WriteAsciiString("\r\n\r\n");
 
                 await buffer.FlushAsync();
 

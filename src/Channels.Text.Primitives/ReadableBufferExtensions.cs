@@ -1,6 +1,5 @@
 ﻿using System;
-using System.Collections;
-using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Utf8;
 
@@ -16,7 +15,14 @@ namespace Channels.Text.Primitives
         /// </summary>
         /// <param name="buffer">The <see cref="ReadableBuffer"/> to trim</param>
         /// <returns>A new <see cref="ReadableBuffer"/> with the starting whitespace trimmed.</returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static ReadableBuffer TrimStart(this ReadableBuffer buffer)
+        {
+            TrimStart(ref buffer);
+            return buffer;
+        }
+
+        private static void TrimStart(ref ReadableBuffer buffer)
         {
             int start = 0;
             foreach (var span in buffer)
@@ -32,7 +38,7 @@ namespace Channels.Text.Primitives
                 }
             }
 
-            return buffer.Slice(start);
+            buffer = buffer.Slice(start);
         }
 
         private static bool IsWhitespaceChar(int ch)
@@ -44,7 +50,13 @@ namespace Channels.Text.Primitives
         /// Parses a <see cref="uint"/> from the specified <see cref="ReadableBuffer"/>
         /// </summary>
         /// <param name="buffer">The <see cref="ReadableBuffer"/> to parse</param>
-        public unsafe static uint GetUInt32(this ReadableBuffer buffer)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static uint GetUInt32(this ReadableBuffer buffer)
+        {
+            return GetUInt32(ref buffer);
+        }
+
+        private static unsafe uint GetUInt32(ref ReadableBuffer buffer)
         {
             ReadOnlySpan<byte> textSpan;
 
@@ -81,7 +93,13 @@ namespace Channels.Text.Primitives
         /// Parses a <see cref="ulong"/> from the specified <see cref="ReadableBuffer"/>
         /// </summary>
         /// <param name="buffer">The <see cref="ReadableBuffer"/> to parse</param>
-        public unsafe static ulong GetUInt64(this ReadableBuffer buffer)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static ulong GetUInt64(this ReadableBuffer buffer)
+        {
+            return UInt64(ref buffer);
+        }
+
+        private static unsafe ulong UInt64(ref ReadableBuffer buffer)
         {
             byte* addr;
             ulong value;
@@ -120,7 +138,13 @@ namespace Channels.Text.Primitives
         /// Decodes the ASCII encoded bytes in the <see cref="ReadableBuffer"/> into a <see cref="string"/>
         /// </summary>
         /// <param name="buffer">The buffer to decode</param>
-        public unsafe static string GetAsciiString(this ReadableBuffer buffer)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static string GetAsciiString(this ReadableBuffer buffer)
+        {
+            return GetAsciiString(ref buffer);
+        }
+
+        private static unsafe string GetAsciiString(ref ReadableBuffer buffer)
         {
             if (buffer.IsEmpty)
             {
@@ -152,7 +176,13 @@ namespace Channels.Text.Primitives
         /// Decodes the utf8 encoded bytes in the <see cref="ReadableBuffer"/> into a <see cref="string"/>
         /// </summary>
         /// <param name="buffer">The buffer to decode</param>
-        public static unsafe string GetUtf8String(this ReadableBuffer buffer)
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public static string GetUtf8String(this ReadableBuffer buffer)
+        {
+            return GetUtf8String(ref buffer);
+        }
+
+        private static unsafe string GetUtf8String(ref ReadableBuffer buffer)
         {
             if (buffer.IsEmpty)
             {
@@ -187,7 +217,7 @@ namespace Channels.Text.Primitives
         /// Split a buffer into a sequence of tokens using a delimiter
         /// </summary>
         public static SplitEnumerable Split(this ReadableBuffer buffer, byte delimiter)
-            => new SplitEnumerable(buffer, delimiter);
+            => new SplitEnumerable(ref buffer, delimiter);
 
     }
 }
