@@ -67,33 +67,6 @@ namespace Channels.Samples
 
             while (!buffer.IsEmpty)
             {
-                var ch = buffer.Peek();
-
-                if (ch == -1)
-                {
-                    break;
-                }
-
-                if (ch == '\r')
-                {
-                    // Check for final CRLF.
-                    buffer = buffer.Slice(1);
-                    ch = buffer.Peek();
-                    buffer = buffer.Slice(1);
-
-                    if (ch == -1)
-                    {
-                        break;
-                    }
-                    else if (ch == '\n')
-                    {
-                        return ParseResult.Complete;
-                    }
-
-                    // Headers don't end in CRLF line.
-                    throw new Exception();
-                }
-
                 var headerName = default(ReadableBuffer);
                 var headerValue = default(ReadableBuffer);
 
@@ -108,6 +81,12 @@ namespace Channels.Samples
 
                 buffer = buffer.Slice(delim).Slice(2);
 
+                // End of headers
+                if (headerPair.IsEmpty)
+                {
+                    return ParseResult.Complete;
+                }
+
                 // :
                 if (!headerPair.TrySliceTo((byte)':', out headerName, out delim))
                 {
@@ -117,17 +96,11 @@ namespace Channels.Samples
                 headerName = headerName.TrimStart();
                 headerPair = headerPair.Slice(delim).Slice(1);
 
-                if (headerPair.IsEmpty)
-                {
-                    // Bad request
-                    return ParseResult.BadRequest;
-                }
-
                 headerValue = headerPair.TrimStart();
                 RequestHeaders.SetHeader(ref headerName, ref headerValue);
             }
 
-            return ParseResult.Complete;
+            return ParseResult.Incomplete;
         }
 
         public void Reset()
