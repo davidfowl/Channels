@@ -14,7 +14,7 @@ namespace Channels.Text.Primitives
 
         private byte _delimiter;
 
-        internal SplitEnumerable(ReadableBuffer buffer, byte delimiter)
+        internal SplitEnumerable(ref ReadableBuffer buffer, byte delimiter)
         {
             _buffer = buffer;
             _delimiter = delimiter;
