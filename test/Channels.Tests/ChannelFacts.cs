@@ -12,28 +12,6 @@ namespace Channels.Tests
     public class ChannelFacts
     {
         [Fact]
-        public async Task ReaderShouldntGetUnflushedBytes()
-        {
-            using (var cf = new ChannelFactory())
-            {
-                var c = cf.CreateChannel();
-                var buffer = c.Alloc(4);
-                buffer.Ensure(4);
-                buffer.Memory.Write<int>(10);
-                buffer.CommitBytes(4);
-                await buffer.FlushAsync();
-                buffer = c.Alloc(4);
-                buffer.Ensure(4);
-                buffer.Memory.Write<int>(10);
-                buffer.CommitBytes(4);
-
-                var reader = await c.ReadAsync();
-
-                Assert.Equal(4,reader.Length);
-            }
-        }
-
-        [Fact]
         public async Task WritingDataMakesDataReadableViaChannel()
         {
             using (var cf = new ChannelFactory())
