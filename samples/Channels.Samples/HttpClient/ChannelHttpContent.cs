@@ -62,7 +62,7 @@ namespace Channels.Samples
                 }
                 finally
                 {
-                    inputBuffer.Consumed(consumed);
+                    _output.Advance(consumed);
                 }
             }
         }

@@ -74,7 +74,7 @@ namespace Channels.Samples
                         finally
                         {
                             // Consume the input
-                            input.Consumed(input.Start, input.End);
+                            connection.Input.Advance(input.Start, input.End);
                         }
                     }
                 }

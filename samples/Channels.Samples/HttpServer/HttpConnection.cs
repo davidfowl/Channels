@@ -108,7 +108,7 @@ namespace Channels.Samples.Http
                 }
                 finally
                 {
-                    buffer.Consumed(buffer.Start, buffer.End);
+                    _input.Advance(buffer.Start, buffer.End);
                 }
 
                 var context = _application.CreateContext(this);

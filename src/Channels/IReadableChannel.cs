@@ -21,6 +21,13 @@ namespace Channels
         Task Reading { get; }
 
         /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="consumed"></param>
+        /// <param name="examined"></param>
+        void Advance(ReadCursor consumed, ReadCursor examined);
+
+        /// <summary>
         /// Signal to the producer that the consumer is done reading.
         /// </summary>
         /// <param name="exception">Optional Exception indicating a failure that's causing the channel to complete.</param>

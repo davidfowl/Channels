@@ -285,7 +285,7 @@ namespace Channels
                 return new ReadableBuffer(); // empty
             }
 
-            return new ReadableBuffer(null, new ReadCursor(_writingHead, _writingHeadIndex), new ReadCursor(_writingTail, _writingTailIndex), isOwner: false);
+            return new ReadableBuffer(new ReadCursor(_writingHead, _writingHeadIndex), new ReadCursor(_writingTail, _writingTailIndex), isOwner: false);
         }
 
         private Task CompleteWriteAsync()
@@ -319,17 +319,15 @@ namespace Channels
                 throw new InvalidOperationException("Already consuming.");
             }
 
-            return new ReadableBuffer(this, new ReadCursor(_head), new ReadCursor(_tail, _tail?.End ?? 0));
+            return new ReadableBuffer(new ReadCursor(_head), new ReadCursor(_tail, _tail?.End ?? 0));
         }
 
-        internal void EndRead(ReadCursor end)
-        {
-            EndRead(end, end);
-        }
-
-        internal void EndRead(
-            ReadCursor consumed,
-            ReadCursor examined)
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="consumed"></param>
+        /// <param name="examined"></param>
+        public void Advance(ReadCursor consumed, ReadCursor examined)
         {
             PooledBufferSegment returnStart = null;
             PooledBufferSegment returnEnd = null;

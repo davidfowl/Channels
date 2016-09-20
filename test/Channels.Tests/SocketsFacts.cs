@@ -67,12 +67,12 @@ namespace Channels.Tests
                         if (client.Input.Reading.IsCompleted)
                         {
                             reply = input.GetUtf8String();
-                            input.Consumed();
+                            client.Input.Advance(input.End);
                             break;
                         }
                         else
                         {
-                            input.Consumed(input.Start, input.End);
+                            client.Input.Advance(input.Start, input.End);
                         }
                     }
                 }
@@ -162,12 +162,12 @@ namespace Channels.Tests
                     var inputBuffer = await channel.Input.ReadAsync();
                     if (inputBuffer.IsEmpty && channel.Input.Reading.IsCompleted)
                     {
-                        inputBuffer.Consumed(inputBuffer.End);
+                        channel.Input.Advance(inputBuffer.End);
                         break;
                     }
                     if (inputBuffer.Length < 4)
                     {
-                        inputBuffer.Consumed(inputBuffer.Start, inputBuffer.End);
+                        channel.Input.Advance(inputBuffer.Start, inputBuffer.End);
                     }
                     else
                     {
@@ -176,7 +176,7 @@ namespace Channels.Tests
                         {
                             count++;
                         }
-                        inputBuffer.Consumed(inputBuffer.End);
+                        channel.Input.Advance(inputBuffer.End);
                         break;
                     }
                 }
@@ -207,12 +207,12 @@ namespace Channels.Tests
                     var inputBuffer = await channel.Input.ReadAsync();
                     if (inputBuffer.IsEmpty && channel.Input.Reading.IsCompleted)
                     {
-                        inputBuffer.Consumed(inputBuffer.End);
+                        channel.Input.Advance(inputBuffer.End);
                         break;
                     }
                     if (inputBuffer.Length < 4)
                     {
-                        inputBuffer.Consumed(inputBuffer.Start, inputBuffer.End);
+                        channel.Input.Advance(inputBuffer.Start, inputBuffer.End);
                     }
                     else
                     {
@@ -225,7 +225,7 @@ namespace Channels.Tests
                         {
                             break;
                         }
-                        inputBuffer.Consumed(inputBuffer.End);
+                        channel.Input.Advance(inputBuffer.End);
                     }
                 }
                 channel.Input.Complete();
@@ -271,7 +271,7 @@ namespace Channels.Tests
                     ReadableBuffer request = await channel.Input.ReadAsync();
                     if (request.IsEmpty && channel.Input.Reading.IsCompleted)
                     {
-                        request.Consumed();
+                        channel.Input.Advance(request.End);
                         break;
                     }
 
@@ -279,7 +279,7 @@ namespace Channels.Tests
                     var response = channel.Output.Alloc();
                     response.Append(ref request);
                     await response.FlushAsync();
-                    request.Consumed();
+                    channel.Input.Advance(request.End);
                 }
                 channel.Input.Complete();
                 channel.Output.Complete();

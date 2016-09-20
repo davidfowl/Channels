@@ -103,7 +103,7 @@ namespace Channels.Networking.Windows.RIO
                     await SendAsync(current, endOfMessage: true);
                 }
 
-                buffer.Consumed();
+                _output.Advance(buffer.End);
             }
 
             _output.CompleteReader();

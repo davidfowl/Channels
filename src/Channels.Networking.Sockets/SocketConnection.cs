@@ -283,7 +283,7 @@ namespace Channels.Networking.Sockets
                     }
                     finally
                     {
-                        buffer.Consumed();
+                        _output.Advance(buffer.End);
                     }
                 }
                 _output.CompleteReader();

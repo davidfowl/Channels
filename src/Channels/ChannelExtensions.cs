@@ -29,6 +29,11 @@ namespace Channels
 
     public static class ReadableChannelExtensions
     {
+        public static void Advance(this IReadableChannel input, ReadCursor cursor)
+        {
+            input.Advance(cursor, cursor);
+        }
+
         public static ValueTask<int> ReadAsync(this IReadableChannel input, Span<byte> destination)
         {
             while (true)
@@ -46,7 +51,7 @@ namespace Channels
                 var sliced = inputBuffer.Slice(0, destination.Length);
                 sliced.CopyTo(destination);
                 int actual = sliced.Length;
-                inputBuffer.Consumed(sliced.End);
+                input.Advance(sliced.End);
 
                 if (actual != 0)
                 {
@@ -100,7 +105,7 @@ namespace Channels
                 }
                 finally
                 {
-                    inputBuffer.Consumed();
+                    input.Advance(inputBuffer.End);
                 }
             }
         }
@@ -128,7 +133,7 @@ namespace Channels
                 }
                 finally
                 {
-                    inputBuffer.Consumed();
+                    input.Advance(inputBuffer.End);
                 }
             }
         }
@@ -144,7 +149,7 @@ namespace Channels
                 var sliced = inputBuffer.Slice(0, destination.Length);
                 sliced.CopyTo(destination);
                 int actual = sliced.Length;
-                inputBuffer.Consumed(sliced.End);
+                input.Advance(sliced.End);
 
                 if (actual != 0)
                 {

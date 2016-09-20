@@ -55,7 +55,7 @@ namespace Channels.Samples
                 }
                 finally
                 {
-                    inputBuffer.Consumed();
+                    input.Advance(inputBuffer.End);
                 }
 
                 var awaiter = input.ReadAsync();

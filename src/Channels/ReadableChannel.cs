@@ -29,6 +29,13 @@ namespace Channels
         public Task Reading => _channel.Reading;
 
         /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="consumed"></param>
+        /// <param name="examined"></param>
+        public void Advance(ReadCursor consumed, ReadCursor examined) => _channel.Advance(consumed, examined);
+
+        /// <summary>
         /// Signal to the producer that the consumer is done reading.
         /// </summary>
         /// <param name="exception">Optional Exception indicating a failure that's causing the channel to complete.</param>
