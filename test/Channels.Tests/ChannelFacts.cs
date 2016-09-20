@@ -5,12 +5,166 @@ using System.Numerics;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Channels.Text.Primitives;
 using Xunit;
 
 namespace Channels.Tests
 {
     public class ChannelFacts
     {
+        [Fact(Skip = "#88")]
+        public async Task ReaderShouldNotGetUnflushedBytesWhenOverflowingSegments()
+        {
+            using (var cf = new ChannelFactory())
+            {
+                var c = cf.CreateChannel();
+
+                // Fill the block with stuff leaving 5 bytes at the end
+                var buffer = c.Alloc(1);
+
+                var len = buffer.Memory.Length;
+                // Fill the buffer with garbage
+                //     block 1       ->    block2
+                // [padding..hello]  ->  [  world   ]
+                var paddingBytes = Enumerable.Repeat((byte)'a', len - 5).ToArray();
+                buffer.Write(paddingBytes);
+                await buffer.FlushAsync();
+
+                // Write 10 and flush
+                buffer = c.Alloc();
+                buffer.Ensure(4);
+                buffer.Memory.Write(10);
+                buffer.CommitBytes(4);
+
+                // Write 9
+                buffer.Ensure(4);
+                buffer.Memory.Write(9);
+                buffer.CommitBytes(4);
+
+                // Write 8
+                buffer.Ensure(4);
+                buffer.Memory.Write(8);
+                buffer.CommitBytes(4);
+
+                // Make sure we don't see it yet
+                var reader = await c.ReadAsync();
+
+                Assert.Equal(len - 5, reader.Length);
+
+                // Don't move
+                c.Advance(reader.End);
+
+                // Now flush
+                await buffer.FlushAsync();
+
+                reader = await c.ReadAsync();
+
+                Assert.Equal(12, reader.Length);
+                Assert.Equal(10, reader.FirstSpan.Read<int>());
+                Assert.Equal(9, reader.FirstSpan.Slice(4).Read<int>());
+                Assert.Equal(8, reader.FirstSpan.Slice(8).Read<int>());
+            }
+        }
+
+        [Fact(Skip = "#88")]
+        public async Task ReaderShouldNotGetUnflushedBytes()
+        {
+            using (var cf = new ChannelFactory())
+            {
+                var c = cf.CreateChannel();
+
+                // Write 10 and flush
+                var buffer = c.Alloc();
+                buffer.Ensure(4);
+                buffer.Memory.Write(10);
+                buffer.CommitBytes(4);
+                await buffer.FlushAsync();
+
+                // Write 9
+                buffer = c.Alloc();
+                buffer.Ensure(4);
+                buffer.Memory.Write(9);
+                buffer.CommitBytes(4);
+
+                // Write 8
+                buffer.Ensure(4);
+                buffer.Memory.Write(8);
+                buffer.CommitBytes(4);
+
+                // Make sure we don't see it yet
+                var reader = await c.ReadAsync();
+
+                Assert.Equal(4, reader.Length);
+                Assert.Equal(10, reader.FirstSpan.Read<int>());
+
+                // Don't move
+                c.Advance(reader.Start);
+
+                // Now flush
+                await buffer.FlushAsync();
+
+                reader = await c.ReadAsync();
+
+                Assert.Equal(12, reader.Length);
+                Assert.Equal(10, reader.FirstSpan.Read<int>());
+                Assert.Equal(9, reader.FirstSpan.Slice(4).Read<int>());
+                Assert.Equal(8, reader.FirstSpan.Slice(8).Read<int>());
+            }
+        }
+
+        [Fact(Skip = "#88")]
+        public async Task ReaderShouldNotGetUnflushedBytesWithAppend()
+        {
+            using (var cf = new ChannelFactory())
+            {
+                var c = cf.CreateChannel();
+
+                // Write 10 and flush
+                var buffer = c.Alloc();
+                buffer.Ensure(4);
+                buffer.Memory.Write(10);
+                buffer.CommitBytes(4);
+                await buffer.FlushAsync();
+
+                // Write Hello to another channel and get the buffer
+                var c2 = cf.CreateChannel();
+                await c2.WriteAsync(Encoding.ASCII.GetBytes("Hello"));
+                var c2Buffer = await c2.ReadAsync();
+
+                // Write 9 to the buffer
+                buffer = c.Alloc();
+                buffer.Ensure(4);
+                buffer.Memory.Write(9);
+                buffer.CommitBytes(4);
+
+                // Append the data from the other channel
+                buffer.Append(ref c2Buffer);
+
+                // Mark it as consumed
+                c2.Advance(c2Buffer.End);
+
+                // Now read and make sure we only see the comitted data
+                var reader = await c.ReadAsync();
+
+                Assert.Equal(4, reader.Length);
+                Assert.Equal(10, reader.FirstSpan.Read<int>());
+
+                // Consume nothing
+                c.Advance(reader.Start);
+
+                // Flush the second set of writes
+                await buffer.FlushAsync();
+
+                reader = await c.ReadAsync();
+
+                // int, int, "Hello"
+                Assert.Equal(13, reader.Length);
+                Assert.Equal(10, reader.FirstSpan.Read<int>());
+                Assert.Equal(9, reader.FirstSpan.Slice(4).Read<int>());
+                Assert.Equal("Hello", reader.Slice(8).GetUtf8String());
+            }
+        }
+
         [Fact]
         public async Task WritingDataMakesDataReadableViaChannel()
         {
