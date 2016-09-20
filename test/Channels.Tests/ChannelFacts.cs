@@ -32,19 +32,13 @@ namespace Channels.Tests
 
                 // Write 10 and flush
                 buffer = c.Alloc();
-                buffer.Ensure(4);
-                buffer.Memory.Write(10);
-                buffer.CommitBytes(4);
+                buffer.WriteLittleEndian(10);
 
                 // Write 9
-                buffer.Ensure(4);
-                buffer.Memory.Write(9);
-                buffer.CommitBytes(4);
+                buffer.WriteLittleEndian(9);
 
                 // Write 8
-                buffer.Ensure(4);
-                buffer.Memory.Write(8);
-                buffer.CommitBytes(4);
+                buffer.WriteLittleEndian(8);
 
                 // Make sure we don't see it yet
                 var reader = await c.ReadAsync();
@@ -60,9 +54,9 @@ namespace Channels.Tests
                 reader = await c.ReadAsync();
 
                 Assert.Equal(12, reader.Length);
-                Assert.Equal(10, reader.FirstSpan.Read<int>());
-                Assert.Equal(9, reader.FirstSpan.Slice(4).Read<int>());
-                Assert.Equal(8, reader.FirstSpan.Slice(8).Read<int>());
+                Assert.Equal(10, reader.ReadLittleEndian<int>());
+                Assert.Equal(9, reader.Slice(4).ReadLittleEndian<int>());
+                Assert.Equal(8, reader.Slice(8).ReadLittleEndian<int>());
             }
         }
 
@@ -75,27 +69,21 @@ namespace Channels.Tests
 
                 // Write 10 and flush
                 var buffer = c.Alloc();
-                buffer.Ensure(4);
-                buffer.Memory.Write(10);
-                buffer.CommitBytes(4);
+                buffer.WriteLittleEndian(10);
                 await buffer.FlushAsync();
 
                 // Write 9
                 buffer = c.Alloc();
-                buffer.Ensure(4);
-                buffer.Memory.Write(9);
-                buffer.CommitBytes(4);
+                buffer.WriteLittleEndian(9);
 
                 // Write 8
-                buffer.Ensure(4);
-                buffer.Memory.Write(8);
-                buffer.CommitBytes(4);
+                buffer.WriteLittleEndian(8);
 
                 // Make sure we don't see it yet
                 var reader = await c.ReadAsync();
 
                 Assert.Equal(4, reader.Length);
-                Assert.Equal(10, reader.FirstSpan.Read<int>());
+                Assert.Equal(10, reader.ReadLittleEndian<int>());
 
                 // Don't move
                 c.Advance(reader.Start);
@@ -106,9 +94,9 @@ namespace Channels.Tests
                 reader = await c.ReadAsync();
 
                 Assert.Equal(12, reader.Length);
-                Assert.Equal(10, reader.FirstSpan.Read<int>());
-                Assert.Equal(9, reader.FirstSpan.Slice(4).Read<int>());
-                Assert.Equal(8, reader.FirstSpan.Slice(8).Read<int>());
+                Assert.Equal(10, reader.ReadLittleEndian<int>());
+                Assert.Equal(9, reader.Slice(4).ReadLittleEndian<int>());
+                Assert.Equal(8, reader.Slice(8).ReadLittleEndian<int>());
             }
         }
 
@@ -121,9 +109,7 @@ namespace Channels.Tests
 
                 // Write 10 and flush
                 var buffer = c.Alloc();
-                buffer.Ensure(4);
-                buffer.Memory.Write(10);
-                buffer.CommitBytes(4);
+                buffer.WriteLittleEndian(10);
                 await buffer.FlushAsync();
 
                 // Write Hello to another channel and get the buffer
@@ -133,9 +119,7 @@ namespace Channels.Tests
 
                 // Write 9 to the buffer
                 buffer = c.Alloc();
-                buffer.Ensure(4);
-                buffer.Memory.Write(9);
-                buffer.CommitBytes(4);
+                buffer.WriteLittleEndian(9);
 
                 // Append the data from the other channel
                 buffer.Append(ref c2Buffer);
@@ -147,7 +131,7 @@ namespace Channels.Tests
                 var reader = await c.ReadAsync();
 
                 Assert.Equal(4, reader.Length);
-                Assert.Equal(10, reader.FirstSpan.Read<int>());
+                Assert.Equal(10, reader.ReadLittleEndian<int>());
 
                 // Consume nothing
                 c.Advance(reader.Start);
@@ -159,8 +143,8 @@ namespace Channels.Tests
 
                 // int, int, "Hello"
                 Assert.Equal(13, reader.Length);
-                Assert.Equal(10, reader.FirstSpan.Read<int>());
-                Assert.Equal(9, reader.FirstSpan.Slice(4).Read<int>());
+                Assert.Equal(10, reader.ReadLittleEndian<int>());
+                Assert.Equal(9, reader.Slice(4).ReadLittleEndian<int>());
                 Assert.Equal("Hello", reader.Slice(8).GetUtf8String());
             }
         }

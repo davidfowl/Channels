@@ -9,7 +9,7 @@ namespace Channels
     public static class DefaultReadableBufferExtensions
     {
         /// <summary>
-        /// Reads a structure of type T out of a buffer of bytes.
+        /// Reads a structure of type <typeparamref name="T"/> out of a buffer of bytes.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static T ReadBigEndian<[Primitive]T>(this ReadableBuffer buffer) where T : struct
@@ -21,7 +21,7 @@ namespace Channels
         }
 
         /// <summary>
-        /// Reads a structure of type T out of a buffer of bytes.
+        /// Reads a structure of type <typeparamref name="T"/> out of a buffer of bytes.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static T ReadLittleEndian<[Primitive]T>(this ReadableBuffer buffer) where T : struct
@@ -41,14 +41,14 @@ namespace Channels
         }
 
         /// <summary>
-        /// Reads a structure of type T out of a span of bytes.
+        /// Reads a structure of type <typeparamref name="T"/> out of a span of bytes.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static T ReadBigEndian<[Primitive]T>(this Span<byte> span) where T : struct
             => BitConverter.IsLittleEndian ? DefaultWritableBufferExtensions.Reverse<T>(span.Read<T>()) : span.Read<T>();
 
         /// <summary>
-        /// Reads a structure of type T out of a span of bytes.
+        /// Reads a structure of type <typeparamref name="T"/> out of a span of bytes.
         /// </summary>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static T ReadLittleEndian<[Primitive]T>(this Span<byte> span) where T : struct
