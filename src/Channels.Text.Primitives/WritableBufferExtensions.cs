@@ -9,14 +9,14 @@ namespace Channels.Text.Primitives
         private static readonly Encoding Utf8Encoding = Encoding.UTF8;
         private static readonly Encoding ASCIIEncoding = Encoding.ASCII;
 
-        public static void WriteAsciiString(ref WritableBuffer buffer, string value)
-            => WriteString(ref buffer, value, ASCIIEncoding);
+        public static void WriteAsciiString(this WritableBuffer buffer, string value)
+            => WriteString(buffer, value, ASCIIEncoding);
 
-        public static void WriteUtf8String(ref WritableBuffer buffer, string value)
-            => WriteString(ref buffer, value, Utf8Encoding);
+        public static void WriteUtf8String(this WritableBuffer buffer, string value)
+            => WriteString(buffer, value, Utf8Encoding);
 
         // review: make public?
-        private static unsafe void WriteString(ref WritableBuffer buffer, string value, Encoding encoding)
+        private static unsafe void WriteString(this WritableBuffer buffer, string value, Encoding encoding)
         {
             int bytesPerChar = encoding.GetMaxByteCount(1);
             fixed (char* s = value)
@@ -40,9 +40,9 @@ namespace Channels.Text.Primitives
         }
 
         // REVIEW: See if we can use IFormatter here
-        public static void WriteUInt32(ref WritableBuffer buffer, uint value) => WriteUInt64(ref buffer, value);
+        public static void WriteUInt32(this WritableBuffer buffer, uint value) => WriteUInt64(buffer, value);
 
-        public static void WriteUInt64(ref WritableBuffer buffer, ulong value)
+        public static void WriteUInt64(this WritableBuffer buffer, ulong value)
         {
             // optimized versions for 0-1000
             int len;

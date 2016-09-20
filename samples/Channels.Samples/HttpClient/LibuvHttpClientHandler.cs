@@ -33,11 +33,11 @@ namespace Channels.Samples
             var connection = await state.ConnectionTask;
 
             var requestBuffer = connection.Output.Alloc();
-            WritableBufferExtensions.WriteAsciiString(ref requestBuffer, $"{request.Method} {path} HTTP/1.1");
+            requestBuffer.WriteAsciiString($"{request.Method} {path} HTTP/1.1");
             WriteHeaders(request.Headers, ref requestBuffer);
 
             // End of the headers
-            WritableBufferExtensions.WriteAsciiString(ref requestBuffer, "\r\n\r\n");
+            requestBuffer.WriteAsciiString("\r\n\r\n");
 
             if (request.Method != HttpMethod.Get && request.Method != HttpMethod.Head)
             {
@@ -251,7 +251,7 @@ namespace Channels.Samples
         {
             foreach (var header in headers)
             {
-                WritableBufferExtensions.WriteAsciiString(ref buffer, $"{header.Key}:{string.Join(",", header.Value)}\r\n");
+                buffer.WriteAsciiString($"{header.Key}:{string.Join(",", header.Value)}\r\n");
             }
         }
 

@@ -23,8 +23,8 @@ namespace Channels.Samples
             {
                 var buffer = connection.Output.Alloc();
 
-                WritableBufferExtensions.WriteAsciiString(ref buffer, "GET / HTTP/1.1");
-                WritableBufferExtensions.WriteAsciiString(ref buffer, "\r\n\r\n");
+                buffer.WriteAsciiString("GET / HTTP/1.1");
+                buffer.WriteAsciiString("\r\n\r\n");
 
                 await buffer.FlushAsync();
 

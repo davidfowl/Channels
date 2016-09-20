@@ -260,7 +260,7 @@ namespace Channels.Tests
             {
                 var channel = channelFactory.CreateChannel();
                 var output = channel.Alloc();
-                WritableBufferExtensions.WriteUtf8String(ref output, input);
+                output.WriteUtf8String(input);
 
                 var readable = output.AsReadableBuffer();
 

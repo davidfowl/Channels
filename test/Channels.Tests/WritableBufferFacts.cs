@@ -33,7 +33,7 @@ namespace Channels.Tests
             {
                 var channel = new Channel(memoryPool);
                 var buffer = channel.Alloc();
-                WritableBufferExtensions.WriteUInt64(ref buffer, value);
+                buffer.WriteUInt64(value);
                 await buffer.FlushAsync();
 
                 var inputBuffer = await channel.ReadAsync();
@@ -91,7 +91,7 @@ namespace Channels.Tests
                 var channel = new Channel(memoryPool);
 
                 var output = channel.Alloc();
-                WritableBufferExtensions.WriteUtf8String(ref output, data);
+                output.WriteUtf8String(data);
                 var foo = output.Memory.IsEmpty; // trying to see if .Memory breaks
                 await output.FlushAsync();
                 channel.CompleteWriter();
@@ -125,7 +125,7 @@ namespace Channels.Tests
                 var channel = new Channel(memoryPool);
 
                 var output = channel.Alloc();
-                WritableBufferExtensions.WriteAsciiString(ref output, data);
+                output.WriteAsciiString(data);
                 var foo = output.Memory.IsEmpty; // trying to see if .Memory breaks
                 await output.FlushAsync();
                 channel.CompleteWriter();
@@ -170,7 +170,7 @@ namespace Channels.Tests
                 Assert.Equal(0, output.AsReadableBuffer().Length);
 
 
-                WritableBufferExtensions.WriteUtf8String(ref output, "hello world");
+                output.WriteUtf8String("hello world");
                 var readable = output.AsReadableBuffer();
 
                 // check that looks about right
@@ -180,7 +180,7 @@ namespace Channels.Tests
                 Assert.True(readable.Slice(1, 3).Equals(Encoding.UTF8.GetBytes("ell")));
 
                 // check it all works after we write more
-                WritableBufferExtensions.WriteUtf8String(ref output, "more data");
+                output.WriteUtf8String("more data");
 
                 // note that the snapshotted readable should not have changed by this
                 Assert.False(readable.IsEmpty);

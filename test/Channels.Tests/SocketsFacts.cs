@@ -56,7 +56,7 @@ namespace Channels.Tests
                 using (var client = await SocketConnection.ConnectAsync(endpoint))
                 {
                     var output = client.Output.Alloc();
-                    WritableBufferExtensions.WriteUtf8String(ref output, MessageToSend);
+                    output.WriteUtf8String(MessageToSend);
                     await output.FlushAsync();
                     client.Output.Complete();
 

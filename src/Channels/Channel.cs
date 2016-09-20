@@ -13,6 +13,9 @@ namespace Channels
     /// </summary>
     public class Channel : IReadableChannel, IWritableChannel
     {
+        // TODO: Make this configurable for channel creation
+        private const int _bufferSize = 4096;
+
         private static readonly Action _awaitableIsCompleted = () => { };
         private static readonly Action _awaitableIsNotCompleted = () => { };
 
@@ -33,6 +36,17 @@ namespace Channels
         private readonly TaskCompletionSource<object> _readingTcs = new TaskCompletionSource<object>();
         private readonly TaskCompletionSource<object> _writingTcs = new TaskCompletionSource<object>();
         private readonly TaskCompletionSource<object> _startingReadingTcs = new TaskCompletionSource<object>();
+
+        // the "tail" is the **end** of the data that we're writing - essentially the
+        // write-head
+        private PooledBufferSegment _writingTail;
+        private int _writingTailIndex;
+
+        // the "head" is the **start** of the data that we're writing; from the head,
+        // you can iterate forward via .Next to access all of the data written
+        // in this session
+        private PooledBufferSegment _writingHead;
+        private int _writingHeadIndex;
 
         /// <summary>
         /// Initializes the <see cref="Channel"/> with the specifed <see cref="IBufferPool"/>.
@@ -66,6 +80,8 @@ namespace Channels
 
         internal bool IsCompleted => ReferenceEquals(_awaitableState, _awaitableIsCompleted);
 
+        internal Span<byte> Memory => _writingTail == null ? Span<byte>.Empty : _writingTail.Buffer.Data.Slice(_writingTail.End, _writingTail.Buffer.Data.Length - _writingTail.End);
+
         /// <summary>
         /// Allocates memory from the channel to write into.
         /// </summary>
@@ -73,9 +89,6 @@ namespace Channels
         /// <returns>A <see cref="WritableBuffer"/> that can be written to.</returns>
         public WritableBuffer Alloc(int minimumSize = 0)
         {
-            // TODO: Make this configurable for channel creation
-            const int bufferSize = 4096;
-
             if (Interlocked.CompareExchange(ref _producingState, 1, 0) != 0)
             {
                 throw new InvalidOperationException("Already producing.");
@@ -97,7 +110,7 @@ namespace Channels
             if (segment == null && minimumSize > 0)
             {
                 // We're out of tail space so lease a new segment only if the requested size > 0
-                segment = new PooledBufferSegment(_pool.Lease(bufferSize));
+                segment = new PooledBufferSegment(_pool.Lease(_bufferSize));
             }
 
             lock (_sync)
@@ -113,11 +126,93 @@ namespace Channels
                     _tail = segment;
                 }
 
-                return new WritableBuffer(this, _pool, segment, bufferSize);
+                _writingTail = segment;
+                _writingTailIndex = segment?.End ?? 0;
+
+                _writingHead = segment;
+                _writingHeadIndex = _writingTailIndex;
+
+                return new WritableBuffer(this);
             }
         }
 
-        internal void Append(WritableBuffer buffer)
+        internal void Ensure(int count = 1)
+        {
+            EnsureAlloc();
+
+            if (count > _bufferSize)
+            {
+                throw new ArgumentOutOfRangeException(nameof(count), $"Cannot allocate more than {_bufferSize} bytes in a single buffer");
+            }
+
+            if (_writingTail == null)
+            {
+                _writingTail = new PooledBufferSegment(_pool.Lease(_bufferSize));
+                _writingTailIndex = _writingTail.End;
+                _writingHead = _writingTail;
+                _writingHeadIndex = _writingTail.Start;
+            }
+
+            Debug.Assert(_writingTail.Next == null);
+            Debug.Assert(_writingTail.End == _writingTailIndex);
+
+            var segment = _writingTail;
+            var buffer = _writingTail.Buffer;
+            var bufferIndex = _writingTailIndex;
+            var bytesLeftInBuffer = buffer.Data.Length - bufferIndex;
+
+            // If inadequate bytes left or if the segment is readonly
+            if (bytesLeftInBuffer == 0 || bytesLeftInBuffer < count || segment.ReadOnly)
+            {
+                var nextBuffer = _pool.Lease(_bufferSize);
+                var nextSegment = new PooledBufferSegment(nextBuffer);
+                segment.End = bufferIndex;
+                segment.Next = nextSegment;
+                segment = nextSegment;
+                buffer = nextBuffer;
+
+                bufferIndex = 0;
+
+                segment.End = bufferIndex;
+                segment.Buffer = buffer;
+                _writingTail = segment;
+                _writingTailIndex = bufferIndex;
+            }
+        }
+
+        internal void Append(ref ReadableBuffer buffer)
+        {
+            EnsureAlloc();
+
+            PooledBufferSegment clonedEnd;
+            var clonedBegin = PooledBufferSegment.Clone(buffer.Start, buffer.End, out clonedEnd);
+
+            if (_writingTail == null)
+            {
+                _writingHead = clonedBegin;
+                _writingHeadIndex = clonedBegin.Start;
+            }
+            else
+            {
+                Debug.Assert(_writingTail.Next == null);
+                Debug.Assert(_writingTail.End == _writingTailIndex);
+
+                _writingTail.Next = clonedBegin;
+            }
+
+            _writingTail = clonedEnd;
+            _writingTailIndex = clonedEnd.End;
+        }
+
+        private void EnsureAlloc()
+        {
+            if (_producingState != 1)
+            {
+                throw new InvalidOperationException("No ongoing producing operation. Make sure Alloc() was called.");
+            }
+        }
+
+        internal void Commit()
         {
             lock (_sync)
             {
@@ -126,7 +221,7 @@ namespace Channels
                     throw new InvalidOperationException("No ongoing producing operation to complete.");
                 }
 
-                if (buffer.IsDefault)
+                if (_writingTail == null)
                 {
                     // REVIEW: Should we signal the completion?
                     return;
@@ -136,23 +231,64 @@ namespace Channels
                 {
                     // Update the head to point to the head of the buffer. This
                     // happens if we called alloc(0) then write
-                    _head = buffer.Head;
-                    _head.Start = buffer.HeadIndex;
+                    _head = _writingHead;
+                    _head.Start = _writingHeadIndex;
                 }
                 // If buffer.Head == tail it means we appended data to the tail
-                else if (_tail != null && buffer.Head != _tail)
+                else if (_tail != null && _writingHead != _tail)
                 {
                     // If we have a tail point next to the head of the buffer
-                    _tail.Next = buffer.Head;
+                    _tail.Next = _writingHead;
                 }
 
                 // Always update tail to the buffer's tail
-                _tail = buffer.Tail;
-                _tail.End = buffer.TailIndex;
+                _tail = _writingTail;
+                _tail.End = _writingTailIndex;
             }
         }
 
-        internal Task CompleteWriteAsync()
+        internal void CommitBytes(int bytesWritten)
+        {
+            EnsureAlloc();
+
+            if (bytesWritten > 0)
+            {
+                Debug.Assert(_writingTail != null);
+                Debug.Assert(!_writingTail.ReadOnly);
+                Debug.Assert(_writingTail.Next == null);
+                Debug.Assert(_writingTail.End == _writingTailIndex);
+
+                var buffer = _writingTail.Buffer;
+                var bufferIndex = _writingTailIndex + bytesWritten;
+
+                Debug.Assert(bufferIndex <= buffer.Data.Length);
+
+                _writingTail.End = bufferIndex;
+                _writingTailIndex = bufferIndex;
+            }
+            else if (bytesWritten < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(bytesWritten));
+            } // and if zero, just do nothing; don't need to validate tail etc
+        }
+
+        internal Task FlushAsync()
+        {
+            Commit();
+            return CompleteWriteAsync();
+        }
+
+        internal ReadableBuffer AsReadableBuffer()
+        {
+            if (_writingHead == null)
+            {
+                return new ReadableBuffer(); // empty
+            }
+
+            return new ReadableBuffer(null, new ReadCursor(_writingHead, _writingHeadIndex), new ReadCursor(_writingTail, _writingTailIndex), isOwner: false);
+        }
+
+        private Task CompleteWriteAsync()
         {
             lock (_sync)
             {
