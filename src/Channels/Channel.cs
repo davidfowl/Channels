@@ -322,12 +322,7 @@ namespace Channels
             return new ReadableBuffer(new ReadCursor(_head), new ReadCursor(_tail, _tail?.End ?? 0));
         }
 
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="consumed"></param>
-        /// <param name="examined"></param>
-        public void Advance(ReadCursor consumed, ReadCursor examined)
+        void IReadableChannel.Advance(ReadCursor consumed, ReadCursor examined)
         {
             PooledBufferSegment returnStart = null;
             PooledBufferSegment returnEnd = null;

@@ -21,7 +21,7 @@ namespace Channels
         Task Reading { get; }
 
         /// <summary>
-        /// 
+        /// Moves the channel forward
         /// </summary>
         /// <param name="consumed"></param>
         /// <param name="examined"></param>
