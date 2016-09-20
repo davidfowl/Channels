@@ -77,7 +77,7 @@ namespace Channels.Networking.Libuv
                     }
                     finally
                     {
-                        buffer.Consumed();
+                        _output.Advance(buffer.End);
                     }
                 }
             }

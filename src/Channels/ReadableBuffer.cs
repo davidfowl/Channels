@@ -18,7 +18,6 @@ namespace Channels
 
         private readonly PooledBufferSpan _span;
         private readonly bool _isOwner;
-        private readonly Channel _channel;
 
         private ReadCursor _start;
         private ReadCursor _end;
@@ -54,15 +53,14 @@ namespace Channels
         /// </summary>
         public ReadCursor End => _end;
 
-        internal ReadableBuffer(Channel channel, ReadCursor start, ReadCursor end) :
-            this(channel, start, end, isOwner: false)
+        internal ReadableBuffer(ReadCursor start, ReadCursor end) :
+            this(start, end, isOwner: false)
         {
 
         }
 
-        internal ReadableBuffer(Channel channel, ReadCursor start, ReadCursor end, bool isOwner)
+        internal ReadableBuffer(ReadCursor start, ReadCursor end, bool isOwner)
         {
-            _channel = channel;
             _start = start;
             _end = end;
             _isOwner = isOwner;
@@ -74,8 +72,6 @@ namespace Channels
 
         private ReadableBuffer(ref ReadableBuffer buffer)
         {
-            _channel = buffer._channel;
-
             var begin = buffer._start;
             var end = buffer._end;
 
@@ -264,7 +260,7 @@ namespace Channels
         /// <param name="end">The ending (inclusive) <see cref="ReadCursor"/> of the slice</param>
         public ReadableBuffer Slice(ReadCursor start, ReadCursor end)
         {
-            return new ReadableBuffer(_channel, start, end);
+            return new ReadableBuffer(start, end);
         }
 
         /// <summary>
@@ -283,7 +279,7 @@ namespace Channels
         /// <param name="start">The starting (inclusive) <see cref="ReadCursor"/> at which to begin this slice.</param>
         public ReadableBuffer Slice(ReadCursor start)
         {
-            return new ReadableBuffer(_channel, start, _end);
+            return new ReadableBuffer(start, _end);
         }
 
         /// <summary>
@@ -294,7 +290,7 @@ namespace Channels
         {
             if (start == 0) return this;
 
-            return new ReadableBuffer(_channel, _start.Seek(start), _end);
+            return new ReadableBuffer(_start.Seek(start), _end);
         }
 
         /// <summary>
@@ -386,44 +382,6 @@ namespace Channels
 
             _start = default(ReadCursor);
             _end = default(ReadCursor);
-        }
-
-        private void ThrowIfNotConsumable()
-        {
-            if (_channel == null)
-            {
-                throw new InvalidOperationException("This data is not from a read operation and cannot be consumed");
-            }
-        }
-
-        /// <summary>
-        /// Mark the entire <see cref="ReadableBuffer"/> as consumed.
-        /// </summary>
-        public void Consumed()
-        {
-            ThrowIfNotConsumable();
-            _channel.EndRead(End, End);
-        }
-
-        /// <summary>
-        /// Mark up the the specified <see cref="ReadCursor"/> as consumed.
-        /// </summary>
-        /// <param name="consumed">The <see cref="ReadCursor"/> that points to the position in the <see cref="ReadableBuffer"/> up to where bytes were consumed.</param>
-        public void Consumed(ReadCursor consumed)
-        {
-            ThrowIfNotConsumable();
-            _channel.EndRead(consumed, consumed);
-        }
-
-        /// <summary>
-        /// Mark up the the specified <see cref="ReadCursor"/> as consumed.
-        /// </summary>
-        /// <param name="consumed">The <see cref="ReadCursor"/> that points to the position in the <see cref="ReadableBuffer"/> up to where bytes were consumed.</param>
-        /// <param name="examined">TODO</param>
-        public void Consumed(ReadCursor consumed, ReadCursor examined)
-        {
-            ThrowIfNotConsumable();
-            _channel.EndRead(consumed, examined);
         }
 
         /// <summary>

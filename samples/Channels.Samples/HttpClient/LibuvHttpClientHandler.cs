@@ -219,7 +219,7 @@ namespace Channels.Samples
                 }
                 finally
                 {
-                    responseBuffer.Consumed(consumed);
+                    connection.Input.Advance(consumed);
                 }
 
                 if (needMoreData)

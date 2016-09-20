@@ -79,7 +79,7 @@ namespace Channels.Samples.IO.Compression
 
                     inputBuffer = inputBuffer.Slice(0, consumed);
 
-                    inputBuffer.Consumed();
+                    input.Advance(inputBuffer.End);
 
                     await writerBuffer.FlushAsync();
                 }
@@ -164,7 +164,7 @@ namespace Channels.Samples.IO.Compression
                         }
                     }
 
-                    inputBuffer.Consumed();
+                    input.Advance(inputBuffer.End);
 
                     await writerBuffer.FlushAsync();
                 }

@@ -70,7 +70,7 @@ namespace Channels.Tests
 
                     Assert.True(input.Equals(new Span<byte>(data, offset, input.Length)));
                     offset += input.Length;
-                    input.Consumed();
+                    channel.Advance(input.End);
                 }
                 Assert.Equal(data.Length, offset);
             }
@@ -105,7 +105,7 @@ namespace Channels.Tests
                     string s = ReadableBufferExtensions.GetUtf8String(input);
                     Assert.Equal(data.Substring(offset, input.Length), s);
                     offset += input.Length;
-                    input.Consumed();
+                    channel.Advance(input.End);
                 }
                 Assert.Equal(data.Length, offset);
             }
@@ -139,7 +139,7 @@ namespace Channels.Tests
                     string s = ReadableBufferExtensions.GetAsciiString(input);
                     Assert.Equal(data.Substring(offset, input.Length), s);
                     offset += input.Length;
-                    input.Consumed();
+                    channel.Advance(input.End);
                 }
                 Assert.Equal(data.Length, offset);
             }
