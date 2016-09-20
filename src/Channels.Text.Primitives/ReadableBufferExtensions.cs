@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Utf8;
 
@@ -188,6 +189,5 @@ namespace Channels.Text.Primitives
         /// </summary>
         public static SplitEnumerable Split(this ReadableBuffer buffer, byte delimiter)
             => new SplitEnumerable(buffer, delimiter);
-
     }
 }

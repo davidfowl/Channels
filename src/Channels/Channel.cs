@@ -182,6 +182,10 @@ namespace Channels
 
         internal void Append(ref ReadableBuffer buffer)
         {
+            if (buffer.IsEmpty)
+            {
+                return; // nothing to do
+            }
             EnsureAlloc();
 
             PooledBufferSegment clonedEnd;
