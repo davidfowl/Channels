@@ -76,7 +76,9 @@ namespace Channels
             // TODO: Make this configurable for channel creation
             const int bufferSize = 4096;
 
-            if (Interlocked.CompareExchange(ref _producingState, 1, 0) != 0)
+            // Don't need to compare exchange as the "incorrect" current value 
+            // would is the value we are setting it to, so its just leaving it the same
+            if (Interlocked.Exchange(ref _producingState, 1) != 0)
             {
                 throw new InvalidOperationException("Already producing.");
             }
@@ -100,37 +102,26 @@ namespace Channels
                 segment = new PooledBufferSegment(_pool.Lease(bufferSize));
             }
 
-            lock (_sync)
-            {
-                if (_head == null)
-                {
-                    _head = segment;
-                }
-                else if (segment != null && segment != _tail)
-                {
-                    // Append the segment to the tail if it's non-null
-                    _tail.Next = segment;
-                    _tail = segment;
-                }
-
-                return new WritableBuffer(this, _pool, segment, bufferSize);
-            }
+            return new WritableBuffer(this, _pool, segment, bufferSize);
         }
 
         internal void Append(WritableBuffer buffer)
         {
+            // Don't need to compare exchange as the "incorrect" current value 
+            // would is the value we are setting it to, so its just leaving it the same
+            if (Interlocked.Exchange(ref _producingState, 0) != 1)
+            {
+                throw new InvalidOperationException("No ongoing producing operation to complete.");
+            }
+
+            if (buffer.IsDefault)
+            {
+                // REVIEW: Should we signal the completion?
+                return;
+            }
+
             lock (_sync)
             {
-                if (Interlocked.CompareExchange(ref _producingState, 0, 1) != 1)
-                {
-                    throw new InvalidOperationException("No ongoing producing operation to complete.");
-                }
-
-                if (buffer.IsDefault)
-                {
-                    // REVIEW: Should we signal the completion?
-                    return;
-                }
 
                 if (_head == null)
                 {
@@ -154,21 +145,23 @@ namespace Channels
 
         internal Task CompleteWriteAsync()
         {
+            Action awaitableState;
+
             lock (_sync)
             {
-                Complete();
-
-                // Apply back pressure here
-                return _completedTask;
+                awaitableState = Interlocked.Exchange(
+                    ref _awaitableState,
+                    _awaitableIsCompleted);
             }
+
+            Complete(awaitableState);
+
+            // Apply back pressure here
+            return _completedTask;
         }
 
-        private void Complete()
+        private void Complete(Action awaitableState)
         {
-            var awaitableState = Interlocked.Exchange(
-                ref _awaitableState,
-                _awaitableIsCompleted);
-
             if (!ReferenceEquals(awaitableState, _awaitableIsCompleted) &&
                 !ReferenceEquals(awaitableState, _awaitableIsNotCompleted))
             {
@@ -178,7 +171,9 @@ namespace Channels
 
         private ReadableBuffer Read()
         {
-            if (Interlocked.CompareExchange(ref _consumingState, 1, 0) != 0)
+            // Don't need to compare exchange as the "incorrect" current value 
+            // would is the value we are setting it to, so its just leaving it the same
+            if (Interlocked.Exchange(ref _consumingState, 1) != 0)
             {
                 throw new InvalidOperationException("Already consuming.");
             }
@@ -198,9 +193,12 @@ namespace Channels
             PooledBufferSegment returnStart = null;
             PooledBufferSegment returnEnd = null;
 
+            var consumedNone = consumed.IsDefault;
+            var examinedNone = examined.IsDefault;
+
             lock (_sync)
             {
-                if (!consumed.IsDefault)
+                if (!consumedNone)
                 {
                     returnStart = _head;
                     returnEnd = consumed.Segment;
@@ -208,8 +206,8 @@ namespace Channels
                     _head.Start = consumed.Index;
                 }
 
-                if (!examined.IsDefault &&
-                    examined.IsEnd &&
+                if (!examinedNone &&
+                    examined.IsEnd && // can this be hoisted? May cause race?
                     Reading.Status == TaskStatus.WaitingForActivation)
                 {
                     Interlocked.CompareExchange(
@@ -226,7 +224,9 @@ namespace Channels
                 returnSegment.Dispose();
             }
 
-            if (Interlocked.CompareExchange(ref _consumingState, 0, 1) != 1)
+            // Don't need to compare exchange as the "incorrect" current value 
+            // would is the value we are setting it to, so its just leaving it the same
+            if (Interlocked.Exchange(ref _consumingState, 0) != 1)
             {
                 throw new InvalidOperationException("No ongoing consuming operation to complete.");
             }
@@ -262,7 +262,7 @@ namespace Channels
                 _readingTcs.TrySetResult(null);
             }
 
-            Complete();
+            Complete(Interlocked.Exchange(ref _awaitableState, _awaitableIsCompleted));
         }
 
         void IReadableChannel.Complete(Exception exception) => CompleteReader(exception);
