@@ -15,7 +15,7 @@ namespace Channels.Tests
             {
                 var channel = new Channel(memoryPool);
                 var buffer = channel.Alloc();
-                buffer.CommitBytes(0); // doing nothing, the hard way
+                buffer.Advance(0); // doing nothing, the hard way
                 await buffer.FlushAsync();
             }
         }
@@ -159,7 +159,7 @@ namespace Channels.Tests
 
 
         [Fact]
-        public void CanReReadDataThatHasNotBeenFlushed_SmallData()
+        public void CanReReadDataThatHasNotBeenCommitted_SmallData()
         {
             using (var memoryPool = new MemoryPool())
             {
@@ -197,7 +197,7 @@ namespace Channels.Tests
         }
 
         [Fact]
-        public void CanReReadDataThatHasNotBeenFlushed_LargeData()
+        public void CanReReadDataThatHasNotBeenCommitted_LargeData()
         {
             using (var memoryPool = new MemoryPool())
             {

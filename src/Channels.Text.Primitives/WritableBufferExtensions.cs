@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace Channels.Text.Primitives
@@ -35,7 +34,7 @@ namespace Channels.Text.Primitives
 
                     charOffset += charsThisBatch;
                     remainingChars -= charsThisBatch;
-                    buffer.CommitBytes(bytesWritten);
+                    buffer.Advance(bytesWritten);
                 }
             }
         }
@@ -94,7 +93,7 @@ namespace Channels.Text.Primitives
                     value /= 10;
                 } while (value != 0);
             }
-            buffer.CommitBytes(len);
+            buffer.Advance(len);
         }
     }
 }

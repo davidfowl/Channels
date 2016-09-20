@@ -205,7 +205,7 @@ namespace Channels.Networking.Windows.RIO
             }
             else
             {
-                _buffer.CommitBytes((int)bytesTransferred);
+                _buffer.Advance((int)bytesTransferred);
                 _buffer.Commit();
 
                 ProcessReceives();

@@ -23,7 +23,7 @@ namespace Channels
             // Fast path, try copying to the available memory directly
             if (source.TryCopyTo(buffer.Memory))
             {
-                buffer.CommitBytes(source.Length);
+                buffer.Advance(source.Length);
                 return;
             }
 
@@ -46,7 +46,7 @@ namespace Channels
                 remaining -= writable;
                 offset += writable;
 
-                buffer.CommitBytes(writable);
+                buffer.Advance(writable);
             }
         }
         /// <summary>
@@ -58,7 +58,7 @@ namespace Channels
             int len = Unsafe.SizeOf<T>();
             buffer.Ensure(len);
             buffer.Memory.Write<T>(BitConverter.IsLittleEndian ? Reverse(value) : value);
-            buffer.CommitBytes(len);
+            buffer.Advance(len);
         }
 
         /// <summary>
@@ -70,7 +70,7 @@ namespace Channels
             int len = Unsafe.SizeOf<T>();
             buffer.Ensure(len);
             buffer.Memory.Write<T>(BitConverter.IsLittleEndian ? value : Reverse(value));
-            buffer.CommitBytes(len);
+            buffer.Advance(len);
         }
 
         /// <summary>

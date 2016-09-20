@@ -25,8 +25,15 @@ namespace Channels
 
         private Action _awaitableState;
 
-        private BufferSegment _head;
-        private BufferSegment _tail;
+        // The read head which is the extent of the IReadableChannel's consumed bytes
+        private BufferSegment _readHead;
+
+        // The commit head which is the extent of the bytes available to the IReadableChannel to consume
+        private BufferSegment _commitHead;
+        private int _commitHeadIndex;
+
+        // The write head which is the extent of the IWritableChannel's written bytes
+        private BufferSegment _writingHead;
 
         private int _consumingState;
         private int _producingState;
@@ -36,17 +43,6 @@ namespace Channels
         private readonly TaskCompletionSource<object> _readingTcs = new TaskCompletionSource<object>();
         private readonly TaskCompletionSource<object> _writingTcs = new TaskCompletionSource<object>();
         private readonly TaskCompletionSource<object> _startingReadingTcs = new TaskCompletionSource<object>();
-
-        // the "tail" is the **end** of the data that we're writing - essentially the
-        // write-head
-        private BufferSegment _writingTail;
-        private int _writingTailIndex;
-
-        // the "head" is the **start** of the data that we're writing; from the head,
-        // you can iterate forward via .Next to access all of the data written
-        // in this session
-        private BufferSegment _writingHead;
-        private int _writingHeadIndex;
 
         /// <summary>
         /// Initializes the <see cref="Channel"/> with the specifed <see cref="IBufferPool"/>.
@@ -82,7 +78,7 @@ namespace Channels
 
         private bool IsCompleted => ReferenceEquals(_awaitableState, _awaitableIsCompleted);
 
-        internal Span<byte> Memory => _writingTail == null ? Span<byte>.Empty : _writingTail.Buffer.Data.Slice(_writingTail.End, _writingTail.Buffer.Data.Length - _writingTail.End);
+        internal Span<byte> Memory => _writingHead == null ? Span<byte>.Empty : _writingHead.Buffer.Data.Slice(_writingHead.End, _writingHead.Buffer.Data.Length - _writingHead.End);
 
         /// <summary>
         /// Allocates memory from the channel to write into.
@@ -91,51 +87,22 @@ namespace Channels
         /// <returns>A <see cref="WritableBuffer"/> that can be written to.</returns>
         public WritableBuffer Alloc(int minimumSize = 0)
         {
-            if (Interlocked.CompareExchange(ref _producingState, 1, 0) != 0)
+            // CompareExchange not required as its setting to current value if test fails
+            if (Interlocked.Exchange(ref _producingState, State.Active) != State.NotActive)
             {
                 throw new InvalidOperationException("Already producing.");
             }
 
-            BufferSegment segment = null;
-
-            if (_tail != null && !_tail.ReadOnly)
+            if (minimumSize < 0)
             {
-                // Try to return the tail so the calling code can append to it
-                int remaining = _tail.Buffer.Data.Length - _tail.End;
-
-                if (minimumSize <= remaining)
-                {
-                    segment = _tail;
-                }
+                throw new ArgumentOutOfRangeException(nameof(minimumSize));
+            }
+            else if (minimumSize > 0)
+            {
+                AllocateWriteHead(minimumSize);
             }
 
-            if (segment == null && minimumSize > 0)
-            {
-                // We're out of tail space so lease a new segment only if the requested size > 0
-                segment = new BufferSegment(_pool.Lease(_bufferSize));
-            }
-
-            lock (_sync)
-            {
-                if (_head == null)
-                {
-                    _head = segment;
-                }
-                else if (segment != null && segment != _tail)
-                {
-                    // Append the segment to the tail if it's non-null
-                    _tail.Next = segment;
-                    _tail = segment;
-                }
-
-                _writingTail = segment;
-                _writingTailIndex = segment?.End ?? 0;
-
-                _writingHead = segment;
-                _writingHeadIndex = _writingTailIndex;
-
-                return new WritableBuffer(this);
-            }
+            return new WritableBuffer(this);
         }
 
         internal void Ensure(int count = 1)
@@ -147,39 +114,69 @@ namespace Channels
                 throw new ArgumentOutOfRangeException(nameof(count), $"Cannot allocate more than {_bufferSize} bytes in a single buffer");
             }
 
-            if (_writingTail == null)
+            var segment = _writingHead;
+            if (segment == null)
             {
-                _writingTail = new BufferSegment(_pool.Lease(_bufferSize));
-                _writingTailIndex = _writingTail.End;
-                _writingHead = _writingTail;
-                _writingHeadIndex = _writingTail.Start;
+                segment = AllocateWriteHead(count);
             }
 
-            Debug.Assert(_writingTail.Next == null);
-            Debug.Assert(_writingTail.End == _writingTailIndex);
-
-            var segment = _writingTail;
-            var buffer = _writingTail.Buffer;
-            var bufferIndex = _writingTailIndex;
-            var bytesLeftInBuffer = buffer.Data.Length - bufferIndex;
+            var buffer = segment.Buffer;
+            var bytesLeftInBuffer = buffer.Data.Length - segment.End;
 
             // If inadequate bytes left or if the segment is readonly
             if (bytesLeftInBuffer == 0 || bytesLeftInBuffer < count || segment.ReadOnly)
             {
                 var nextBuffer = _pool.Lease(_bufferSize);
                 var nextSegment = new BufferSegment(nextBuffer);
-                segment.End = bufferIndex;
+
                 segment.Next = nextSegment;
-                segment = nextSegment;
-                buffer = nextBuffer;
 
-                bufferIndex = 0;
-
-                segment.End = bufferIndex;
-                segment.Buffer = buffer;
-                _writingTail = segment;
-                _writingTailIndex = bufferIndex;
+                _writingHead = nextSegment;
             }
+        }
+
+        private BufferSegment AllocateWriteHead(int count)
+        {
+            BufferSegment segment = null;
+
+            if (_commitHead != null && !_commitHead.ReadOnly)
+            {
+                // Try to return the tail so the calling code can append to it
+                int remaining = _commitHead.Buffer.Data.Length - _commitHead.End;
+
+                if (count <= remaining)
+                {
+                    // Free tail space of the right amount, use that
+                    segment = _commitHead;
+                }
+            }
+
+            if (segment == null)
+            {
+                // No free tail space, allocate a new segment
+                segment = new BufferSegment(_pool.Lease(_bufferSize));
+            }
+
+            // Changing commit head shared with Reader
+            lock (_sync)
+            {
+                if (_commitHead == null)
+                {
+                    // No previous writes have occurred
+                    _commitHead = segment;
+                }
+                else if (segment != _commitHead && _commitHead.Next == null)
+                {
+                    // Append the segment to the commit head if writes have been committed
+                    // and it isn't the same segment (unused tail space)
+                    _commitHead.Next = segment;
+                }
+            }
+
+            // Set write head to assigned segment
+            _writingHead = segment;
+
+            return segment;
         }
 
         internal void Append(ref ReadableBuffer buffer)
@@ -193,26 +190,36 @@ namespace Channels
             BufferSegment clonedEnd;
             var clonedBegin = BufferSegment.Clone(buffer.Start, buffer.End, out clonedEnd);
 
-            if (_writingTail == null)
+            if (_writingHead == null)
             {
-                _writingHead = clonedBegin;
-                _writingHeadIndex = clonedBegin.Start;
+                // No active write
+
+                if (_commitHead == null)
+                {
+                    // No allocated buffers yet, not locking as _readHead will be null
+                    _commitHead = clonedBegin;
+                }
+                else
+                {
+                    Debug.Assert(_commitHead.Next == null);
+                    // Allocated buffer, append as next segment
+                    _commitHead.Next = clonedBegin;
+                }
             }
             else
             {
-                Debug.Assert(_writingTail.Next == null);
-                Debug.Assert(_writingTail.End == _writingTailIndex);
-
-                _writingTail.Next = clonedBegin;
+                Debug.Assert(_writingHead.Next == null);
+                // Active write, append as next segment
+                _writingHead.Next = clonedBegin;
             }
 
-            _writingTail = clonedEnd;
-            _writingTailIndex = clonedEnd.End;
+            // Move write head to end of buffer
+            _writingHead = clonedEnd;
         }
 
         private void EnsureAlloc()
         {
-            if (_producingState != 1)
+            if (_producingState == State.NotActive)
             {
                 throw new InvalidOperationException("No ongoing producing operation. Make sure Alloc() was called.");
             }
@@ -220,64 +227,53 @@ namespace Channels
 
         internal void Commit()
         {
+            // CompareExchange not required as its setting to current value if test fails
+            if (Interlocked.Exchange(ref _producingState, State.NotActive) != State.Active)
+            {
+                throw new InvalidOperationException("No ongoing producing operation to complete.");
+            }
+
+            if (_writingHead == null)
+            {
+                // Nothing written to commit
+                return;
+            }
+
+            // Changing commit head shared with Reader
             lock (_sync)
             {
-                if (Interlocked.CompareExchange(ref _producingState, 0, 1) != 1)
+                if (_readHead == null)
                 {
-                    throw new InvalidOperationException("No ongoing producing operation to complete.");
+                    // Update the head to point to the head of the buffer. 
+                    // This happens if we called alloc(0) then write
+                    _readHead = _commitHead;
                 }
 
-                if (_writingTail == null)
-                {
-                    // REVIEW: Should we signal the completion?
-                    return;
-                }
-
-                if (_head == null)
-                {
-                    // Update the head to point to the head of the buffer. This
-                    // happens if we called alloc(0) then write
-                    _head = _writingHead;
-                    _head.Start = _writingHeadIndex;
-                }
-                // If buffer.Head == tail it means we appended data to the tail
-                else if (_tail != null && _writingHead != _tail)
-                {
-                    // If we have a tail point next to the head of the buffer
-                    _tail.Next = _writingHead;
-                }
-
-                // Always update tail to the buffer's tail
-                _tail = _writingTail;
-                _tail.End = _writingTailIndex;
-
-                // Clear the state
-                _writingTail = null;
-                _writingTailIndex = 0;
-
-                _writingHead = null;
-                _writingHeadIndex = 0;
+                // Always move the commit head to the write head
+                _commitHead = _writingHead;
+                _commitHeadIndex = _writingHead.End;
             }
+
+            // Clear the writing state
+            _writingHead = null;
         }
 
-        internal void CommitBytes(int bytesWritten)
+        public void AdvanceWriter(int bytesWritten)
         {
             EnsureAlloc();
 
             if (bytesWritten > 0)
             {
-                Debug.Assert(_writingTail != null);
-                Debug.Assert(!_writingTail.ReadOnly);
-                Debug.Assert(_writingTail.Next == null);
-                Debug.Assert(_writingTail.End == _writingTailIndex);
+                Debug.Assert(_writingHead != null);
+                Debug.Assert(!_writingHead.ReadOnly);
+                Debug.Assert(_writingHead.Next == null);
 
-                var buffer = _writingTail.Buffer;
-                var bufferIndex = _writingTailIndex + bytesWritten;
+                var buffer = _writingHead.Buffer;
+                var bufferIndex = _writingHead.End + bytesWritten;
 
                 Debug.Assert(bufferIndex <= buffer.Data.Length);
 
-                _writingTail.End = bufferIndex;
-                _writingTailIndex = bufferIndex;
+                _writingHead.End = bufferIndex;
             }
             else if (bytesWritten < 0)
             {
@@ -287,7 +283,12 @@ namespace Channels
 
         internal Task FlushAsync()
         {
-            Commit();
+            if (_producingState == State.Active)
+            {
+                // Commit the data as not already committed
+                Commit();
+            }
+
             return CompleteWriteAsync();
         }
 
@@ -295,14 +296,15 @@ namespace Channels
         {
             if (_writingHead == null)
             {
-                return new ReadableBuffer(); // empty
+                return new ReadableBuffer(); // Nothing written return empty
             }
 
-            return new ReadableBuffer(new ReadCursor(_writingHead, _writingHeadIndex), new ReadCursor(_writingTail, _writingTailIndex), isOwner: false);
+            return new ReadableBuffer(new ReadCursor(_commitHead, _commitHeadIndex), new ReadCursor(_writingHead, _writingHead.End), isOwner: false);
         }
 
         private Task CompleteWriteAsync()
         {
+            // TODO: Can factor out this lock
             lock (_sync)
             {
                 Complete();
@@ -327,12 +329,20 @@ namespace Channels
 
         private ReadableBuffer Read()
         {
-            if (Interlocked.CompareExchange(ref _consumingState, 1, 0) != 0)
+            // CompareExchange not required as its setting to current value if test fails
+            if (Interlocked.Exchange(ref _consumingState, State.Active) != State.NotActive)
             {
                 throw new InvalidOperationException("Already consuming.");
             }
 
-            return new ReadableBuffer(new ReadCursor(_head), new ReadCursor(_tail, _tail?.End ?? 0));
+            ReadCursor readEnd;
+            // Reading commit head shared with writer
+            lock (_sync)
+            {
+                readEnd = new ReadCursor(_commitHead, _commitHeadIndex);
+            }
+
+            return new ReadableBuffer(new ReadCursor(_readHead), readEnd);
         }
 
         void IReadableChannel.Advance(ReadCursor consumed, ReadCursor examined) => AdvanceReader(consumed, examined);
@@ -342,18 +352,20 @@ namespace Channels
             BufferSegment returnStart = null;
             BufferSegment returnEnd = null;
 
+            if (!consumed.IsDefault)
+            {
+                returnStart = _readHead;
+                returnEnd = consumed.Segment;
+                _readHead = consumed.Segment;
+                _readHead.Start = consumed.Index;
+            }
+
+            // Reading commit head shared with writer
             lock (_sync)
             {
-                if (!consumed.IsDefault)
-                {
-                    returnStart = _head;
-                    returnEnd = consumed.Segment;
-                    _head = consumed.Segment;
-                    _head.Start = consumed.Index;
-                }
-
                 if (!examined.IsDefault &&
-                    examined.IsEnd &&
+                    examined.Segment == _commitHead &&
+                    examined.Index == _commitHeadIndex &&
                     Reading.Status == TaskStatus.WaitingForActivation)
                 {
                     Interlocked.CompareExchange(
@@ -370,7 +382,8 @@ namespace Channels
                 returnSegment.Dispose();
             }
 
-            if (Interlocked.CompareExchange(ref _consumingState, 0, 1) != 1)
+            // CompareExchange not required as its setting to current value if test fails
+            if (Interlocked.Exchange(ref _consumingState, State.NotActive) != State.Active)
             {
                 throw new InvalidOperationException("No ongoing consuming operation to complete.");
             }
@@ -384,6 +397,7 @@ namespace Channels
         /// <param name="exception">Optional Exception indicating a failure that's causing the channel to complete.</param>
         public void CompleteWriter(Exception exception = null)
         {
+            // TODO: Review this lock?
             lock (_sync)
             {
                 SignalReader(exception);
@@ -417,6 +431,7 @@ namespace Channels
         /// <param name="exception">Optional Exception indicating a failure that's causing the channel to complete.</param>
         public void CompleteReader(Exception exception = null)
         {
+            // TODO: Review this lock?
             lock (_sync)
             {
                 SignalWriter(exception);
@@ -499,10 +514,12 @@ namespace Channels
             Debug.Assert(Writing.IsCompleted, "Not completed writing");
             Debug.Assert(Reading.IsCompleted, "Not completed reading");
 
+            // TODO: Review throw if not completed?
+
             lock (_sync)
             {
                 // Return all segments
-                var segment = _head;
+                var segment = _readHead;
                 while (segment != null)
                 {
                     var returnSegment = segment;
@@ -511,9 +528,16 @@ namespace Channels
                     returnSegment.Dispose();
                 }
 
-                _head = null;
-                _tail = null;
+                _readHead = null;
+                _commitHead = null;
             }
+        }
+
+        // Can't use enums with Interlocked
+        private static class State
+        {
+            public static int NotActive = 0;
+            public static int Active = 1;
         }
     }
 }

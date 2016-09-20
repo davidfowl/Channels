@@ -157,7 +157,7 @@ namespace Channels.Networking.Libuv
                 handle.ReadStop();
             }
 
-            _inputBuffer.CommitBytes(readCount);
+            _inputBuffer.Advance(readCount);
 
             IOException error = null;
             if (errorDone)

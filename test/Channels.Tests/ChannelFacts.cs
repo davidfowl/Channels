@@ -12,7 +12,7 @@ namespace Channels.Tests
 {
     public class ChannelFacts
     {
-        [Fact(Skip = "#88")]
+        [Fact]
         public async Task ReaderShouldNotGetUnflushedBytesWhenOverflowingSegments()
         {
             using (var cf = new ChannelFactory())
@@ -60,7 +60,7 @@ namespace Channels.Tests
             }
         }
 
-        [Fact(Skip = "#88")]
+        [Fact]
         public async Task ReaderShouldNotGetUnflushedBytes()
         {
             using (var cf = new ChannelFactory())
@@ -100,7 +100,7 @@ namespace Channels.Tests
             }
         }
 
-        [Fact(Skip = "#88")]
+        [Fact]
         public async Task ReaderShouldNotGetUnflushedBytesWithAppend()
         {
             using (var cf = new ChannelFactory())
@@ -113,9 +113,13 @@ namespace Channels.Tests
                 await buffer.FlushAsync();
 
                 // Write Hello to another channel and get the buffer
+                var bytes = Encoding.ASCII.GetBytes("Hello");
+
                 var c2 = cf.CreateChannel();
-                await c2.WriteAsync(Encoding.ASCII.GetBytes("Hello"));
+                await c2.WriteAsync(bytes);
                 var c2Buffer = await c2.ReadAsync();
+
+                Assert.Equal(bytes.Length, c2Buffer.Length);
 
                 // Write 9 to the buffer
                 buffer = c.Alloc();
