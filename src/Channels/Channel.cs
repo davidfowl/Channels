@@ -102,20 +102,6 @@ namespace Channels
                 segment = new PooledBufferSegment(_pool.Lease(bufferSize));
             }
 
-            lock (_sync)
-            {
-                if (_head == null)
-                {
-                    _head = segment;
-                }
-                else if (segment != null && segment != _tail)
-                {
-                    // Append the segment to the tail if it's non-null
-                    _tail.Next = segment;
-                    _tail = segment;
-                }
-            }
-
             return new WritableBuffer(this, _pool, segment, bufferSize);
         }
 
