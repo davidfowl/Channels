@@ -244,6 +244,13 @@ namespace Channels
                 // Always update tail to the buffer's tail
                 _tail = _writingTail;
                 _tail.End = _writingTailIndex;
+
+                // Clear the state
+                _writingTail = null;
+                _writingTailIndex = 0;
+
+                _writingHead = null;
+                _writingHeadIndex = 0;
             }
         }
 
