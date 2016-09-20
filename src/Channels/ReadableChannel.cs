@@ -33,7 +33,7 @@ namespace Channels
         /// </summary>
         /// <param name="consumed"></param>
         /// <param name="examined"></param>
-        public void Advance(ReadCursor consumed, ReadCursor examined) => _channel.Advance(consumed, examined);
+        public void Advance(ReadCursor consumed, ReadCursor examined) => _channel.AdvanceReader(consumed, examined);
 
         /// <summary>
         /// Signal to the producer that the consumer is done reading.
