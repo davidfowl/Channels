@@ -83,7 +83,7 @@ namespace Channels.Samples.Http
                             if (_input.Reading.IsCompleted)
                             {
                                 // Didn't get the whole request and the connection ended
-                                throw new Exception();
+                                throw new EndOfStreamException();
                             }
                             // Need more data
                             continue;

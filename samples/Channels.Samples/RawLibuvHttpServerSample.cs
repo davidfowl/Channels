@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Text;
@@ -47,7 +48,7 @@ namespace Channels.Samples
                                     if (connection.Input.Reading.IsCompleted)
                                     {
                                         // Didn't get the whole request and the connection ended
-                                        throw new Exception();
+                                        throw new EndOfStreamException();
                                     }
                                     // Need more data
                                     continue;
