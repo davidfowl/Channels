@@ -22,10 +22,10 @@ namespace Channels.Samples.Framing
                 var channel = MakePipeline(connection);
 
                 var decoder = new LineDecoder();
-                var handler = new LineHandler()
-                {
-                    Channel = channel
-                };
+                var handler = new LineHandler();
+
+                // Initialize the handler with the channel
+                handler.Initialize(channel);
 
                 try
                 {
@@ -98,27 +98,18 @@ namespace Channels.Samples.Framing
 
     public class LineHandler : IFrameHandler<Line>
     {
-        private IChannel _channel;
+        private WritableChannelFormatter _formatter;
 
-        public IChannel Channel
+        public void Initialize(IChannel channel)
         {
-            get
-            {
-                return _channel;
-            }
-            set
-            {
-                _channel = value;
-                Formatter = new WritableChannelFormatter(value.Output, EncodingData.InvariantUtf8);
-            }
+            _formatter = new WritableChannelFormatter(channel.Output, EncodingData.InvariantUtf8);
         }
-
-        public WritableChannelFormatter Formatter { get; private set; }
 
         public Task HandleAsync(Line message)
         {
-            Formatter.Append(message.Data);
-            return Formatter.FlushAsync();
+            // Echo back to the caller
+            _formatter.Append(message.Data);
+            return _formatter.FlushAsync();
         }
     }
 
@@ -152,7 +143,7 @@ namespace Channels.Samples.Framing
 
     public interface IFrameHandler<TInput>
     {
-        IChannel Channel { get; set; }
+        void Initialize(IChannel channel);
 
         Task HandleAsync(TInput message);
     }
