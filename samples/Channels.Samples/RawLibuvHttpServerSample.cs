@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net;
 using System.Text;
 using System.Text.Formatting;
+using System.Threading;
 using Channels.Networking.Libuv;
 using Channels.Text.Primitives;
 
@@ -92,7 +93,13 @@ namespace Channels.Samples
             listener.Start();
 
             Console.WriteLine($"Listening on {ip} on port {port}");
-            Console.ReadKey();
+            var wh = new ManualResetEventSlim();
+            Console.CancelKeyPress += (sender, e) =>
+            {
+                wh.Set();
+            };
+
+            wh.Wait();
 
             listener.Stop();
             thread.Dispose();
