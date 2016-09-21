@@ -1,6 +1,9 @@
 ﻿using System;
 using System.IO;
 using System.Net;
+using System.Text;
+using System.Text.Formatting;
+using System.Threading.Tasks;
 using Channels.Networking.Libuv;
 using Channels.Text.Primitives;
 
@@ -19,26 +22,30 @@ namespace Channels.Samples.Framing
                 var channel = MakePipeline(connection);
 
                 var decoder = new LineDecoder();
+                var handler = new LineHandler()
+                {
+                    Channel = channel
+                };
 
                 try
                 {
                     while (true)
                     {
                         // Wait for data
-                        var input = await connection.Input.ReadAsync();
+                        var input = await channel.Input.ReadAsync();
 
                         try
                         {
-                            if (input.IsEmpty && connection.Input.Reading.IsCompleted)
+                            if (input.IsEmpty && channel.Input.Reading.IsCompleted)
                             {
                                 // No more data
                                 break;
                             }
 
-                            string line;
+                            Line line;
                             if (!decoder.TryDecode(ref input, out line))
                             {
-                                if (connection.Input.Reading.IsCompleted)
+                                if (channel.Input.Reading.IsCompleted)
                                 {
                                     // Didn't get the whole frame and the connection ended
                                     throw new EndOfStreamException();
@@ -48,23 +55,23 @@ namespace Channels.Samples.Framing
                                 continue;
                             }
 
-                            Console.WriteLine(line);
+                            await handler.HandleAsync(line);
 
                         }
                         finally
                         {
                             // Consume the input
-                            connection.Input.Advance(input.Start, input.End);
+                            channel.Input.Advance(input.Start, input.End);
                         }
                     }
                 }
                 finally
                 {
                     // Close the input channel, which will tell the producer to stop producing
-                    connection.Input.Complete();
+                    channel.Input.Complete();
 
                     // Close the output channel, which will close the connection
-                    connection.Output.Complete();
+                    channel.Output.Complete();
                 }
             });
 
@@ -84,16 +91,47 @@ namespace Channels.Samples.Framing
         }
     }
 
-    public class LineDecoder : IFrameDecoder<string>
+    public class Line
     {
-        public bool TryDecode(ref ReadableBuffer input, out string frame)
+        public string Data { get; set; }
+    }
+
+    public class LineHandler : IFrameHandler<Line>
+    {
+        private IChannel _channel;
+
+        public IChannel Channel
+        {
+            get
+            {
+                return _channel;
+            }
+            set
+            {
+                _channel = value;
+                Formatter = new WritableChannelFormatter(value.Output, EncodingData.InvariantUtf8);
+            }
+        }
+
+        public WritableChannelFormatter Formatter { get; private set; }
+
+        public Task HandleAsync(Line message)
+        {
+            Formatter.Append(message.Data);
+            return Formatter.FlushAsync();
+        }
+    }
+
+    public class LineDecoder : IFrameDecoder<Line>
+    {
+        public bool TryDecode(ref ReadableBuffer input, out Line frame)
         {
             ReadableBuffer slice;
             ReadCursor cursor;
-            if (!input.TrySliceTo((byte)'\r', (byte)'\n', out slice, out cursor))
+            if (input.TrySliceTo((byte)'\r', (byte)'\n', out slice, out cursor))
             {
-                frame = slice.GetUtf8String();
-                input = input.Slice(cursor).Slice(2);
+                frame = new Line { Data = slice.GetUtf8String() };
+                input = input.Slice(cursor).Slice(1);
                 return true;
             }
 
@@ -105,5 +143,17 @@ namespace Channels.Samples.Framing
     public interface IFrameDecoder<TInput>
     {
         bool TryDecode(ref ReadableBuffer input, out TInput frame);
+    }
+
+    public interface IFrameOutput
+    {
+        Task WriteAsync(object value);
+    }
+
+    public interface IFrameHandler<TInput>
+    {
+        IChannel Channel { get; set; }
+
+        Task HandleAsync(TInput message);
     }
 }
