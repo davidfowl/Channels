@@ -29,8 +29,13 @@
         "Microsoft.NETCore.App": {
           "version": "1.0.0-*",
           "type": "platform"
+        },
+        "Microsoft.CodeCoverage": {
+          "type": "build",
+          "version": "1.0.1"
         }
-      }
+      },
+      "imports": "dnxcore50"
     }
   },
   "testRunner": "xunit"
