@@ -145,13 +145,5 @@ namespace Channels
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static void WriteLittleEndian<[Primitive]T>(this Span<byte> span, T value) where T : struct
             => span.Write(BitConverter.IsLittleEndian ? value : Reverse<T>(value));
-
-        /// <summary>
-        /// Returns the number of bytes currently written
-        /// </summary>
-        /// <param name="buffer"></param>
-        /// <returns></returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static int BytesWritten(this WritableBuffer buffer) => buffer.AsReadableBuffer().Length ;
     }
 }

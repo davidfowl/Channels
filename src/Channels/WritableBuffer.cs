@@ -26,6 +26,11 @@ namespace Channels
         public Span<byte> Memory => _channel.Memory;
 
         /// <summary>
+        /// Returns the number of bytes currently written
+        /// </summary>
+        public int BytesWritten => AsReadableBuffer().Length;
+
+        /// <summary>
         /// Obtain a readable buffer over the data written to this buffer
         /// </summary>
         public ReadableBuffer AsReadableBuffer()
