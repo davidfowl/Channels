@@ -4,8 +4,14 @@ using System.Text;
 
 namespace Channels
 {
+    /// <summary>
+    /// Represents a fixed point in a readable buffer
+    /// </summary>
     public struct ReadCursor : IEquatable<ReadCursor>
     {
+        /// <summary>
+        /// Result when a search operation cannot find the requested value
+        /// </summary>
         public static ReadCursor NotFound => default(ReadCursor);
 
         private BufferSegment _segment;
@@ -233,6 +239,9 @@ namespace Channels
             return true;
         }
 
+        /// <summary>
+        /// See <see cref="object.ToString"/>
+        /// </summary>
         public override string ToString()
         {
             var sb = new StringBuilder();
@@ -244,26 +253,42 @@ namespace Channels
             return sb.ToString();
         }
 
+        /// <summary>
+        /// Compares two cursors for equality
+        /// </summary>
         public static bool operator ==(ReadCursor c1, ReadCursor c2)
         {
             return c1.Equals(c2);
         }
+
+        /// <summary>
+        /// Compares two cursors for inequality
+        /// </summary>
 
         public static bool operator !=(ReadCursor c1, ReadCursor c2)
         {
             return !c1.Equals(c2);
         }
 
+        /// <summary>
+        /// Compares two cursors for equality
+        /// </summary>
         public bool Equals(ReadCursor other)
         {
             return other._segment == _segment && other._index == _index;
         }
 
+        /// <summary>
+        /// Compares two cursors for equality
+        /// </summary>
         public override bool Equals(object obj)
         {
             return Equals((ReadCursor)obj);
         }
 
+        /// <summary>
+        /// See <see cref="object.GetHashCode"/>
+        /// </summary>
         public override int GetHashCode()
         {
             var h1 = _segment?.GetHashCode() ?? 0;
@@ -271,6 +296,72 @@ namespace Channels
 
             var shift5 = ((uint)h1 << 5) | ((uint)h1 >> 27);
             return ((int)shift5 + h1) ^ h2;
+        }
+
+        /// <summary>
+        /// Applies a positive offset to read-cursor
+        /// </summary>
+        public static ReadCursor operator +(ReadCursor cursor, int bytes)
+        {
+            var segment = cursor.Segment;
+            var index = cursor.Index;
+            while (bytes > 0 && segment != null)
+            {
+                int remainingThisSegment = segment.End - index;
+
+                // note: if ends at boundary, prefer to return "end of last block" to "start of next"
+                // even though kinda semantically identical
+                if(bytes <= remainingThisSegment)
+                {
+                    return new ReadCursor(segment, index + bytes);
+                }
+                // account for everything left in this segment
+                bytes -= remainingThisSegment;
+
+                // move to the next segment
+                segment = segment.Next;
+                index = segment?.Start ?? 0;
+            }
+            if (bytes == 0)
+            {
+                return new ReadCursor(segment, index);
+            }
+            throw new ArgumentOutOfRangeException(nameof(bytes));
+        }
+
+        /// <summary>
+        /// Calcualte the offset between two cursors
+        /// </summary>
+        /// <remarks>The first operand must be equal or greater than the second operand -
+        /// meaning: the expected result must be non-negative</remarks>
+        public static int operator -(ReadCursor later, ReadCursor earlier)
+        {
+            var segment = earlier.Segment;
+            int index = earlier.Index, delta = 0;
+            while(segment != null)
+            {
+                if(segment == later.Segment)
+                {
+                    // in the same block, yay!
+                    var localDelta = later.Index - index;
+                    if(localDelta < 0)
+                    {
+                        // that means that "earlier" > "later" (same segment)
+                        throw new ArgumentException();
+                    }
+
+                    return delta + localDelta;
+                }
+                // account for everything left in this segment
+                delta += segment.End - index;
+
+                // move to the next segment
+                segment = segment.Next;
+                index = segment?.Start ?? 0;
+            }
+            // we didn't find "later", so either "earlier" < "later" (different segments),
+            // or they are from completely unrelated chains
+            throw new ArgumentException();
         }
     }
 }
