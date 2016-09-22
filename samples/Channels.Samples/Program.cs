@@ -66,5 +66,14 @@ namespace Channels.Samples
 
             c.CompleteWriter();
         }
+
+        private static readonly object l = new object();
+        private static void Thingy()
+        {
+            lock (l)
+            {
+                Console.WriteLine("Locked");
+            }
+        }
     }
 }

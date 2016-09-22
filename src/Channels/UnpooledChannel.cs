@@ -27,6 +27,8 @@ namespace Channels
         private readonly TaskCompletionSource<object> _writingTcs = new TaskCompletionSource<object>();
         private readonly TaskCompletionSource<object> _startingReadingTcs = new TaskCompletionSource<object>();
 
+        private Gate _readWaiting = new Gate();
+
         public UnpooledChannel()
         {
             _awaitableState = _awaitableIsNotCompleted;
@@ -56,36 +58,72 @@ namespace Channels
 
         private bool IsCompleted => ReferenceEquals(_awaitableState, _awaitableIsCompleted);
 
-        public Task WriteAsync(ArraySegment<byte> buffer)
+        /// <summary>
+        /// Writes a new buffer into the channel. The task returned by this operation only completes when the next
+        /// Read has been queued, or the Reader has completed, since the buffer provided here needs to be kept alive
+        /// until the matching Read finishes (because we don't have ownership tracking when working with unowned buffers)
+        /// </summary>
+        /// <param name="buffer"></param>
+        /// <returns></returns>
+        public Task WriteAsync(ArraySegment<byte> buffer, CancellationToken cancellationToken)
         {
-            return WriteAsync(new UnpooledBuffer(buffer));
+            return WriteAsync(new UnpooledBuffer(buffer), cancellationToken);
         }
 
-        public Task WriteAsync(IBuffer buffer)
+        /// <summary>
+        /// Writes a new buffer into the channel. The task returned by this operation only completes when the next
+        /// Read has been queued, or the Reader has completed, since the buffer provided here needs to be kept alive
+        /// until the matching Read finishes (because we don't have ownership tracking when working with unowned buffers)
+        /// </summary>
+        /// <param name="buffer"></param>
+        /// <returns></returns>
+        public async Task WriteAsync(IBuffer buffer, CancellationToken cancellationToken)
         {
-            lock (_sync)
+            cancellationToken.ThrowIfCancellationRequested();
+
+            using (cancellationToken.Register(state => ((UnpooledChannel)state).Cancel(), this))
             {
-                var segment = new BufferSegment(buffer);
-                segment.End = buffer.Data.Length;
-
-                if (_head == null)
+                lock (_sync)
                 {
-                    // Update the head to point to the head of the buffer. This
-                    // happens if we called alloc(0) then write
-                    _head = segment;
+                    var segment = new BufferSegment(buffer);
+                    segment.End = buffer.Data.Length;
+
+                    if (_head == null)
+                    {
+                        // Update the head to point to the head of the buffer. This
+                        // happens if we called alloc(0) then write
+                        _head = segment;
+                    }
+                    else if (_tail != null)
+                    {
+                        _tail.Next = segment;
+                    }
+
+                    // Always update tail to the buffer's tail
+                    _tail = segment;
+
+                    Complete();
                 }
-                else if (_tail != null)
-                {
-                    _tail.Next = segment;
-                }
 
-                // Always update tail to the buffer's tail
-                _tail = segment;
+                await _readWaiting;
+                cancellationToken.ThrowIfCancellationRequested();
+            }
+        }
 
-                Complete();
+        private void Cancel()
+        {
+            try
+            {
+                // Is this stupid? Should we just pass an exception in? I'm trying to get a useful call stack...
+                throw new OperationCanceledException();
+            }
+            catch (OperationCanceledException ex)
+            {
+                // Allow the WriteAsync end to throw the OperationCanceledException
+                _readWaiting.Open();
 
-                // Apply back pressure here
-                return _completedTask;
+                // Complete the Writer end with OperationCanceledException
+                CompleteWriter(ex);
             }
         }
 
