@@ -13,7 +13,7 @@ namespace Channels
             {
                 await stream.CopyToAsync(new StreamChannel(channel));
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 channel.Complete(ex);
             }

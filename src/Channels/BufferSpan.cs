@@ -2,13 +2,13 @@
 
 namespace Channels
 {
-    internal struct PooledBufferSpan
+    internal struct BufferSpan
     {
-        private PooledBuffer _buffer;
+        private IBuffer _buffer;
         private int _start;
         private int _length;
 
-        public PooledBufferSpan(PooledBuffer buffer, int start, int length)
+        public BufferSpan(IBuffer buffer, int start, int length)
         {
             _buffer = buffer;
             _start = start;

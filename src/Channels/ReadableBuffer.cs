@@ -17,7 +17,7 @@ namespace Channels
     {
         private static readonly int VectorWidth = Vector<byte>.Count;
 
-        private readonly PooledBufferSpan _span;
+        private readonly BufferSpan _span;
         private readonly bool _isOwner;
 
         private ReadCursor _start;
@@ -76,8 +76,8 @@ namespace Channels
             var begin = buffer._start;
             var end = buffer._end;
 
-            PooledBufferSegment segmentTail;
-            var segmentHead = PooledBufferSegment.Clone(begin, end, out segmentTail);
+            BufferSegment segmentTail;
+            var segmentHead = BufferSegment.Clone(begin, end, out segmentTail);
 
             begin = new ReadCursor(segmentHead);
             end = new ReadCursor(segmentTail, segmentTail.End);
@@ -310,11 +310,9 @@ namespace Channels
         }
 
         /// <summary>
-        /// Increases the reference count of the <see cref="ReadableBuffer"/>. This transfers ownership of the buffer
-        /// from the <see cref="IReadableChannel"/> to the caller of this method. Preserved buffers must be disposed to avoid
+        /// This transfers ownership of the buffer from the <see cref="IReadableChannel"/> to the caller of this method. Preserved buffers must be disposed to avoid
         /// memory leaks.
         /// </summary>
-        /// <returns></returns>
         public ReadableBuffer Preserve()
         {
             return new ReadableBuffer(ref this);
@@ -519,7 +517,7 @@ namespace Channels
         public struct Enumerator : IEnumerator<Span<byte>>
         {
             private ReadableBuffer _buffer;
-            private PooledBufferSpan _current;
+            private BufferSpan _current;
 
             /// <summary>
             /// 
@@ -528,7 +526,7 @@ namespace Channels
             public Enumerator(ref ReadableBuffer buffer)
             {
                 _buffer = buffer;
-                _current = default(PooledBufferSpan);
+                _current = default(BufferSpan);
             }
 
             /// <summary>

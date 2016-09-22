@@ -7,12 +7,12 @@ using System.Text;
 namespace Channels
 {
     // TODO: Pool segments
-    internal class PooledBufferSegment : IDisposable
+    internal class BufferSegment : IDisposable
     {
         /// <summary>
-        /// Tracking object used by the byte <see cref="IBufferPool"/>
+        /// The buffer being tracked
         /// </summary>
-        public PooledBuffer Buffer;
+        public IBuffer Buffer;
 
         /// <summary>
         /// The Start represents the offset into Array where the range of "active" bytes begins. At the point when the block is leased
@@ -34,7 +34,7 @@ namespace Channels
         /// working memory. The "active" memory is grown when bytes are copied in, End is increased, and Next is assigned. The "active" 
         /// memory is shrunk when bytes are consumed, Start is increased, and blocks are returned to the pool.
         /// </summary>
-        public PooledBufferSegment Next;
+        public BufferSegment Next;
 
 
         /// <summary>
@@ -47,7 +47,7 @@ namespace Channels
 
 
         // Leasing ctor
-        public PooledBufferSegment(PooledBuffer buffer)
+        public BufferSegment(IBuffer buffer)
         {
             Buffer = buffer;
             Start = 0;
@@ -55,19 +55,19 @@ namespace Channels
         }
 
         // Cloning ctor
-        private PooledBufferSegment(PooledBuffer buffer, int start, int end)
+        private BufferSegment(IBuffer buffer, int start, int end)
         {
             Buffer = buffer;
             Start = start;
             End = end;
             ReadOnly = true;
 
-            Buffer.AddReference();
+            Buffer = Buffer.Preserve();
         }
 
         public void Dispose()
         {
-            Buffer.RemoveReference();
+            Buffer.Dispose();
         }
 
 
@@ -87,31 +87,31 @@ namespace Channels
             return builder.ToString();
         }
 
-        public static PooledBufferSegment Clone(ReadCursor beginBuffer, ReadCursor endBuffer, out PooledBufferSegment lastSegment)
+        public static BufferSegment Clone(ReadCursor beginBuffer, ReadCursor endBuffer, out BufferSegment lastSegment)
         {
             var beginOrig = beginBuffer.Segment;
             var endOrig = endBuffer.Segment;
 
             if (beginOrig == endOrig)
             {
-                lastSegment = new PooledBufferSegment(beginOrig.Buffer, beginBuffer.Index, endBuffer.Index);
+                lastSegment = new BufferSegment(beginOrig.Buffer, beginBuffer.Index, endBuffer.Index);
                 return lastSegment;
             }
 
-            var beginClone = new PooledBufferSegment(beginOrig.Buffer, beginBuffer.Index, beginOrig.End);
+            var beginClone = new BufferSegment(beginOrig.Buffer, beginBuffer.Index, beginOrig.End);
             var endClone = beginClone;
 
             beginOrig = beginOrig.Next;
 
             while (beginOrig != endOrig)
             {
-                endClone.Next = new PooledBufferSegment(beginOrig.Buffer, beginOrig.Start, beginOrig.End);
+                endClone.Next = new BufferSegment(beginOrig.Buffer, beginOrig.Start, beginOrig.End);
 
                 endClone = endClone.Next;
                 beginOrig = beginOrig.Next;
             }
 
-            lastSegment = new PooledBufferSegment(endOrig.Buffer, endOrig.Start, endBuffer.Index);
+            lastSegment = new BufferSegment(endOrig.Buffer, endOrig.Start, endBuffer.Index);
             endClone.Next = lastSegment;
 
             return beginClone;

@@ -11,8 +11,8 @@ namespace Channels
         /// <summary>
         /// Asynchronously reads a sequence of bytes from the current <see cref="IReadableChannel"/>.
         /// </summary>
-        /// <returns>A <see cref="ChannelAwaitable"/> representing the asynchronous read operation.</returns>
-        ChannelAwaitable ReadAsync();
+        /// <returns>A <see cref="ReadableBufferAwaitable"/> representing the asynchronous read operation.</returns>
+        ReadableBufferAwaitable ReadAsync();
 
         /// <summary>
         /// Gets a task that completes when no more data will be added to the channel.

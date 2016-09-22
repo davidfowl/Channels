@@ -8,7 +8,7 @@ namespace Channels
     /// <summary>
     /// Used to allocate and distribute re-usable blocks of memory.
     /// </summary>
-    public class MemoryPool : BufferPool<MemoryPoolBlock>
+    public class MemoryPool : IBufferPool
     {
         /// <summary>
         /// The gap between blocks' starting address. 4096 is chosen because most operating systems are 4k pages in size and alignment.
@@ -65,12 +65,7 @@ namespace Channels
 
         private Action<MemoryPoolSlab> _slabDeallocationCallback;
 
-        public override Span<byte> GetBuffer(MemoryPoolBlock buffer)
-        {
-            return buffer.Data;
-        }
-
-        public override MemoryPoolBlock Lease(int size)
+        public IBuffer Lease(int size)
         {
             return Lease();
         }
@@ -170,7 +165,7 @@ namespace Channels
         /// leaving "dead zones" in the slab due to lost block tracking objects.
         /// </summary>
         /// <param name="block">The block to return. It must have been acquired by calling Lease on the same memory pool instance.</param>
-        public override void Return(MemoryPoolBlock block)
+        public void Return(MemoryPoolBlock block)
         {
 #if DEBUG
             Debug.Assert(block.Pool == this, "Returned block was not leased from this pool");
@@ -229,7 +224,7 @@ namespace Channels
         // }
 
         // This code added to correctly implement the disposable pattern.
-        public override void Dispose()
+        public void Dispose()
         {
             // Do not change this code. Put cleanup code in Dispose(bool disposing) above.
             Dispose(true);
