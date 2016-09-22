@@ -62,7 +62,7 @@ namespace Channels
             End = end;
             ReadOnly = true;
 
-            Buffer = Buffer.Preserve();
+            Buffer = Buffer.Preserve(start, end - start);
         }
 
         public void Dispose()

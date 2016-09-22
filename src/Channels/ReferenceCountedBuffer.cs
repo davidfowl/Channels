@@ -14,8 +14,9 @@ namespace Channels
 
         protected abstract void DisposeBuffer();
 
-        public IBuffer Preserve()
+        public IBuffer Preserve(int offset, int count)
         {
+            // Ignore the offset and count, we're just going to reference count the buffer
             Interlocked.Increment(ref _referenceCount);
             return this;
         }
