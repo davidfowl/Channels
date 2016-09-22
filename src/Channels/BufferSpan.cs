@@ -15,6 +15,6 @@ namespace Channels
             _length = length;
         }
 
-        public Span<byte> Data => _buffer.Data.Slice(_start, _length);
+        public Span<byte> Data => _buffer?.Data.Slice(_start, _length) ?? Span<byte>.Empty;
     }
 }
