@@ -11,7 +11,7 @@ namespace Channels
     /// <summary>
     /// Default <see cref="IWritableChannel"/> and <see cref="IReadableChannel"/> implementation.
     /// </summary>
-    public class Channel : IReadableChannel, IWritableChannel
+    public class Channel : IReadableChannel, IWritableChannel, IReadableBufferAwaiter
     {
         // TODO: Make this configurable for channel creation
         private const int _bufferSize = 4096;
@@ -25,8 +25,8 @@ namespace Channels
 
         private Action _awaitableState;
 
-        private PooledBufferSegment _head;
-        private PooledBufferSegment _tail;
+        private BufferSegment _head;
+        private BufferSegment _tail;
 
         private int _consumingState;
         private int _producingState;
@@ -39,13 +39,13 @@ namespace Channels
 
         // the "tail" is the **end** of the data that we're writing - essentially the
         // write-head
-        private PooledBufferSegment _writingTail;
+        private BufferSegment _writingTail;
         private int _writingTailIndex;
 
         // the "head" is the **start** of the data that we're writing; from the head,
         // you can iterate forward via .Next to access all of the data written
         // in this session
-        private PooledBufferSegment _writingHead;
+        private BufferSegment _writingHead;
         private int _writingHeadIndex;
 
         /// <summary>
@@ -78,7 +78,9 @@ namespace Channels
         /// </remarks>
         public Task Writing => _writingTcs.Task;
 
-        internal bool IsCompleted => ReferenceEquals(_awaitableState, _awaitableIsCompleted);
+        bool IReadableBufferAwaiter.IsCompleted => IsCompleted;
+
+        private bool IsCompleted => ReferenceEquals(_awaitableState, _awaitableIsCompleted);
 
         internal Span<byte> Memory => _writingTail == null ? Span<byte>.Empty : _writingTail.Buffer.Data.Slice(_writingTail.End, _writingTail.Buffer.Data.Length - _writingTail.End);
 
@@ -94,7 +96,7 @@ namespace Channels
                 throw new InvalidOperationException("Already producing.");
             }
 
-            PooledBufferSegment segment = null;
+            BufferSegment segment = null;
 
             if (_tail != null && !_tail.ReadOnly)
             {
@@ -110,7 +112,7 @@ namespace Channels
             if (segment == null && minimumSize > 0)
             {
                 // We're out of tail space so lease a new segment only if the requested size > 0
-                segment = new PooledBufferSegment(_pool.Lease(_bufferSize));
+                segment = new BufferSegment(_pool.Lease(_bufferSize));
             }
 
             lock (_sync)
@@ -147,7 +149,7 @@ namespace Channels
 
             if (_writingTail == null)
             {
-                _writingTail = new PooledBufferSegment(_pool.Lease(_bufferSize));
+                _writingTail = new BufferSegment(_pool.Lease(_bufferSize));
                 _writingTailIndex = _writingTail.End;
                 _writingHead = _writingTail;
                 _writingHeadIndex = _writingTail.Start;
@@ -165,7 +167,7 @@ namespace Channels
             if (bytesLeftInBuffer == 0 || bytesLeftInBuffer < count || segment.ReadOnly)
             {
                 var nextBuffer = _pool.Lease(_bufferSize);
-                var nextSegment = new PooledBufferSegment(nextBuffer);
+                var nextSegment = new BufferSegment(nextBuffer);
                 segment.End = bufferIndex;
                 segment.Next = nextSegment;
                 segment = nextSegment;
@@ -188,8 +190,8 @@ namespace Channels
             }
             EnsureAlloc();
 
-            PooledBufferSegment clonedEnd;
-            var clonedBegin = PooledBufferSegment.Clone(buffer.Start, buffer.End, out clonedEnd);
+            BufferSegment clonedEnd;
+            var clonedBegin = BufferSegment.Clone(buffer.Start, buffer.End, out clonedEnd);
 
             if (_writingTail == null)
             {
@@ -337,8 +339,8 @@ namespace Channels
 
         public void AdvanceReader(ReadCursor consumed, ReadCursor examined)
         {
-            PooledBufferSegment returnStart = null;
-            PooledBufferSegment returnEnd = null;
+            BufferSegment returnStart = null;
+            BufferSegment returnEnd = null;
 
             lock (_sync)
             {
@@ -441,10 +443,10 @@ namespace Channels
         /// <summary>
         /// Asynchronously reads a sequence of bytes from the current <see cref="IReadableChannel"/>.
         /// </summary>
-        /// <returns>A <see cref="ChannelAwaitable"/> representing the asynchronous read operation.</returns>
-        public ChannelAwaitable ReadAsync() => new ChannelAwaitable(this);
+        /// <returns>A <see cref="ReadableBufferAwaitable"/> representing the asynchronous read operation.</returns>
+        public ReadableBufferAwaitable ReadAsync() => new ReadableBufferAwaitable(this);
 
-        internal void OnCompleted(Action continuation)
+        void IReadableBufferAwaiter.OnCompleted(Action continuation)
         {
             _startingReadingTcs.TrySetResult(null);
 
@@ -476,12 +478,7 @@ namespace Channels
             }
         }
 
-        internal void UnsafeOnCompleted(Action continuation)
-        {
-            OnCompleted(continuation);
-        }
-
-        internal ReadableBuffer GetResult()
+        ReadableBuffer IReadableBufferAwaiter.GetBuffer()
         {
             if (!IsCompleted)
             {

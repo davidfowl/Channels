@@ -8,22 +8,22 @@ namespace Channels
     {
         public static ReadCursor NotFound => default(ReadCursor);
 
-        private PooledBufferSegment _segment;
+        private BufferSegment _segment;
         private int _index;
 
-        internal ReadCursor(PooledBufferSegment segment)
+        internal ReadCursor(BufferSegment segment)
         {
             _segment = segment;
             _index = segment?.Start ?? 0;
         }
 
-        internal ReadCursor(PooledBufferSegment segment, int index)
+        internal ReadCursor(BufferSegment segment, int index)
         {
             _segment = segment;
             _index = index;
         }
 
-        internal PooledBufferSegment Segment => _segment;
+        internal BufferSegment Segment => _segment;
 
         internal int Index => _index;
 
@@ -152,11 +152,11 @@ namespace Channels
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal bool TryGetBuffer(ReadCursor end, out PooledBufferSpan span, out ReadCursor cursor)
+        internal bool TryGetBuffer(ReadCursor end, out BufferSpan span, out ReadCursor cursor)
         {
             if (IsDefault)
             {
-                span = default(PooledBufferSpan);
+                span = default(BufferSpan);
                 cursor = this;
                 return false;
             }
@@ -170,12 +170,12 @@ namespace Channels
 
                 if (following > 0)
                 {
-                    span = new PooledBufferSpan(segment.Buffer, index, following);
+                    span = new BufferSpan(segment.Buffer, index, following);
                     cursor = new ReadCursor(segment, index + following);
                     return true;
                 }
 
-                span = default(PooledBufferSpan);
+                span = default(BufferSpan);
                 cursor = this;
                 return false;
             }
@@ -185,7 +185,7 @@ namespace Channels
             }
         }
 
-        private bool TryGetBufferMultiBlock(ReadCursor end, out PooledBufferSpan span, out ReadCursor cursor)
+        private bool TryGetBufferMultiBlock(ReadCursor end, out BufferSpan span, out ReadCursor cursor)
         {
             var segment = _segment;
             var index = _index;
@@ -217,7 +217,7 @@ namespace Channels
 
                 if (wasLastSegment)
                 {
-                    span = default(PooledBufferSpan);
+                    span = default(BufferSpan);
                     cursor = this;
                     return false;
                 }
@@ -228,7 +228,7 @@ namespace Channels
                 }
             }
 
-            span = new PooledBufferSpan(segment.Buffer, index, following);
+            span = new BufferSpan(segment.Buffer, index, following);
             cursor = new ReadCursor(segment, index + following);
             return true;
         }

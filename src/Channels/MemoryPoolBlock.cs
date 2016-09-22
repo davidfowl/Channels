@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.Text;
+using System.Threading;
 
 namespace Channels
 {
@@ -8,12 +9,12 @@ namespace Channels
     /// Block tracking object used by the byte buffer memory pool. A slab is a large allocation which is divided into smaller blocks. The
     /// individual blocks are then treated as independent array segments.
     /// </summary>
-    public class MemoryPoolBlock
+    public class MemoryPoolBlock : ReferenceCountedBuffer
     {
         private readonly int _offset;
         private readonly int _length;
 
-        public Span<byte> Data => Slab.Data.Slice(_offset, _length);
+        public override Span<byte> Data => Slab.Data.Slice(_offset, _length);
 
         /// <summary>
         /// This object cannot be instantiated outside of the static Create method
@@ -87,5 +88,7 @@ namespace Channels
             }
             return builder.ToString();
         }
+
+        protected override void DisposeBuffer() => Pool.Return(this);
     }
 }
