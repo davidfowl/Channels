@@ -136,11 +136,6 @@ namespace Channels.Samples.Framing
         bool TryDecode(ref ReadableBuffer input, out TInput frame);
     }
 
-    public interface IFrameOutput
-    {
-        Task WriteAsync(object value);
-    }
-
     public interface IFrameHandler<TInput>
     {
         void Initialize(IChannel channel);
