@@ -8,7 +8,7 @@ namespace Channels
 {
     public abstract class ReferenceCountedBuffer : IBuffer
     {
-        private int _referenceCount;
+        private int _referenceCount = 1;
 
         public abstract Span<byte> Data { get; }
 
