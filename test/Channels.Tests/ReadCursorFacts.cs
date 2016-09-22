@@ -67,5 +67,14 @@ namespace Channels.Tests
                 await output.FlushAsync();
             }
         }
+
+        [Fact]
+        public void ReadOperatorsForDefaultValue_OkForZeroBytesOnly()
+        {
+            Assert.Equal(0, default(ReadCursor) - default(ReadCursor));
+            Assert.Equal(default(ReadCursor), default(ReadCursor) + 0);
+
+            Assert.Throws<ArgumentOutOfRangeException>(() => default(ReadCursor) + 1);
+        }
     }
 }

@@ -359,6 +359,12 @@ namespace Channels
                 segment = segment.Next;
                 index = segment?.Start ?? 0;
             }
+
+            if(later.IsDefault && earlier.IsDefault)
+            {
+                return 0; // we'll allow this as a special case
+            }
+
             // we didn't find "later", so either "earlier" < "later" (different segments),
             // or they are from completely unrelated chains
             throw new ArgumentException();
