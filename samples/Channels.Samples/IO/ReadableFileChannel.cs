@@ -49,7 +49,7 @@ namespace Channels.Samples.IO
 
             var buffer = operation.BoxedBuffer.Value;
 
-            buffer.CommitBytes((int)numBytes);
+            buffer.Advance((int)numBytes);
             var task = buffer.FlushAsync();
 
             if (numBytes == 0 || operation.Channel.Writing.IsCompleted)

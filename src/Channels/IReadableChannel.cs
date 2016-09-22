@@ -21,7 +21,7 @@ namespace Channels
         Task Reading { get; }
 
         /// <summary>
-        /// Moves forward the channels read cursor to after the consumed data.
+        /// Moves forward the channel's read cursor to after the consumed data.
         /// </summary>
         /// <param name="consumed">Marks the extent of the data that has been succesfully proceesed.</param>
         /// <param name="examined">Marks the extent of the data that has been read and examined.</param>

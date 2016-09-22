@@ -33,7 +33,7 @@ namespace Channels.Text.Primitives
 
         public void CommitBytes(int bytes)
         {
-            _writableBuffer.CommitBytes(bytes);
+            _writableBuffer.Advance(bytes);
         }
 
         public void ResizeBuffer(int desiredFreeBytesHint = -1)

@@ -103,7 +103,7 @@ namespace Channels.Tests
 
                 var writeBuffer = channel.Alloc();
                 writeBuffer.Ensure(50);
-                writeBuffer.CommitBytes(50); // not even going to pretend to write data here - we're going to cheat
+                writeBuffer.Advance(50); // not even going to pretend to write data here - we're going to cheat
                 await writeBuffer.FlushAsync(); // by overwriting the buffer in-situ
 
                 // now read it back

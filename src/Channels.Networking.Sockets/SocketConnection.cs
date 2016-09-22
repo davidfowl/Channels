@@ -206,7 +206,7 @@ namespace Channels.Networking.Sockets
                             // end of the socket
                             break;
                         }
-                        buffer.CommitBytes(len);
+                        buffer.Advance(len);
                         await buffer.FlushAsync();
                         flushed = true;
                     }

@@ -71,7 +71,7 @@ namespace Channels.Samples.IO.Compression
                         unsafe
                         {
                             int written = _deflater.ReadDeflateOutput((IntPtr)writerBuffer.Memory.UnsafePointer, writerBuffer.Memory.Length);
-                            writerBuffer.CommitBytes(written);
+                            writerBuffer.Advance(written);
                         }
                     }
 
@@ -94,7 +94,7 @@ namespace Channels.Samples.IO.Compression
                     {
                         int compressedBytes;
                         flushed = _deflater.Flush((IntPtr)writerBuffer.Memory.UnsafePointer, writerBuffer.Memory.Length, out compressedBytes);
-                        writerBuffer.CommitBytes(compressedBytes);
+                        writerBuffer.Advance(compressedBytes);
                     }
 
                     await writerBuffer.FlushAsync();
@@ -111,7 +111,7 @@ namespace Channels.Samples.IO.Compression
                     {
                         int compressedBytes;
                         finished = _deflater.Finish((IntPtr)writerBuffer.Memory.UnsafePointer, writerBuffer.Memory.Length, out compressedBytes);
-                        writerBuffer.CommitBytes(compressedBytes);
+                        writerBuffer.Advance(compressedBytes);
                     }
 
                     await writerBuffer.FlushAsync();
@@ -156,7 +156,7 @@ namespace Channels.Samples.IO.Compression
 
                             int written = _inflater.Inflate((IntPtr)writerBuffer.Memory.UnsafePointer, writerBuffer.Memory.Length);
 
-                            writerBuffer.CommitBytes(written);
+                            writerBuffer.Advance(written);
 
                             var consumed = span.Length - _inflater.AvailableInput;
 
