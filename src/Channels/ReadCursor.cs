@@ -132,11 +132,11 @@ namespace Channels
 
             var segment = _segment;
             var index = _index;
+            bytesSeeked = following; // we're skipping the current segment
             while (true)
             {
                 if (wasLastSegment)
                 {
-                    bytesSeeked = following;
                     return new ReadCursor(segment, index + following);
                 }
                 else
@@ -151,9 +151,10 @@ namespace Channels
 
                 if (following >= bytes)
                 {
-                    bytesSeeked = bytes;
+                    bytesSeeked += bytes;
                     return new ReadCursor(segment, index + bytes);
                 }
+                bytesSeeked += following;
             }
         }
 
@@ -303,30 +304,21 @@ namespace Channels
         /// </summary>
         public static ReadCursor operator +(ReadCursor cursor, int bytes)
         {
-            var segment = cursor.Segment;
-            var index = cursor.Index;
-            while (bytes > 0 && segment != null)
-            {
-                int remainingThisSegment = segment.End - index;
-
-                // note: if ends at boundary, prefer to return "end of last block" to "start of next"
-                // even though kinda semantically identical
-                if(bytes <= remainingThisSegment)
-                {
-                    return new ReadCursor(segment, index + bytes);
-                }
-                // account for everything left in this segment
-                bytes -= remainingThisSegment;
-
-                // move to the next segment
-                segment = segment.Next;
-                index = segment?.Start ?? 0;
-            }
             if (bytes == 0)
             {
-                return new ReadCursor(segment, index);
+                return cursor;
             }
-            throw new ArgumentOutOfRangeException(nameof(bytes));
+            if (bytes < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(bytes));
+            }
+            int seeked;
+            var result = cursor.Seek(bytes, out seeked);
+            if (seeked != bytes)
+            {
+                throw new ArgumentOutOfRangeException(nameof(bytes));
+            }
+            return result;
         }
 
         /// <summary>
