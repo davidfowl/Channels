@@ -4,8 +4,14 @@ using System.Text;
 
 namespace Channels
 {
+    /// <summary>
+    /// Represents a fixed point in a readable buffer
+    /// </summary>
     public struct ReadCursor : IEquatable<ReadCursor>
     {
+        /// <summary>
+        /// Result when a search operation cannot find the requested value
+        /// </summary>
         public static ReadCursor NotFound => default(ReadCursor);
 
         private BufferSegment _segment;
@@ -126,11 +132,11 @@ namespace Channels
 
             var segment = _segment;
             var index = _index;
+            bytesSeeked = following; // we're skipping the current segment
             while (true)
             {
                 if (wasLastSegment)
                 {
-                    bytesSeeked = following;
                     return new ReadCursor(segment, index + following);
                 }
                 else
@@ -145,9 +151,10 @@ namespace Channels
 
                 if (following >= bytes)
                 {
-                    bytesSeeked = bytes;
+                    bytesSeeked += bytes;
                     return new ReadCursor(segment, index + bytes);
                 }
+                bytesSeeked += following;
             }
         }
 
@@ -233,6 +240,9 @@ namespace Channels
             return true;
         }
 
+        /// <summary>
+        /// See <see cref="object.ToString"/>
+        /// </summary>
         public override string ToString()
         {
             var sb = new StringBuilder();
@@ -244,26 +254,42 @@ namespace Channels
             return sb.ToString();
         }
 
+        /// <summary>
+        /// Compares two cursors for equality
+        /// </summary>
         public static bool operator ==(ReadCursor c1, ReadCursor c2)
         {
             return c1.Equals(c2);
         }
+
+        /// <summary>
+        /// Compares two cursors for inequality
+        /// </summary>
 
         public static bool operator !=(ReadCursor c1, ReadCursor c2)
         {
             return !c1.Equals(c2);
         }
 
+        /// <summary>
+        /// Compares two cursors for equality
+        /// </summary>
         public bool Equals(ReadCursor other)
         {
             return other._segment == _segment && other._index == _index;
         }
 
+        /// <summary>
+        /// Compares two cursors for equality
+        /// </summary>
         public override bool Equals(object obj)
         {
             return Equals((ReadCursor)obj);
         }
 
+        /// <summary>
+        /// See <see cref="object.GetHashCode"/>
+        /// </summary>
         public override int GetHashCode()
         {
             var h1 = _segment?.GetHashCode() ?? 0;
@@ -271,6 +297,69 @@ namespace Channels
 
             var shift5 = ((uint)h1 << 5) | ((uint)h1 >> 27);
             return ((int)shift5 + h1) ^ h2;
+        }
+
+        /// <summary>
+        /// Applies a positive offset to read-cursor
+        /// </summary>
+        public static ReadCursor operator +(ReadCursor cursor, int bytes)
+        {
+            if (bytes == 0)
+            {
+                return cursor;
+            }
+            if (bytes < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(bytes));
+            }
+            int seeked;
+            var result = cursor.Seek(bytes, out seeked);
+            if (seeked != bytes)
+            {
+                throw new ArgumentOutOfRangeException(nameof(bytes));
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Calcualte the offset between two cursors
+        /// </summary>
+        /// <remarks>The first operand must be equal or greater than the second operand -
+        /// meaning: the expected result must be non-negative</remarks>
+        public static int operator -(ReadCursor later, ReadCursor earlier)
+        {
+            var segment = earlier.Segment;
+            int index = earlier.Index, delta = 0;
+            while(segment != null)
+            {
+                if(segment == later.Segment)
+                {
+                    // in the same block, yay!
+                    var localDelta = later.Index - index;
+                    if(localDelta < 0)
+                    {
+                        // that means that "earlier" > "later" (same segment)
+                        throw new ArgumentException();
+                    }
+
+                    return delta + localDelta;
+                }
+                // account for everything left in this segment
+                delta += segment.End - index;
+
+                // move to the next segment
+                segment = segment.Next;
+                index = segment?.Start ?? 0;
+            }
+
+            if(later.IsDefault && earlier.IsDefault)
+            {
+                return 0; // we'll allow this as a special case
+            }
+
+            // we didn't find "later", so either "earlier" < "later" (different segments),
+            // or they are from completely unrelated chains
+            throw new ArgumentException();
         }
     }
 }
