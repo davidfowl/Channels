@@ -1,12 +1,9 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace Channels
 {
     /// <summary>
-    /// 
+    /// An interface that represents a span of memory
     /// </summary>
     public interface IBuffer : IDisposable
     {
@@ -18,7 +15,7 @@ namespace Channels
         IBuffer Preserve(int offset, int length);
 
         /// <summary>
-        /// 
+        /// The underlying span of data this <see cref="IBuffer"/> represents
         /// </summary>
         Span<byte> Data { get; }
     }

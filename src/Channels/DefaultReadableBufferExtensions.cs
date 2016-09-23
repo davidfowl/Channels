@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Binary;
 using System.Runtime.CompilerServices;
 
 namespace Channels
@@ -16,8 +17,8 @@ namespace Channels
         {
             var span = buffer.FirstSpan;
             int len = Unsafe.SizeOf<T>();
-            var value = span.Length >= len ? span.Read<T>() : ReadMulti<T>(buffer, len);
-            return BitConverter.IsLittleEndian ? DefaultWritableBufferExtensions.Reverse<T>(value) : value;
+            var value = span.Length >= len ? span.ReadBigEndian<T>() : ReadMultiBig<T>(buffer, len);
+            return value;
         }
 
         /// <summary>
@@ -28,30 +29,24 @@ namespace Channels
         {
             var span = buffer.FirstSpan;
             int len = Unsafe.SizeOf<T>();
-            var value = span.Length >= len ? span.Read<T>() : ReadMulti<T>(buffer, len);
-            return BitConverter.IsLittleEndian ? value : DefaultWritableBufferExtensions.Reverse<T>(value);
+            var value = span.Length >= len ? span.ReadLittleEndian<T>() : ReadMultiLittle<T>(buffer, len);
+            return value;
         }
 
-        private static unsafe T ReadMulti<[Primitive]T>(ReadableBuffer buffer, int len) where T : struct
+        private static unsafe T ReadMultiBig<[Primitive]T>(ReadableBuffer buffer, int len) where T : struct
         {
             byte* local = stackalloc byte[len];
             var localSpan = new Span<byte>(local, len);
             buffer.Slice(0, len).CopyTo(localSpan);
-            return localSpan.Read<T>();
+            return localSpan.ReadBigEndian<T>();
         }
 
-        /// <summary>
-        /// Reads a structure of type <typeparamref name="T"/> out of a span of bytes.
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static T ReadBigEndian<[Primitive]T>(this Span<byte> span) where T : struct
-            => BitConverter.IsLittleEndian ? DefaultWritableBufferExtensions.Reverse<T>(span.Read<T>()) : span.Read<T>();
-
-        /// <summary>
-        /// Reads a structure of type <typeparamref name="T"/> out of a span of bytes.
-        /// </summary>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public static T ReadLittleEndian<[Primitive]T>(this Span<byte> span) where T : struct
-            => BitConverter.IsLittleEndian ? span.Read<T>() : DefaultWritableBufferExtensions.Reverse<T>(span.Read<T>());
+        private static unsafe T ReadMultiLittle<[Primitive]T>(ReadableBuffer buffer, int len) where T : struct
+        {
+            byte* local = stackalloc byte[len];
+            var localSpan = new Span<byte>(local, len);
+            buffer.Slice(0, len).CopyTo(localSpan);
+            return localSpan.ReadLittleEndian<T>();
+        }
     }
 }
