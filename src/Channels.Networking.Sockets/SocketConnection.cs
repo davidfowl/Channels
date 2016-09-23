@@ -84,7 +84,7 @@ namespace Channels.Networking.Sockets
                 obj = new SocketAsyncEventArgs();
                 obj.Completed += _asyncCompleted; // only for new, otherwise multi-fire
             }
-            if(obj.UserToken is Signal)
+            if (obj.UserToken is Signal)
             {
                 ((Signal)obj.UserToken).Reset();
             }
@@ -162,6 +162,8 @@ namespace Channels.Networking.Sockets
             pending.Set();
         }
 
+        static readonly byte[] ZeroLengthBuffer = new byte[0];
+
         private async void ProcessReads()
         {
             SocketAsyncEventArgs args = null;
@@ -180,41 +182,69 @@ namespace Channels.Networking.Sockets
                 args = GetOrCreateSocketAsyncEventArgs();
                 while (!_input.Writing.IsCompleted)
                 {
-                    // we need a buffer to read into
-                    var buffer = _input.Alloc(2048); // TODO: should this be controllable by the consumer?
-                    bool flushed = false;
-                    try
+                    if (Socket.Available == 0)
                     {
-                        SetBuffer(buffer.Memory, args);
-                        if (Socket.ReceiveAsync(args)) //  initiator calls ReceiveAsync
+                        // do a zero-length read while we wait (async) for data
+                        args.SetBuffer(ZeroLengthBuffer, 0, 0);
+                        if (Socket.ReceiveAsync(args))
                         {
                             // wait async for the io work to be completed
                             await ((Signal)args.UserToken).WaitAsync();
                         }
-                        else
-                        {
-                            // if ReceiveAsync returns sync, we have the conch - nothing to do - we already received
-                        }
-                        // either way, need to validate
+
                         if (args.SocketError != SocketError.Success)
                         {
                             throw new SocketException((int)args.SocketError);
                         }
-                        int len = args.BytesTransferred;
-                        if (len <= 0)
+
+                        // note we can't check BytesTransferred <= 0, as we always
+                        // expect 0; but if we returned, we expect data to be
+                        // buffered *on the socket*, else EOF
+                        if (args.BytesTransferred < 0 || Socket.Available == 0)
                         {
-                            // end of the socket
+                            // socket reported EOF
                             break;
                         }
-                        buffer.Advance(len);
-                        await buffer.FlushAsync();
-                        flushed = true;
                     }
-                    finally
+
+                    // now loop while there's data available (after which, we'll do another zero-length read)
+                    // note that we *could* use Read etc here, but it feels advisable to a: stick to one
+                    // API surface, and b: not make *too* many assumptions about the behavior
+                    while (Socket.Available != 0)
                     {
-                        if (!flushed)
+                        // we need a buffer to read into
+                        var buffer = _input.Alloc(2048); // TODO: should this be controllable by the consumer?
+                        bool flushed = false;
+                        try
                         {
+                            SetBuffer(buffer.Memory, args);
+                            if (Socket.ReceiveAsync(args)) //  initiator calls ReceiveAsync
+                            {
+                                // wait async for the io work to be completed
+                                await ((Signal)args.UserToken).WaitAsync();
+                            }
+
+                            // either way, need to validate
+                            if (args.SocketError != SocketError.Success)
+                            {
+                                throw new SocketException((int)args.SocketError);
+                            }
+                            int len = args.BytesTransferred;
+                            if (len <= 0)
+                            {
+                                // socket reported EOF
+                                break;
+                            }
+                            buffer.Advance(len);
                             await buffer.FlushAsync();
+                            flushed = true;
+                        }
+                        finally
+                        {
+                            if (!flushed)
+                            {
+                                await buffer.FlushAsync();
+                            }
                         }
                     }
                 }
