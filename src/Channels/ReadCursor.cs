@@ -6,8 +6,6 @@ namespace Channels
 {
     public struct ReadCursor : IEquatable<ReadCursor>
     {
-        public static ReadCursor NotFound => default(ReadCursor);
-
         private BufferSegment _segment;
         private int _index;
 
