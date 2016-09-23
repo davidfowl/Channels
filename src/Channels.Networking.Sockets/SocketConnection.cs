@@ -39,12 +39,13 @@ namespace Channels.Networking.Sockets
         {
 
             // validated styles for known OSes
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) || RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
                 // zero-length receive works fine
                 _bufferStyle = BufferStyle.UseZeroLengthBuffer;
             }
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX)
+                || RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {
                 // zero-length receive is unreliable
                 _bufferStyle = BufferStyle.UseSmallBuffer;
