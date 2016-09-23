@@ -18,29 +18,29 @@ namespace Channels
     /// </remarks>
     internal class Gate : ICriticalNotifyCompletion
     {
-        private static readonly Action _completed = () => {};
+        private static readonly Action _gateIsOpen = () => {};
 
-        private volatile Action _continuation;
+        private volatile Action _gateState;
 
         /// <summary>
         /// Returns a boolean indicating if the gate is "open"
         /// </summary>
-        public bool IsCompleted => _continuation == _completed;
+        public bool IsCompleted => _gateState == _gateIsOpen;
 
         public void UnsafeOnCompleted(Action continuation) => OnCompleted(continuation);
 
         public void OnCompleted(Action continuation)
         {
             // If we're already completed, call the continuation immediately
-            if (_continuation == _completed)
+            if (_gateState == _gateIsOpen)
             {
                 continuation();
             }
             else
             {
                 // Otherwise, if the current continuation is null, atomically store the new continuation in the field and return the old value
-                var previous = Interlocked.CompareExchange(ref _continuation, continuation, null);
-                if (previous == _completed)
+                var previous = Interlocked.CompareExchange(ref _gateState, continuation, null);
+                if (previous == _gateIsOpen)
                 {
                     // It got completed in the time between the previous the method and the cmpexch.
                     // So call the continuation (the value of _continuation will remain _completed because cmpexch is atomic,
@@ -56,7 +56,7 @@ namespace Channels
         public void GetResult()
         {
             // Clear the active continuation to "reset" the state of this event
-            Interlocked.Exchange(ref _continuation, null);
+            Interlocked.Exchange(ref _gateState, null);
         }
 
         /// <summary>
@@ -65,8 +65,11 @@ namespace Channels
         public void Open()
         {
             // Set the stored continuation value to a sentinel that indicates the state is completed, then call the previous value.
-            var completion = Interlocked.Exchange(ref _continuation, _completed);
-            completion?.Invoke();
+            var completion = Interlocked.Exchange(ref _gateState, _gateIsOpen);
+            if (completion != _gateIsOpen)
+            {
+                completion?.Invoke();
+            }
         }
 
         public Gate GetAwaiter() => this;

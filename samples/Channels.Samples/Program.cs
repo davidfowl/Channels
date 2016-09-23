@@ -60,20 +60,11 @@ namespace Channels.Samples
             {
                 var s = i.ToString();
                 int count = Encoding.UTF8.GetBytes(s, 0, s.Length, buffer, 0);
-                await c.WriteAsync(new ArraySegment<byte>(buffer, 0, count));
+                await c.WriteAsync(new ArraySegment<byte>(buffer, 0, count), CancellationToken.None);
                 await Task.Delay(100);
             }
 
             c.CompleteWriter();
-        }
-
-        private static readonly object l = new object();
-        private static void Thingy()
-        {
-            lock (l)
-            {
-                Console.WriteLine("Locked");
-            }
         }
     }
 }

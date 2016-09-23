@@ -1,12 +1,14 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
 namespace Channels
 {
+    /// <summary>
+    /// Channel which works in buffers which it does not own, as opposed to using a <see cref="IBufferPool"/>. Designed
+    /// to allow Streams to be easily adapted to <see cref="IReadableChannel"/> via <see cref="System.IO.Stream.CopyToAsync(System.IO.Stream)"/>
+    /// </summary>
     public class UnpooledChannel : IReadableChannel, IReadableBufferAwaiter
     {
         private static readonly Action _awaitableIsCompleted = () => { };
@@ -19,8 +21,7 @@ namespace Channels
         private BufferSegment _head;
         private BufferSegment _tail;
 
-        private int _consumingState;
-        private object _sync = new object();
+        private bool _consuming;
 
         // REVIEW: This object might be getting a little big :)
         private readonly TaskCompletionSource<object> _readingTcs = new TaskCompletionSource<object>();
@@ -64,6 +65,7 @@ namespace Channels
         /// until the matching Read finishes (because we don't have ownership tracking when working with unowned buffers)
         /// </summary>
         /// <param name="buffer"></param>
+        /// <param name="cancellationToken"></param>
         /// <returns></returns>
         public Task WriteAsync(ArraySegment<byte> buffer, CancellationToken cancellationToken)
         {
@@ -76,62 +78,68 @@ namespace Channels
         /// until the matching Read finishes (because we don't have ownership tracking when working with unowned buffers)
         /// </summary>
         /// <param name="buffer"></param>
+        /// <param name="cancellationToken"></param>
         /// <returns></returns>
+        // Called by the WRITER
         public async Task WriteAsync(IBuffer buffer, CancellationToken cancellationToken)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            using (cancellationToken.Register(state => ((UnpooledChannel)state).Cancel(), this))
+            // If Writing has stopped, why is the caller writing??
+            if (Writing.Status != TaskStatus.WaitingForActivation)
             {
-                lock (_sync)
+                throw new OperationCanceledException("Writing has ceased on this Channel");
+            }
+
+            // If Reading has stopped, we cancel. We don't write unless there's a reader ready in this channel.
+            if (Reading.Status != TaskStatus.WaitingForActivation)
+            {
+                throw new OperationCanceledException("Reading has ceased on this Channel");
+            }
+
+            // Register for cancellation on this token for the duration of the write
+            using (cancellationToken.Register(state => ((UnpooledChannel)state).CancelWriter(), this))
+            {
+                // Wait for reading to start
+                await ReadingStarted;
+
+                // Cancel this task if this write is cancelled
+                cancellationToken.ThrowIfCancellationRequested();
+
+                // Allocate a new segment to hold the buffer being written.
+                var segment = new BufferSegment(buffer);
+                segment.End = buffer.Data.Length;
+
+                if (_head == null)
                 {
-                    var segment = new BufferSegment(buffer);
-                    segment.End = buffer.Data.Length;
-
-                    if (_head == null)
-                    {
-                        // Update the head to point to the head of the buffer. This
-                        // happens if we called alloc(0) then write
-                        _head = segment;
-                    }
-                    else if (_tail != null)
-                    {
-                        _tail.Next = segment;
-                    }
-
-                    // Always update tail to the buffer's tail
-                    _tail = segment;
-
-                    Complete();
+                    // Update the head to point to the head of the buffer.
+                    _head = segment;
+                }
+                else if (_tail != null)
+                {
+                    // Add this segment to the end of the chain
+                    _tail.Next = segment;
                 }
 
+                // Always update tail to the buffer's tail
+                _tail = segment;
+
+                // Trigger the continuation
+                Complete();
+
+                // Wait for another read to come (or for the end of Reading, which will also trigger this gate to open) in before returning
                 await _readWaiting;
+
+                // Cancel this task if this write is cancelled
                 cancellationToken.ThrowIfCancellationRequested();
             }
         }
 
-        private void Cancel()
-        {
-            try
-            {
-                // Is this stupid? Should we just pass an exception in? I'm trying to get a useful call stack...
-                throw new OperationCanceledException();
-            }
-            catch (OperationCanceledException ex)
-            {
-                // Allow the WriteAsync end to throw the OperationCanceledException
-                _readWaiting.Open();
-
-                // Complete the Writer end with OperationCanceledException
-                CompleteWriter(ex);
-            }
-        }
-
+        // Called by the WRITER via WriteAsync to run the READER
         private void Complete()
         {
-            var awaitableState = Interlocked.Exchange(
-                ref _awaitableState,
-                _awaitableIsCompleted);
+            // Don't need to interlock here. We have one reader and one writer and the ReadingStarted/ReadWaiting gates
+            // ensure that the read is blocked while we write and vice-versa.
+            var awaitableState = _awaitableState;
+            _awaitableState = _awaitableIsCompleted;
 
             if (!ReferenceEquals(awaitableState, _awaitableIsCompleted) &&
                 !ReferenceEquals(awaitableState, _awaitableIsNotCompleted))
@@ -140,42 +148,39 @@ namespace Channels
             }
         }
 
+        // Called by the READER
         private ReadableBuffer Read()
         {
-            if (Interlocked.CompareExchange(ref _consumingState, 1, 0) != 0)
+            if (_consuming)
             {
-                throw new InvalidOperationException("Already consuming.");
+                throw new InvalidOperationException("Cannot Read until the previous read has been acknowledged by calling Advance");
             }
+            _consuming = true;
 
             return new ReadableBuffer(new ReadCursor(_head), new ReadCursor(_tail, _tail?.End ?? 0));
         }
 
-        void IReadableChannel.Advance(ReadCursor consumed, ReadCursor examined) => AdvanceReader(consumed, examined);
-
-        private void AdvanceReader(ReadCursor consumed, ReadCursor examined)
+        // Called by the READER
+        void IReadableChannel.Advance(ReadCursor consumed, ReadCursor examined)
         {
             BufferSegment returnStart = null;
             BufferSegment returnEnd = null;
 
-            lock (_sync)
+            if (!consumed.IsDefault)
             {
-                if (!consumed.IsDefault)
-                {
-                    returnStart = _head;
-                    returnEnd = consumed.Segment;
-                    _head = consumed.Segment;
-                    _head.Start = consumed.Index;
-                }
+                returnStart = _head;
+                returnEnd = consumed.Segment;
+                _head = consumed.Segment;
+                _head.Start = consumed.Index;
+            }
 
-                if (!examined.IsDefault &&
-                    examined.IsEnd &&
-                    Reading.Status == TaskStatus.WaitingForActivation)
-                {
-                    Interlocked.CompareExchange(
-                        ref _awaitableState,
-                        _awaitableIsNotCompleted,
-                        _awaitableIsCompleted);
-                }
+            // Again, we don't need an interlock here because Read and Write proceed serially.
+            if (!examined.IsDefault &&
+                examined.IsEnd &&
+                Reading.Status == TaskStatus.WaitingForActivation &&
+                _awaitableState == _awaitableIsCompleted)
+            {
+                _awaitableState = _awaitableIsNotCompleted;
             }
 
             while (returnStart != returnEnd)
@@ -185,13 +190,41 @@ namespace Channels
                 returnSegment.Dispose();
             }
 
-            if (Interlocked.CompareExchange(ref _consumingState, 0, 1) != 1)
+            if (!_consuming)
             {
                 throw new InvalidOperationException("No ongoing consuming operation to complete.");
             }
+            _consuming = false;
         }
 
-        private void SignalReader(Exception exception)
+        /// <summary>
+        /// Signal to the producer that the consumer is done reading.
+        /// </summary>
+        /// <param name="exception">Optional Exception indicating a failure that's causing the channel to complete.</param>
+        // Called by the READER
+        void IReadableChannel.Complete(Exception exception)
+        {
+            if (exception != null)
+            {
+                _writingTcs.TrySetException(exception);
+            }
+            else
+            {
+                _writingTcs.TrySetResult(null);
+            }
+
+            if (Reading.IsCompleted)
+            {
+                Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Marks the channel as being complete, meaning no more items will be written to it.
+        /// </summary>
+        /// <param name="exception">Optional Exception indicating a failure that's causing the channel to complete.</param>
+        // Called by the WRITER
+        public void CompleteWriter(Exception exception = null)
         {
             if (exception != null)
             {
@@ -202,54 +235,12 @@ namespace Channels
                 _readingTcs.TrySetResult(null);
             }
 
+            // Fire the completion so the Reader knows the Writer has completed.
             Complete();
-        }
 
-        void IReadableChannel.Complete(Exception exception) => CompleteReader(exception);
-
-        /// <summary>
-        /// Signal to the producer that the consumer is done reading.
-        /// </summary>
-        /// <param name="exception">Optional Exception indicating a failure that's causing the channel to complete.</param>
-        private void CompleteReader(Exception exception = null)
-        {
-            lock (_sync)
+            if (Writing.IsCompleted)
             {
-                SignalWriter(exception);
-
-                if (Reading.IsCompleted)
-                {
-                    Dispose();
-                }
-            }
-        }
-
-        private void SignalWriter(Exception exception)
-        {
-            if (exception != null)
-            {
-                _writingTcs.TrySetException(exception);
-            }
-            else
-            {
-                _writingTcs.TrySetResult(null);
-            }
-        }
-
-        /// <summary>
-        /// Marks the channel as being complete, meaning no more items will be written to it.
-        /// </summary>
-        /// <param name="exception">Optional Exception indicating a failure that's causing the channel to complete.</param>
-        public void CompleteWriter(Exception exception = null)
-        {
-            lock (_sync)
-            {
-                SignalReader(exception);
-
-                if (Writing.IsCompleted)
-                {
-                    Dispose();
-                }
+                Dispose();
             }
         }
 
@@ -257,26 +248,28 @@ namespace Channels
         /// Asynchronously reads a sequence of bytes from the current <see cref="IReadableChannel"/>.
         /// </summary>
         /// <returns>A <see cref="ReadableBufferAwaitable"/> representing the asynchronous read operation.</returns>
+        // Called by the READER
         public ReadableBufferAwaitable ReadAsync() => new ReadableBufferAwaitable(this);
 
+        // Called by the READER
         void IReadableBufferAwaiter.OnCompleted(Action continuation)
         {
-            _startingReadingTcs.TrySetResult(null);
-
-            var awaitableState = Interlocked.CompareExchange(
-                ref _awaitableState,
-                continuation,
-                _awaitableIsNotCompleted);
-
-            if (ReferenceEquals(awaitableState, _awaitableIsNotCompleted))
+            if (ReferenceEquals(_awaitableState, _awaitableIsNotCompleted))
             {
-                return;
+                // Register our continuation
+                _awaitableState = continuation;
+                _startingReadingTcs.TrySetResult(null);
+                _readWaiting.Open();
             }
-            else if (ReferenceEquals(awaitableState, _awaitableIsCompleted))
+            else if (ReferenceEquals(_awaitableState, _awaitableIsCompleted))
             {
+                // NOTE(anurse): This shouldn't happen because everything is serialized... IsCompleted will be true so the generated code will never call OnCompleted
+
                 // Dispatch here to avoid stack diving
-                // Task.Run(continuation);
                 continuation();
+
+                // We don't open the ReadWaiting gate here because we are continuing to work with the previous buffer
+                // (since _awaitableState was _awaitableIsCompleted)
             }
             else
             {
@@ -287,8 +280,9 @@ namespace Channels
                     _awaitableIsCompleted);
 
                 Task.Run(continuation);
-                Task.Run(awaitableState);
+                Task.Run(_awaitableState);
             }
+
         }
 
         ReadableBuffer IReadableBufferAwaiter.GetBuffer()
@@ -312,20 +306,35 @@ namespace Channels
             Debug.Assert(Writing.IsCompleted, "Not completed writing");
             Debug.Assert(Reading.IsCompleted, "Not completed reading");
 
-            lock (_sync)
+            // Return all segments
+            var segment = _head;
+            while (segment != null)
             {
-                // Return all segments
-                var segment = _head;
-                while (segment != null)
-                {
-                    var returnSegment = segment;
-                    segment = segment.Next;
+                var returnSegment = segment;
+                segment = segment.Next;
 
-                    returnSegment.Dispose();
-                }
+                returnSegment.Dispose();
+            }
 
-                _head = null;
-                _tail = null;
+            _head = null;
+            _tail = null;
+        }
+
+        // Called by the WRITER
+        private void CancelWriter()
+        {
+            // Cancel the reader
+            _readingTcs.TrySetCanceled();
+
+            // Allow the reader to observe this
+            Complete();
+
+            // Allow the WriteAsync end to throw the OperationCanceledException
+            _readWaiting.Open();
+
+            if(Writing.IsCompleted)
+            {
+                Dispose();
             }
         }
     }
