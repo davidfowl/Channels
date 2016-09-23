@@ -2,6 +2,7 @@
 using System;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -23,7 +24,7 @@ namespace Channels.Networking.Sockets
 
         // track the state of which strategy to use; need to use a known-safe
         // strategy until we can decide which to use (by observing behavior)
-        private static BufferStyle _bufferStyle = BufferStyle.Unknown;
+        private static BufferStyle _bufferStyle;
         private static bool _seenReceiveZeroWithAvailable, _seenReceiveZeroWithEOF;
 
         private static readonly byte[] _zeroLengthBuffer = new byte[0];
@@ -34,6 +35,26 @@ namespace Channels.Networking.Sockets
         private Channel _input, _output;
         private Socket _socket;
 
+        static SocketConnection()
+        {
+
+            // validated styles for known OSes
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows) || RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+            {
+                // zero-length receive works fine
+                _bufferStyle = BufferStyle.UseZeroLengthBuffer;
+            }
+            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+            {
+                // zero-length receive is unreliable
+                _bufferStyle = BufferStyle.UseSmallBuffer;
+            }
+            else
+            {
+                // default to "figure it out based on what happens"
+                _bufferStyle = BufferStyle.Unknown;
+            }
+        }
         internal SocketConnection(Socket socket, ChannelFactory channelFactory)
         {
             socket.NoDelay = true;
@@ -291,7 +312,7 @@ namespace Channels.Networking.Sockets
                                 // socket reported EOF
                                 RecycleSmallBuffer(ref initialDataBuffer);
                             }
-                            if(Socket.Available == 0)
+                            if (Socket.Available == 0)
                             {
                                 // yup, definitely an EOF
                                 break;
