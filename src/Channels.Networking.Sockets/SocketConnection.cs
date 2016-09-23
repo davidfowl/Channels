@@ -322,7 +322,7 @@ namespace Channels.Networking.Sockets
                         bool isEOF = false;
                         while (Socket.Available != 0 && buffer.BytesWritten < FlushInputEveryBytes)
                         {
-                            buffer.Ensure(1); // ask for *something*, then use whatever is available (usually much much more)
+                            buffer.Ensure(); // ask for *something*, then use whatever is available (usually much much more)
                             SetBuffer(buffer.Memory, args);
                             if (Socket.ReceiveAsync(args)) //  initiator calls ReceiveAsync
                             {
