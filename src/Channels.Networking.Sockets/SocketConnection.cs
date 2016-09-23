@@ -35,8 +35,9 @@ namespace Channels.Networking.Sockets
             _input = ChannelFactory.CreateChannel();
             _output = ChannelFactory.CreateChannel();
 
-            ProcessReads();
-            ProcessWrites();
+            ShutdownSocketWhenWritingCompletedAsync();
+            ReceiveFromSocketAndPushToChannelAsync();
+            ReadFromChannelAndWriteToSocktAsync();
         }
 
         /// <summary>
@@ -99,6 +100,7 @@ namespace Channels.Networking.Sockets
         {
             if (args != null)
             {
+                args.SetBuffer(null, 0, 0); // make sure we don't keep a slab alive
                 Interlocked.Exchange(ref spare, args);
             }
         }
@@ -161,10 +163,30 @@ namespace Channels.Networking.Sockets
             var pending = (Signal)e.UserToken;
             pending.Set();
         }
+        
+        // TODO: consider a better pooling strategy here; small fragments of a larger buffer
+        // would be much cheaper, but is it too much tracking overhead? could use a 64*size
+        // buffer using a ulong as a bit-vector to track which blocks are in use, for example
+        static byte[] _recycledSmallBuffer;
 
-        static readonly byte[] ZeroLengthBuffer = new byte[0];
-
-        private async void ProcessReads()
+        private async void ShutdownSocketWhenWritingCompletedAsync()
+        {
+            // the intent of this is so that *external* callers can cause the
+            // socket to become shut down; a natural consequence is that this
+            // will also run if we shut it down from inside, but... that isn't
+            // a huge problem
+            try
+            {
+                await _input.Writing;
+            }
+            catch { } // lots of swallowing here; this is all in crazy conditions
+            try
+            {
+                Socket.Shutdown(SocketShutdown.Receive);
+            }
+            catch { }
+        }
+        private async void ReceiveFromSocketAndPushToChannelAsync()
         {
             SocketAsyncEventArgs args = null;
             try
@@ -180,12 +202,23 @@ namespace Channels.Networking.Sockets
                 await _input.ReadingStarted;
 
                 args = GetOrCreateSocketAsyncEventArgs();
+
                 while (!_input.Writing.IsCompleted)
                 {
+                    const int SmallBufferBytes = 8;
+                    byte[] initialDataBuffer = null;
+                    int bytesFromInitialDataBuffer = 0;
+
                     if (Socket.Available == 0)
                     {
-                        // do a zero-length read while we wait (async) for data
-                        args.SetBuffer(ZeroLengthBuffer, 0, 0);
+                        // We need  to do a speculative receive with a *cheap* buffer while we wait for input; it would be *nice* if
+                        // we could do a zero-length receive, but this is not supported equally on all platforms (fine on Windows, but
+                        // linux hates it). The key aim here is to make sure that we don't tie up an entire block from the memory pool
+                        // waiting for input on a socket; fine for 1 socket, not so fine for 100,000 sockets
+
+                        // do a short receive while we wait (async) for data
+                        initialDataBuffer = Interlocked.Exchange(ref _recycledSmallBuffer, null) ?? new byte[SmallBufferBytes];
+                        args.SetBuffer(initialDataBuffer, 0, initialDataBuffer.Length);
                         if (Socket.ReceiveAsync(args))
                         {
                             // wait async for the io work to be completed
@@ -200,23 +233,39 @@ namespace Channels.Networking.Sockets
                         // note we can't check BytesTransferred <= 0, as we always
                         // expect 0; but if we returned, we expect data to be
                         // buffered *on the socket*, else EOF
-                        if (args.BytesTransferred < 0 || Socket.Available == 0)
+                        if ((bytesFromInitialDataBuffer = args.BytesTransferred) <= 0)
                         {
                             // socket reported EOF
+                            Interlocked.Exchange(ref _recycledSmallBuffer, initialDataBuffer);
                             break;
                         }
                     }
 
-                    // now loop while there's data available (after which, we'll do another zero-length read)
-                    // note that we *could* use Read etc here, but it feels advisable to a: stick to one
-                    // API surface, and b: not make *too* many assumptions about the behavior
-                    while (Socket.Available != 0)
+
+                    // note that we will try to coalesce things here to reduce the number of flushes; we
+                    // certainly want to coalesce the initial buffer (from the speculative receive) with the initial
+                    // data, but we probably don't want to buffer indefinitely; for now, it will buffer up to 4 pages
+                    // before flushing (entirely arbitrarily) - might want to make this configurable later
+                    var  buffer = _input.Alloc(SmallBufferBytes * 2);
+                    const int FlushInputEveryBytes = 4 * MemoryPool.MaxPooledBlockLength;
+                    try
                     {
-                        // we need a buffer to read into
-                        var buffer = _input.Alloc(2048); // TODO: should this be controllable by the consumer?
-                        bool flushed = false;
-                        try
+                        if (initialDataBuffer != null)
                         {
+                            // need to account for anything that we got in the speculative receive
+                            if (bytesFromInitialDataBuffer != 0)
+                            {
+                                buffer.Write(new Span<byte>(initialDataBuffer, 0, bytesFromInitialDataBuffer));
+                            }
+                            // make the small buffer available to other consumers
+                            Interlocked.Exchange(ref _recycledSmallBuffer, initialDataBuffer);
+                            initialDataBuffer = null;
+                        }
+
+                        bool isEOF = false;
+                        while (Socket.Available != 0  && buffer.BytesWritten < FlushInputEveryBytes)
+                        {
+                            buffer.Ensure(1); // ask for *something*, then use whatever is available (usually much much more)
                             SetBuffer(buffer.Memory, args);
                             if (Socket.ReceiveAsync(args)) //  initiator calls ReceiveAsync
                             {
@@ -233,19 +282,21 @@ namespace Channels.Networking.Sockets
                             if (len <= 0)
                             {
                                 // socket reported EOF
+                                isEOF = true;
                                 break;
                             }
+
+                            // record what data we filled into the buffer
                             buffer.Advance(len);
-                            await buffer.FlushAsync();
-                            flushed = true;
                         }
-                        finally
+                        if (isEOF)
                         {
-                            if (!flushed)
-                            {
-                                await buffer.FlushAsync();
-                            }
+                            break;
                         }
+                    }
+                    finally
+                    {
+                        await buffer.FlushAsync();
                     }
                 }
                 _input.CompleteWriter();
@@ -262,16 +313,11 @@ namespace Channels.Networking.Sockets
             }
             finally
             {
-                try // we're not going to be reading anything else
-                {
-                    Socket.Shutdown(SocketShutdown.Receive);
-                }
-                catch { }
                 RecycleSocketAsyncEventArgs(args);
             }
         }
 
-        private async void ProcessWrites()
+        private async void ReadFromChannelAndWriteToSocktAsync()
         {
             SocketAsyncEventArgs args = null;
             try
