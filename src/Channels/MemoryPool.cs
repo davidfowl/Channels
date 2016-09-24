@@ -118,7 +118,7 @@ namespace Channels
         /// Internal method called when a block is requested and the pool is empty. It allocates one additional slab, creates all of the 
         /// block tracking objects, and adds them all to the pool.
         /// </summary>
-        private unsafe MemoryPoolBlock AllocateSlab()
+        private MemoryPoolBlock AllocateSlab()
         {
             var slab = MemoryPoolSlab.Create(_slabLength);
             _slabs.Push(slab);
@@ -126,7 +126,7 @@ namespace Channels
             _slabAllocationCallback?.Invoke(slab);
             slab._deallocationCallback = _slabDeallocationCallback;
 
-            var basePtr = (IntPtr)slab.Data.UnsafePointer;
+            var basePtr = slab.NativePointer;
             var firstOffset = (int)((_blockStride - 1) - ((ulong)(basePtr + _blockStride - 1) % _blockStride));
 
             var poolAllocationLength = _slabLength - _blockStride;

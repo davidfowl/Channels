@@ -14,7 +14,7 @@ namespace Channels
         private readonly int _offset;
         private readonly int _length;
 
-        public override Span<byte> Data => Slab.Data.Slice(_offset, _length);
+        public override Span<byte> Data => new Span<byte>(Slab.Array, _offset, _length);
 
         /// <summary>
         /// This object cannot be instantiated outside of the static Create method
