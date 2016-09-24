@@ -20,8 +20,9 @@ namespace Channels.Text.Primitives
         public static ReadableBuffer TrimStart(this ReadableBuffer buffer)
         {
             int start = 0;
-            foreach (var span in buffer)
+            foreach (var memory in buffer)
             {
+                var span = memory.Span;
                 for (int i = 0; i < span.Length; i++)
                 {
                     if (!IsWhitespaceChar(span[i]))
@@ -52,7 +53,7 @@ namespace Channels.Text.Primitives
             if (buffer.IsSingleSpan)
             {
                 // It fits!
-                textSpan = buffer.FirstSpan;
+                textSpan = buffer.First.Span;
             }
             else if (buffer.Length < 128) // REVIEW: What's a good number
             {
@@ -90,7 +91,7 @@ namespace Channels.Text.Primitives
             if (buffer.IsSingleSpan)
             {
                 // It fits!
-                addr = (byte*)buffer.FirstSpan.UnsafePointer;
+                addr = (byte*)buffer.First.UnsafePointer;
             }
             else if (len < 128) // REVIEW: What's a good number
             {
@@ -135,14 +136,14 @@ namespace Channels.Text.Primitives
                 int offset = 0;
                 var output = outputStart;
 
-                foreach (var span in buffer)
+                foreach (var memory in buffer)
                 {
-                    if (!AsciiUtilities.TryGetAsciiString((byte*)span.UnsafePointer, output + offset, span.Length))
+                    if (!AsciiUtilities.TryGetAsciiString((byte*)memory.UnsafePointer, output + offset, memory.Length))
                     {
                         throw new InvalidOperationException();
                     }
 
-                    offset += span.Length;
+                    offset += memory.Length;
                 }
             }
 
@@ -164,7 +165,7 @@ namespace Channels.Text.Primitives
 
             if (buffer.IsSingleSpan)
             {
-                textSpan = buffer.FirstSpan;
+                textSpan = buffer.First.Span;
             }
             else if (buffer.Length < 128) // REVIEW: What's a good number
             {

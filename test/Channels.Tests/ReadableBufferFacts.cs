@@ -187,7 +187,7 @@ namespace Channels.Tests
 
                 Assert.True(found);
                 var remaining = readBuffer.Slice(cursor);
-                Assert.True(remaining.FirstSpan.UnsafePointer == addresses[i]);
+                Assert.True((byte*)remaining.First.UnsafePointer == addresses[i]);
             }
         }
 
@@ -235,7 +235,7 @@ namespace Channels.Tests
 
         private unsafe void TestValue(ref ReadableBuffer readBuffer, ulong value)
         {
-            byte* ptr = (byte*)readBuffer.FirstSpan.UnsafePointer;
+            var ptr = (byte*)readBuffer.First.UnsafePointer;
             string s = value.ToString(CultureInfo.InvariantCulture);
             int written;
             fixed (char* c = s)

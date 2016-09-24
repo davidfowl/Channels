@@ -14,26 +14,30 @@ namespace Channels
         private readonly int _offset;
         private readonly int _length;
 
-        public override Span<byte> Data => new Span<byte>(Slab.Array, _offset, _length);
+        public override Memory<byte> Data { get; }
 
         /// <summary>
         /// This object cannot be instantiated outside of the static Create method
         /// </summary>
-        protected MemoryPoolBlock(int offset, int length)
+        protected unsafe MemoryPoolBlock(MemoryPool pool, MemoryPoolSlab slab, int offset, int length)
         {
             _offset = offset;
             _length = length;
+            Data = new Memory<byte>(slab.Array, offset, length, (byte*)slab.NativePointer);
+
+            Pool = pool;
+            Slab = slab;
         }
 
         /// <summary>
         /// Back-reference to the memory pool which this block was allocated from. It may only be returned to this pool.
         /// </summary>
-        public MemoryPool Pool { get; private set; }
+        public MemoryPool Pool { get; }
 
         /// <summary>
         /// Back-reference to the slab from which this block was taken, or null if it is one-time-use memory.
         /// </summary>
-        public MemoryPoolSlab Slab { get; private set; }
+        public MemoryPoolSlab Slab { get; }
 
 #if DEBUG
         public bool IsLeased { get; set; }
@@ -48,11 +52,7 @@ namespace Channels
             if (Slab != null && Slab.IsActive)
             {
                 // Need to make a new object because this one is being finalized
-                Pool.Return(new MemoryPoolBlock(_offset, _length)
-                {
-                    Pool = Pool,
-                    Slab = Slab
-                });
+                Pool.Return(new MemoryPoolBlock(Pool, Slab, _offset, _length));
             }
         }
 
@@ -62,10 +62,8 @@ namespace Channels
             MemoryPool pool,
             MemoryPoolSlab slab)
         {
-            return new MemoryPoolBlock(offset, length)
+            return new MemoryPoolBlock(pool, slab, offset, length)
             {
-                Pool = pool,
-                Slab = slab,
 #if DEBUG
                 Leaser = Environment.StackTrace,
 #endif
@@ -80,7 +78,7 @@ namespace Channels
         public override string ToString()
         {
             var builder = new StringBuilder();
-            var data = Data;
+            var data = Data.Span;
 
             for (int i = 0; i < data.Length; i++)
             {

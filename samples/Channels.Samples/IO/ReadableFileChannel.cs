@@ -100,8 +100,8 @@ namespace Channels.Samples.IO
             {
                 var buffer = Channel.Alloc(2048);
 
-                var data = (IntPtr)buffer.Memory.UnsafePointer;
-                var count = buffer.Memory.Length;
+                var data = (IntPtr)buffer.RawMemory.UnsafePointer;
+                var count = buffer.RawMemory.Length;
 
                 var overlapped = ThreadPoolBoundHandle.AllocateNativeOverlapped(PreAllocatedOverlapped);
                 overlapped->OffsetLow = Offset;

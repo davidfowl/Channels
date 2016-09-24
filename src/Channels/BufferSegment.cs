@@ -78,7 +78,7 @@ namespace Channels
         public override string ToString()
         {
             var builder = new StringBuilder();
-            var data = Buffer.Data.Slice(Start, Length);
+            var data = Buffer.Data.Slice(Start, Length).Span;
 
             for (int i = 0; i < Length; i++)
             {

@@ -24,6 +24,11 @@ namespace Channels
         public Span<byte> Memory => _channel.Memory;
 
         /// <summary>
+        /// Available memory. <see cref="Memory"/> gives you access to the backing memory.
+        /// </summary>
+        public Memory<byte> RawMemory => _channel.RawMemory;
+
+        /// <summary>
         /// Returns the number of bytes currently written and uncommitted.
         /// </summary>
         public int BytesWritten => AsReadableBuffer().Length;
