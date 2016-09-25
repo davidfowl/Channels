@@ -40,7 +40,7 @@ namespace Channels
         public bool IsSingleSpan => _start.Segment == _end.Segment;
 
         /// <summary>
-        /// The first <see cref="Memory"/> in the <see cref="ReadableBuffer"/>.
+        /// The first <see cref="Memory{Byte}"/> in the <see cref="ReadableBuffer"/>.
         /// </summary>
         public Memory<byte> First => _first;
 
