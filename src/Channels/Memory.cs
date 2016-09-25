@@ -13,10 +13,6 @@ namespace Channels
         private readonly int _offset;
         private readonly unsafe void* _memory;
         private readonly int _memoryLength;
-        // If the array passed in is pinned, then unsafe pointer is safe to access even though
-        // it's backed by an array, this is an optimization that the creator of Memory<T> can do so
-        // that the consumer doesn't need to pin/unpin per operation
-        private readonly bool _isPinned;
 
         public unsafe Memory(void* pointer, int offset, int length)
         {
@@ -28,7 +24,6 @@ namespace Channels
             _array = null;
             _offset = offset;
             _memoryLength = length;
-            _isPinned = true;
         }
 
         public unsafe Memory(T[] array, int offset, int length, bool isPinned = false)
@@ -49,7 +44,6 @@ namespace Channels
             _array = array;
             _offset = offset;
             _memoryLength = length;
-            _isPinned = isPinned;
         }
 
         public Span<T> Span => this;
@@ -80,10 +74,11 @@ namespace Channels
         {
             get
             {
-                if (!_isPinned)
+                if (_memory == null)
                 {
                     throw new InvalidOperationException("The native pointer isn't available because the memory isn't pinned");
                 }
+
                 return (byte*)_memory + (Unsafe.SizeOf<T>() * _offset);
             }
         }
@@ -98,7 +93,7 @@ namespace Channels
                 return new Memory<T>(_memory, _offset + offset, length);
             }
 
-            return new Memory<T>(_array, _offset + offset, length, _isPinned);
+            return new Memory<T>(_array, _offset + offset, length, _memory != null);
         }
 
         public bool TryGetArray(out ArraySegment<T> buffer)
