@@ -23,7 +23,7 @@ namespace Channels
         {
             _offset = offset;
             _length = length;
-            Data = new Memory<byte>(slab.Array, offset, length, (byte*)slab.NativePointer);
+            Data = new Memory<byte>(slab.Array, offset, length, isPinned: true);
 
             Pool = pool;
             Slab = slab;
