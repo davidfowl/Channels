@@ -30,7 +30,7 @@ namespace Channels.Text.Primitives
                     var charsThisBatch = Math.Min(remainingChars, memory.Length / bytesPerChar);
 
                     int bytesWritten = encoding.GetBytes(s + charOffset, charsThisBatch,
-                        (byte*)buffer.Memory.UnsafePointer, memory.Length);
+                        (byte*)memory.UnsafePointer, memory.Length);
 
                     charOffset += charsThisBatch;
                     remainingChars -= charsThisBatch;

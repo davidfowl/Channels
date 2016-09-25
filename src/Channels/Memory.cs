@@ -11,15 +11,12 @@ namespace Channels
     {
         private readonly T[] _array;
         private readonly int _offset;
+        private readonly unsafe void* _memory;
         private readonly int _memoryLength;
-
-        private GCHandle _handle;
-        private unsafe void* _memory;
-
         // If the array passed in is pinned, then unsafe pointer is safe to access even though
         // it's backed by an array, this is an optimization that the creator of Memory<T> can do so
         // that the consumer doesn't need to pin/unpin per operation
-        private bool _isUnsafePointerSafe;
+        private readonly bool _isPinned;
 
         public unsafe Memory(void* pointer, int offset, int length)
         {
@@ -31,8 +28,7 @@ namespace Channels
             _array = null;
             _offset = offset;
             _memoryLength = length;
-            _isUnsafePointerSafe = true;
-            _handle = default(GCHandle);
+            _isPinned = true;
         }
 
         public unsafe Memory(T[] array, int offset, int length, bool isPinned = false)
@@ -53,8 +49,7 @@ namespace Channels
             _array = array;
             _offset = offset;
             _memoryLength = length;
-            _isUnsafePointerSafe = isPinned;
-            _handle = default(GCHandle);
+            _isPinned = isPinned;
         }
 
         public Span<T> Span => this;
@@ -81,43 +76,13 @@ namespace Channels
             }
         }
 
-        public void Pin()
-        {
-            if (!_isUnsafePointerSafe)
-            {
-                _handle = GCHandle.Alloc(_array, GCHandleType.Pinned);
-                unsafe
-                {
-                    _memory = (void*)_handle.AddrOfPinnedObject();
-                }
-
-                // This type isn't thread safe
-                _isUnsafePointerSafe = true;
-            }
-        }
-
-        public void Unpin()
-        {
-            if (_handle.IsAllocated)
-            {
-                _handle.Free();
-
-                unsafe
-                {
-                    _memory = null;
-                }
-
-                _isUnsafePointerSafe = false;
-            }
-        }
-
         public unsafe void* UnsafePointer
         {
             get
             {
-                if (!_isUnsafePointerSafe)
+                if (!_isPinned)
                 {
-                    throw new InvalidOperationException("Use Pin() to safely access the native pointer.");
+                    throw new InvalidOperationException("The native pointer isn't available because the memory isn't pinned");
                 }
                 return (byte*)_memory + (Unsafe.SizeOf<T>() * _offset);
             }
@@ -133,7 +98,7 @@ namespace Channels
                 return new Memory<T>(_memory, _offset + offset, length);
             }
 
-            return new Memory<T>(_array, _offset + offset, length, _isUnsafePointerSafe);
+            return new Memory<T>(_array, _offset + offset, length, _isPinned);
         }
 
         public bool TryGetArray(out ArraySegment<T> buffer)

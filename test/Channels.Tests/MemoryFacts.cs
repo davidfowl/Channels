@@ -23,18 +23,6 @@ namespace Channels.Tests
         }
 
         [Fact]
-        public void UnsafePointerDoesNotThrowIfPinned()
-        {
-            var data = new byte[10];
-            var memory = new Memory<byte>(data, 0, data.Length);
-            memory.Pin();
-            unsafe
-            {
-                Assert.True(Unsafe.AsPointer(ref data[0]) == memory.UnsafePointer);
-            }
-        }
-
-        [Fact]
         public void UnsafePointerSafeWithoutPinningIfNativeMemory()
         {
             unsafe
