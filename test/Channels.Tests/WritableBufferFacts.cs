@@ -225,8 +225,9 @@ namespace Channels.Tests
 
                 random = new Random(SEED);
                 int correctCount = 0;
-                foreach (var span in readable)
+                foreach (var memory in readable)
                 {
+                    var span = memory.Span;
                     for (int i = 0; i < span.Length; i++)
                     {
                         if (span[i] == (byte)random.Next(0, 256)) correctCount++;

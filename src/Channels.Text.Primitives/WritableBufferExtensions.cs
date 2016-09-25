@@ -49,20 +49,20 @@ namespace Channels.Text.Primitives
             if (value < 10)
             {
                 buffer.Ensure(len = 1);
-                var span = buffer.Memory;
+                var span = buffer.Memory.Span;
                 span[0] = (byte)('0' + value);
             }
             else if (value < 100)
             {
                 buffer.Ensure(len = 2);
-                var span = buffer.Memory;
+                var span = buffer.Memory.Span;
                 span[0] = (byte)('0' + value / 10);
                 span[1] = (byte)('0' + value % 10);
             }
             else if (value < 1000)
             {
                 buffer.Ensure(len = 3);
-                var span = buffer.Memory;
+                var span = buffer.Memory.Span;
                 span[2] = (byte)('0' + value % 10);
                 value /= 10;
                 span[0] = (byte)('0' + value / 10);
@@ -85,7 +85,7 @@ namespace Channels.Text.Primitives
                 // now we'll walk *backwards* from the last character, adding the digit each time
                 // and dividing by 10
                 int index = len - 1;
-                var span = buffer.Memory;
+                var span = buffer.Memory.Span;
 
                 do
                 {

@@ -8,7 +8,7 @@ namespace Channels
         private object _lockObj = new object();
         private int _referenceCount = 1;
 
-        public abstract Span<byte> Data { get; }
+        public abstract Memory<byte> Data { get; }
 
         protected abstract void DisposeBuffer();
 

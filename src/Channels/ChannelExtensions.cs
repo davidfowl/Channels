@@ -85,21 +85,18 @@ namespace Channels
                         return;
                     }
 
-                    foreach (var span in inputBuffer)
+                    foreach (var memory in inputBuffer)
                     {
                         ArraySegment<byte> buffer;
 
-                        unsafe
+                        if (!memory.TryGetArray(out buffer))
                         {
-                            if (!span.TryGetArray(null, out buffer))
-                            {
-                                // Fall back to copies if this was native memory and we were unable to get
-                                //  something we could write
-                                buffer = new ArraySegment<byte>(span.CreateArray());
-                            }
+                            // Fall back to copies if this was native memory and we were unable to get
+                            //  something we could write
+                            buffer = new ArraySegment<byte>(memory.Span.CreateArray());
                         }
 
-                        await stream.WriteAsync(buffer.Array, buffer.Offset, span.Length);
+                        await stream.WriteAsync(buffer.Array, buffer.Offset, buffer.Count);
 
                     }
                 }

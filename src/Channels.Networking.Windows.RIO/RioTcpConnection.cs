@@ -63,7 +63,7 @@ namespace Channels.Networking.Windows.RIO
         private void ProcessReceives()
         {
             _buffer = _input.Alloc(2048);
-            var receiveBufferSeg = GetSegmentFromSpan(_buffer.Memory);
+            var receiveBufferSeg = GetSegmentFromMemory(_buffer.Memory);
 
             if (!_rio.RioReceive(_requestQueue, ref receiveBufferSeg, 1, RioReceiveFlags.None, 0))
             {
@@ -109,16 +109,16 @@ namespace Channels.Networking.Windows.RIO
             _output.CompleteReader();
         }
 
-        private Task SendAsync(Span<byte> span, bool endOfMessage)
+        private Task SendAsync(Memory<byte> memory, bool endOfMessage)
         {
             if (!IsReadyToSend)
             {
-                return SendAsyncAwaited(span, endOfMessage);
+                return SendAsyncAwaited(memory, endOfMessage);
             }
 
             var flushSends = endOfMessage || MaxOutstandingSendsReached;
 
-            Send(GetSegmentFromSpan(span), flushSends);
+            Send(GetSegmentFromMemory(memory), flushSends);
 
             if (flushSends && !endOfMessage)
             {
@@ -128,13 +128,13 @@ namespace Channels.Networking.Windows.RIO
             return _completedTask;
         }
 
-        private async Task SendAsyncAwaited(Span<byte> span, bool endOfMessage)
+        private async Task SendAsyncAwaited(Memory<byte> memory, bool endOfMessage)
         {
             await ReadyToSend;
 
             var flushSends = endOfMessage || MaxOutstandingSendsReached;
 
-            Send(GetSegmentFromSpan(span), flushSends);
+            Send(GetSegmentFromMemory(memory), flushSends);
 
             if (flushSends && !endOfMessage)
             {
@@ -217,9 +217,9 @@ namespace Channels.Networking.Windows.RIO
             _buffer.FlushAsync();
         }
 
-        private unsafe RioBufferSegment GetSegmentFromSpan(Span<byte> span)
+        private unsafe RioBufferSegment GetSegmentFromMemory(Memory<byte> memory)
         {
-            IntPtr spanPtr = (IntPtr)span.UnsafePointer;
+            var spanPtr = (IntPtr)memory.UnsafePointer;
             long startAddress;
             long spanAddress = spanPtr.ToInt64();
             var bufferId = _rioThread.GetBufferId(spanPtr, out startAddress);
@@ -227,7 +227,7 @@ namespace Channels.Networking.Windows.RIO
             checked
             {
                 var offset = (uint)(spanAddress - startAddress);
-                return new RioBufferSegment(bufferId, offset, (uint)span.Length);
+                return new RioBufferSegment(bufferId, offset, (uint)memory.Length);
             }
         }
 

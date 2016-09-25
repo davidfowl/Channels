@@ -15,8 +15,8 @@ namespace Channels
         IBuffer Preserve(int offset, int length);
 
         /// <summary>
-        /// The underlying span of data this <see cref="IBuffer"/> represents
+        /// Raw representation of the underlying data this <see cref="IBuffer"/> represents
         /// </summary>
-        Span<byte> Data { get; }
+        Memory<byte> Data { get; }
     }
 }

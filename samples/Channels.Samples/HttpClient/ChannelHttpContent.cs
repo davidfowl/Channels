@@ -40,17 +40,17 @@ namespace Channels.Samples
 
                     var data = inputBuffer.Slice(0, remaining);
 
-                    foreach (var span in data)
+                    foreach (var memory in data)
                     {
                         ArraySegment<byte> buffer;
 
                         unsafe
                         {
-                            if (!span.TryGetArray(null, out buffer))
+                            if (!memory.TryGetArray(out buffer))
                             {
                                 // Fall back to copies if this was native memory and we were unable to get
                                 //  something we could write
-                                buffer = new ArraySegment<byte>(span.CreateArray());
+                                buffer = new ArraySegment<byte>(memory.Span.CreateArray());
                             }
                         }
 

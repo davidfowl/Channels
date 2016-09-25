@@ -84,7 +84,7 @@ namespace Channels.Networking.Sockets
                 obj = new SocketAsyncEventArgs();
                 obj.Completed += _asyncCompleted; // only for new, otherwise multi-fire
             }
-            if(obj.UserToken is Signal)
+            if (obj.UserToken is Signal)
             {
                 ((Signal)obj.UserToken).Reset();
             }
@@ -257,9 +257,10 @@ namespace Channels.Networking.Sockets
                         {
                             break;
                         }
-                        foreach (var span in buffer)
+
+                        foreach (var memory in buffer)
                         {
-                            SetBuffer(span, args);
+                            SetBuffer(memory, args);
 
                             if (Socket.SendAsync(args)) //  initiator calls SendAsync
                             {
@@ -275,7 +276,7 @@ namespace Channels.Networking.Sockets
                             {
                                 throw new SocketException((int)args.SocketError);
                             }
-                            if (args.BytesTransferred != span.Length)
+                            if (args.BytesTransferred != memory.Length)
                             {
                                 throw new NotImplementedException("We didn't send everything; oops!");
                             }
@@ -310,11 +311,10 @@ namespace Channels.Networking.Sockets
         }
 
         // unsafe+async not good friends
-        private unsafe void SetBuffer(Span<byte> span, SocketAsyncEventArgs args)
+        private unsafe void SetBuffer(Memory<byte> memory, SocketAsyncEventArgs args)
         {
             ArraySegment<byte> segment;
-            void* ignoredPointer;
-            if (!span.TryGetArrayElseGetPointer(out segment, out ignoredPointer))
+            if (!memory.TryGetArray(out segment))
             {
                 throw new InvalidOperationException("Memory is not backed by an array; oops!");
             }
