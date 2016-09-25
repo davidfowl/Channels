@@ -157,8 +157,6 @@ namespace Channels.Networking.Libuv
                 handle.ReadStop();
             }
 
-            _inputBuffer.Advance(readCount);
-
             IOException error = null;
             if (errorDone)
             {
@@ -176,6 +174,8 @@ namespace Channels.Networking.Libuv
             }
             else
             {
+                _inputBuffer.Advance(readCount);
+
                 var task = _inputBuffer.FlushAsync();
 
                 if (!task.IsCompleted)
