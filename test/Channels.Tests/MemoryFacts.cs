@@ -59,5 +59,54 @@ namespace Channels.Tests
                 }
             }
         }
+
+        [Fact]
+        public void SliceArrayBackedMemory()
+        {
+            var data = new byte[10];
+
+            for (int i = 0; i < 10; i++)
+            {
+                data[i] = (byte)i;
+            }
+
+            var memory = new Memory<byte>(data, 0, data.Length);
+            var slice = memory.Slice(0, 5);
+            var span = slice.Span;
+            for (int i = 0; i < 5; i++)
+            {
+                Assert.Equal(i, span[i]);
+            }
+
+            var subSlice = slice.Slice(2, 1);
+            Assert.Equal(2, subSlice.Span[0]);
+        }
+
+        [Fact]
+        public void SlicePointerBackedMemory()
+        {
+            unsafe
+            {
+                var data = new byte[10];
+                for (int i = 0; i < 10; i++)
+                {
+                    data[i] = (byte)i;
+                }
+
+                fixed (byte* ptr = data)
+                {
+                    var memory = new Memory<byte>(ptr, 0, data.Length);
+                    var slice = memory.Slice(0, 5);
+                    var span = slice.Span;
+                    for (int i = 0; i < 5; i++)
+                    {
+                        Assert.Equal(i, span[i]);
+                    }
+
+                    var subSlice = slice.Slice(2, 1);
+                    Assert.Equal(2, subSlice.Span[0]);
+                }
+            }
+        }
     }
 }

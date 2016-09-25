@@ -76,7 +76,7 @@ namespace Channels
             {
                 unsafe
                 {
-                    return new Span<T>(memory._memory, memory._memoryLength);
+                    return new Span<T>(memory.UnsafePointer, memory._memoryLength);
                 }
             }
         }
@@ -130,7 +130,7 @@ namespace Channels
             // TODO: Bounds check
             if (_array == null)
             {
-                return new Memory<T>(_memory, offset, length);
+                return new Memory<T>(_memory, _offset + offset, length);
             }
 
             return new Memory<T>(_array, _offset + offset, length, _isUnsafePointerSafe);
