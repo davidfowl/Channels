@@ -420,7 +420,7 @@ namespace Channels
                 _readingTcs.TrySetResult(null);
             }
 
-            Complete();
+            FlushAsync();
         }
 
         void IReadableChannel.Complete(Exception exception) => CompleteReader(exception);
