@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 
 namespace Channels
 {
@@ -26,6 +27,8 @@ namespace Channels
         {
             lock (_lockObj)
             {
+                Debug.Assert(_referenceCount >= 0, "Too many calls to dispose!");
+
                 _referenceCount--;
 
                 if (_referenceCount == 0)
