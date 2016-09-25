@@ -70,7 +70,7 @@ namespace Channels.Samples.IO.Compression
                     {
                         unsafe
                         {
-                            int written = _deflater.ReadDeflateOutput((IntPtr)writerBuffer.RawMemory.UnsafePointer, writerBuffer.Memory.Length);
+                            int written = _deflater.ReadDeflateOutput((IntPtr)writerBuffer.Memory.UnsafePointer, writerBuffer.Memory.Length);
                             writerBuffer.Advance(written);
                         }
                     }
@@ -89,7 +89,7 @@ namespace Channels.Samples.IO.Compression
                 {
                     // Need to do more stuff here
                     var writerBuffer = output.Alloc(2048);
-                    var memory = writerBuffer.RawMemory;
+                    var memory = writerBuffer.Memory;
 
                     unsafe
                     {
@@ -107,7 +107,7 @@ namespace Channels.Samples.IO.Compression
                 {
                     // Need to do more stuff here
                     var writerBuffer = output.Alloc(2048);
-                    var memory = writerBuffer.RawMemory;
+                    var memory = writerBuffer.Memory;
 
                     unsafe
                     {

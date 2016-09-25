@@ -63,7 +63,7 @@ namespace Channels.Networking.Windows.RIO
         private void ProcessReceives()
         {
             _buffer = _input.Alloc(2048);
-            var receiveBufferSeg = GetSegmentFromMemory(_buffer.RawMemory);
+            var receiveBufferSeg = GetSegmentFromMemory(_buffer.Memory);
 
             if (!_rio.RioReceive(_requestQueue, ref receiveBufferSeg, 1, RioReceiveFlags.None, 0))
             {

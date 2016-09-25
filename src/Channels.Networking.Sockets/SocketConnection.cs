@@ -185,7 +185,7 @@ namespace Channels.Networking.Sockets
                     bool flushed = false;
                     try
                     {
-                        SetBuffer(buffer.RawMemory, args);
+                        SetBuffer(buffer.Memory, args);
                         if (Socket.ReceiveAsync(args)) //  initiator calls ReceiveAsync
                         {
                             // wait async for the io work to be completed

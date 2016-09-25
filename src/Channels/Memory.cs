@@ -39,6 +39,8 @@ namespace Channels
 
         public Span<T> Span => this;
 
+        public bool IsEmpty => Length == 0;
+
         public static implicit operator Span<T>(Memory<T> memory)
         {
             if (memory.Length == 0)

@@ -59,7 +59,7 @@ namespace Channels
         {
             int len = Unsafe.SizeOf<T>();
             buffer.Ensure(len);
-            buffer.Memory.WriteBigEndian(value);
+            buffer.Memory.Span.WriteBigEndian(value);
             buffer.Advance(len);
         }
 
@@ -71,7 +71,7 @@ namespace Channels
         {
             int len = Unsafe.SizeOf<T>();
             buffer.Ensure(len);
-            buffer.Memory.WriteLittleEndian(value);
+            buffer.Memory.Span.WriteLittleEndian(value);
             buffer.Advance(len);
         }
     }
