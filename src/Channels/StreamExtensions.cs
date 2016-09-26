@@ -101,6 +101,9 @@ namespace Channels
             // *gasp* Async Void!? It works here because we still have _channel.Writing to track completion.
             internal async void Produce(CancellationToken cancellationToken)
             {
+                // Wait for a reader
+                await _channel.ReadingStarted;
+
                 try
                 {
                     // We have to provide a buffer size in order to provide a cancellation token. Weird but meh.

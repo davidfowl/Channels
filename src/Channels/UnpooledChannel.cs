@@ -128,6 +128,14 @@ namespace Channels
                 // Wait for another read to come (or for the end of Reading, which will also trigger this gate to open) in before returning
                 await _readWaiting;
 
+                // We need to preserve any buffers that haven't been consumed
+                var current = _head;
+                while (current != null)
+                {
+                    current.Buffer = current.Buffer.Preserve(0, current.Buffer.Data.Length);
+                    current = current.Next;
+                }
+
                 // Cancel this task if this write is cancelled
                 cancellationToken.ThrowIfCancellationRequested();
             }

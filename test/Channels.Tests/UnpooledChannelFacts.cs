@@ -7,7 +7,7 @@ using Xunit;
 
 namespace Channels.Tests
 {
-    public class UnpooledBufferFacts
+    public class UnpooledChannelFacts
     {
         [Fact]
         public async Task CanConsumeData()
@@ -158,22 +158,19 @@ namespace Channels.Tests
             int index = 0;
             var message = "Hello World";
 
-            while (true)
+            while (index <= message.Length)
             {
                 var buffer = await channel.ReadAsync();
 
-                if (buffer.IsEmpty && channel.Reading.IsCompleted)
-                {
-                    // Done
-                    break;
-                }
+                var ch = Encoding.UTF8.GetString(buffer.Slice(0, index).ToArray());
+                Assert.Equal(message.Substring(0, index), ch);
 
-                var ch = (char)buffer.FirstSpan[0];
-                Assert.Equal(message[index++], ch);
-                channel.Advance(buffer.Start.Seek(1));
+                // Never consume, to force buffers to be copied
+                channel.Advance(buffer.Start, buffer.Start.Seek(index));
+                index++;
             }
 
-            Assert.Equal(message.Length, index);
+            Assert.Equal(message.Length + 1, index);
         }
 
         [Fact]

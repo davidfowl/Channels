@@ -34,7 +34,7 @@ namespace Channels
         /// <param name="consumed">Marks the extent of the data that has been succesfully proceesed.</param>
         /// <param name="examined">Marks the extent of the data that has been read and examined.</param>
         /// <remarks>
-        /// The memory for the consumed data will be released and no longer available. 
+        /// The memory for the consumed data will be released and no longer available.
         /// The examined data communicates to the channel when it should signal more data is available.
         /// </remarks>
         public void Advance(ReadCursor consumed, ReadCursor examined) => _channel.AdvanceReader(consumed, examined);
