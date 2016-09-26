@@ -150,11 +150,11 @@ namespace Channels
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal bool TryGetBuffer(ReadCursor end, out BufferSpan span, out ReadCursor cursor)
+        internal bool TryGetBuffer(ReadCursor end, out Memory<byte> span, out ReadCursor cursor)
         {
             if (IsDefault)
             {
-                span = default(BufferSpan);
+                span = default(Memory<byte>);
                 cursor = this;
                 return false;
             }
@@ -168,12 +168,12 @@ namespace Channels
 
                 if (following > 0)
                 {
-                    span = new BufferSpan(segment.Buffer, index, following);
+                    span = segment.Buffer.Data.Slice(index, following);
                     cursor = new ReadCursor(segment, index + following);
                     return true;
                 }
 
-                span = default(BufferSpan);
+                span = default(Memory<byte>);
                 cursor = this;
                 return false;
             }
@@ -183,7 +183,7 @@ namespace Channels
             }
         }
 
-        private bool TryGetBufferMultiBlock(ReadCursor end, out BufferSpan span, out ReadCursor cursor)
+        private bool TryGetBufferMultiBlock(ReadCursor end, out Memory<byte> span, out ReadCursor cursor)
         {
             var segment = _segment;
             var index = _index;
@@ -215,7 +215,7 @@ namespace Channels
 
                 if (wasLastSegment)
                 {
-                    span = default(BufferSpan);
+                    span = default(Memory<byte>);
                     cursor = this;
                     return false;
                 }
@@ -226,7 +226,7 @@ namespace Channels
                 }
             }
 
-            span = new BufferSpan(segment.Buffer, index, following);
+            span = segment.Buffer.Data.Slice(index, following);
             cursor = new ReadCursor(segment, index + following);
             return true;
         }
@@ -234,7 +234,7 @@ namespace Channels
         public override string ToString()
         {
             var sb = new StringBuilder();
-            var span = Segment.Buffer.Data.Slice(Index, Segment.End - Index);
+            Span<byte> span = Segment.Buffer.Data.Slice(Index, Segment.End - Index);
             for (int i = 0; i < span.Length; i++)
             {
                 sb.Append((char)span[i]);

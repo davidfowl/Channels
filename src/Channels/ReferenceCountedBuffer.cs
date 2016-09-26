@@ -1,31 +1,43 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading;
-using System.Threading.Tasks;
+using System.Diagnostics;
 
 namespace Channels
 {
     public abstract class ReferenceCountedBuffer : IBuffer
     {
+        private object _lockObj = new object();
         private int _referenceCount = 1;
 
-        public abstract Span<byte> Data { get; }
+        public abstract Memory<byte> Data { get; }
 
         protected abstract void DisposeBuffer();
 
         public IBuffer Preserve(int offset, int count)
         {
+            lock (_lockObj)
+            {
+                _referenceCount++;
+            }
+
             // Ignore the offset and count, we're just going to reference count the buffer
-            Interlocked.Increment(ref _referenceCount);
             return this;
         }
 
         public void Dispose()
         {
-            if (Interlocked.Decrement(ref _referenceCount) == 0)
+            lock (_lockObj)
             {
-                DisposeBuffer();
+                Debug.Assert(_referenceCount >= 0, "Too many calls to dispose!");
+
+                _referenceCount--;
+
+                if (_referenceCount == 0)
+                {
+                    DisposeBuffer();
+
+                    // Reset the reference count after disposing this buffer
+                    _referenceCount = 1;
+                }
             }
         }
     }

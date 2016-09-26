@@ -60,13 +60,13 @@ namespace Channels.Samples.Http
         private string GetHeaderKey(ref ReadableBuffer key)
         {
             // Uppercase the things
-            foreach (var span in key)
+            foreach (var memory in key)
             {
-                var data = span;
-                for (int i = 0; i < span.Length; i++)
+                var data = memory.Span;
+                for (int i = 0; i < memory.Length; i++)
                 {
-                    var mask = IsAlpha(span[i]) ? 0xdf : 0xff;
-                    data[i] = (byte)(span[i] & mask);
+                    var mask = IsAlpha(data[i]) ? 0xdf : 0xff;
+                    data[i] = (byte)(data[i] & mask);
                 }
             }
 

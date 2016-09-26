@@ -14,28 +14,18 @@ namespace Channels
         /// relocated and enables any subsections of the array to be used as native memory pointers to P/Invoked API calls.
         /// </summary>
         private readonly GCHandle _gcHandle;
+        private readonly IntPtr _nativePointer;
         private byte[] _data;
-
-        // Native
-        private readonly IntPtr _nativeData;
-        private readonly int _length;
 
         private bool _isActive;
         internal Action<MemoryPoolSlab> _deallocationCallback;
         private bool _disposedValue;
 
-        public MemoryPoolSlab(IntPtr data, int length)
-        {
-            _nativeData = data;
-            _length = length;
-            _isActive = true;
-        }
-
         public MemoryPoolSlab(byte[] data)
         {
             _data = data;
-            _length = data.Length;
             _gcHandle = GCHandle.Alloc(data, GCHandleType.Pinned);
+            _nativePointer = _gcHandle.AddrOfPinnedObject();
             _isActive = true;
         }
 
@@ -49,15 +39,11 @@ namespace Channels
         /// </summary>
         public bool IsActive => _isActive;
 
-        /// <summary>
-        /// The span of data this slab represents
-        /// </summary>
-        public unsafe Span<byte> Data => _nativeData == IntPtr.Zero ? new Span<byte>(_data, 0, _data.Length) : new Span<byte>((byte*)_nativeData, _length);
+        public IntPtr NativePointer => _nativePointer;
 
-        public static MemoryPoolSlab CreateNative(int length)
-        {
-            return new MemoryPoolSlab(Marshal.AllocHGlobal(length), length);
-        }
+        public byte[] Array => _data;
+
+        public int Length => _data.Length;
 
         public static MemoryPoolSlab Create(int length)
         {
@@ -84,10 +70,6 @@ namespace Channels
                 if (_gcHandle.IsAllocated)
                 {
                     _gcHandle.Free();
-                }
-                else
-                {
-                    Marshal.FreeHGlobal(_nativeData);
                 }
 
                 // set large fields to null.

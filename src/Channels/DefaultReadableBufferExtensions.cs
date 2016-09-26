@@ -15,9 +15,9 @@ namespace Channels
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static T ReadBigEndian<[Primitive]T>(this ReadableBuffer buffer) where T : struct
         {
-            var span = buffer.FirstSpan;
+            var memory = buffer.First;
             int len = Unsafe.SizeOf<T>();
-            var value = span.Length >= len ? span.ReadBigEndian<T>() : ReadMultiBig<T>(buffer, len);
+            var value = memory.Length >= len ? memory.Span.ReadBigEndian<T>() : ReadMultiBig<T>(buffer, len);
             return value;
         }
 
@@ -27,9 +27,9 @@ namespace Channels
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static T ReadLittleEndian<[Primitive]T>(this ReadableBuffer buffer) where T : struct
         {
-            var span = buffer.FirstSpan;
+            var memory = buffer.First;
             int len = Unsafe.SizeOf<T>();
-            var value = span.Length >= len ? span.ReadLittleEndian<T>() : ReadMultiLittle<T>(buffer, len);
+            var value = memory.Length >= len ? memory.Span.ReadLittleEndian<T>() : ReadMultiLittle<T>(buffer, len);
             return value;
         }
 

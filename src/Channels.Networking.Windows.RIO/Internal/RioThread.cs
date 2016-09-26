@@ -120,22 +120,22 @@ namespace Channels.Networking.Windows.RIO.Internal
         {
             lock (_bufferIdMappings)
             {
-                var memoryPtr = (IntPtr)slab.Data.UnsafePointer;
-                var bufferId = _rio.RioRegisterBuffer(memoryPtr, (uint)slab.Data.Length);
+                var memoryPtr = slab.NativePointer;
+                var bufferId = _rio.RioRegisterBuffer(memoryPtr, (uint)slab.Length);
                 var addressLong = memoryPtr.ToInt64();
 
                 _bufferIdMappings.Add(new BufferMapping
                 {
                     Id = bufferId,
                     Start = addressLong,
-                    End = addressLong + slab.Data.Length
+                    End = addressLong + slab.Length
                 });
             }
         }
 
         private void OnSlabDeallocated(MemoryPoolSlab slab)
         {
-            var memoryPtr = (IntPtr)slab.Data.UnsafePointer;
+            var memoryPtr = slab.NativePointer;
             var addressLong = memoryPtr.ToInt64();
 
             lock (_bufferIdMappings)

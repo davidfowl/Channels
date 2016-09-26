@@ -78,7 +78,7 @@ namespace Channels
 
         private bool IsCompleted => ReferenceEquals(_awaitableState, _awaitableIsCompleted);
 
-        internal Span<byte> Memory => _writingHead == null ? Span<byte>.Empty : _writingHead.Buffer.Data.Slice(_writingHead.End, _writingHead.Buffer.Data.Length - _writingHead.End);
+        internal Memory<byte> Memory => _writingHead == null ? Memory<byte>.Empty : _writingHead.Buffer.Data.Slice(_writingHead.End, _writingHead.Buffer.Data.Length - _writingHead.End);
 
         /// <summary>
         /// Allocates memory from the channel to write into.
@@ -420,7 +420,7 @@ namespace Channels
                 _readingTcs.TrySetResult(null);
             }
 
-            Complete();
+            FlushAsync();
         }
 
         void IReadableChannel.Complete(Exception exception) => CompleteReader(exception);
