@@ -9,7 +9,7 @@ namespace Channels
     /// Channel which works in buffers which it does not own, as opposed to using a <see cref="IBufferPool"/>. Designed
     /// to allow Streams to be easily adapted to <see cref="IReadableChannel"/> via <see cref="System.IO.Stream.CopyToAsync(System.IO.Stream)"/>
     /// </summary>
-    public class UnpooledChannel : IReadableChannel, IReadableBufferAwaiter
+    public class UnownedBufferChannel : IReadableChannel, IReadableBufferAwaiter
     {
         private static readonly Action _awaitableIsCompleted = () => { };
         private static readonly Action _awaitableIsNotCompleted = () => { };
@@ -30,7 +30,10 @@ namespace Channels
 
         private Gate _readWaiting = new Gate();
 
-        public UnpooledChannel()
+        /// <summary>
+        /// Constructs a new instance of <see cref="UnownedBufferChannel" />
+        /// </summary>
+        public UnownedBufferChannel()
         {
             _awaitableState = _awaitableIsNotCompleted;
         }
@@ -69,7 +72,7 @@ namespace Channels
         /// <returns></returns>
         public Task WriteAsync(ArraySegment<byte> buffer, CancellationToken cancellationToken)
         {
-            return WriteAsync(new UnpooledBuffer(buffer), cancellationToken);
+            return WriteAsync(new UnownedBuffer(buffer), cancellationToken);
         }
 
         /// <summary>
@@ -96,7 +99,7 @@ namespace Channels
             }
 
             // Register for cancellation on this token for the duration of the write
-            using (cancellationToken.Register(state => ((UnpooledChannel)state).CancelWriter(), this))
+            using (cancellationToken.Register(state => ((UnownedBufferChannel)state).CancelWriter(), this))
             {
                 // Wait for reading to start
                 await ReadingStarted;

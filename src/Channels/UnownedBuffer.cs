@@ -5,11 +5,14 @@ using System.Threading.Tasks;
 
 namespace Channels
 {
-    public class UnpooledBuffer : IBuffer
+    /// <summary>
+    /// Represents a buffer that is owned by an external component.
+    /// </summary>
+    public class UnownedBuffer : IBuffer
     {
         private ArraySegment<byte> _buffer;
 
-        public UnpooledBuffer(ArraySegment<byte> buffer)
+        public UnownedBuffer(ArraySegment<byte> buffer)
         {
             _buffer = buffer;
         }
@@ -23,9 +26,10 @@ namespace Channels
 
         public IBuffer Preserve(int offset, int length)
         {
+            // Copy to a new Owned Buffer.
             var buffer = new byte[length];
             Buffer.BlockCopy(_buffer.Array, _buffer.Offset + offset, buffer, 0, length);
-            return new UnpooledBuffer(new ArraySegment<byte>(buffer));
+            return new OwnedBuffer(buffer);
         }
     }
 }
