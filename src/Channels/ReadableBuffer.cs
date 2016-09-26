@@ -35,7 +35,7 @@ namespace Channels
         public bool IsEmpty => Length == 0;
 
         /// <summary>
-        /// Determins if the <see cref="ReadableBuffer"/> is a single <see cref="Span{Byte}"/>.
+        /// Determins if the <see cref="ReadableBuffer"/> is a single <see cref="Memory{Byte}"/>.
         /// </summary>
         public bool IsSingleSpan => _start.Segment == _end.Segment;
 
