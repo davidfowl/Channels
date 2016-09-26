@@ -533,6 +533,116 @@ namespace Channels
             }
         }
 
+        private void CompareExchangeWritingHead(BufferSegment newValue, BufferSegment comparand)
+        {
+            // this is used  by Reserve.Truncate;
+            // syntax for example:
+            //     block                         [ .... ],
+            //     segment                       { .... },
+            //     reservation bytes to keep:    RRRR
+            //     reservation bytes to discard: rrrr
+            //     other data to keep:           XXXX
+            //     unused space:                 oooo
+
+            // consider: [{XXXXRRRRrrrrXXXXoooo}o]
+
+            // truncate does the subraction of rrrr by splitting the segment into 2:
+            //           [{XXXXRRRR}oooo{XXXXoooo}o]
+
+            // now: ONLY if this was the write-head segment, it needs to change the writing tail to
+            // be this new segment; note that no offsets etc change
+            if (_writingHead == comparand)
+            {
+                _writingHead = newValue;
+            }
+        }
+
+        internal void Truncate(Memory<byte> reservation, int length)
+        {
+            if (length < 0 || reservation.Length < length)
+            {
+                throw new ArgumentOutOfRangeException(nameof(length));
+            }
+
+            int offset, delta = reservation.Length - length;
+            if (delta == 0)
+            {
+                return; // nothing to do
+            }
+
+            var segment = FindSegment(reservation, out offset);
+
+            /*
+             there are two scenarios to consider here:
+
+            - no other data in this segment after the reservation
+            -> decrement the end of this segment
+
+            - other data after this reservation
+            -> splt into a new segment that points to the other
+            -> if necessary, point the main buffer's head at the new segment
+             */
+            int endOfReservation = offset + reservation.Length;
+            if (endOfReservation == segment.End)
+            {
+                // no extra data after this in this segment; we can *just truncate directly*
+                segment.End -= delta;
+            }
+            else
+            {
+                // split the segment by creating a new segment that has everything
+                // else from the current segment
+                var remainingData = new BufferSegment(segment.Buffer,
+                    start: endOfReservation, end: segment.End, readOnly: segment.ReadOnly)
+                {   // note that this adds a reference, but that is expected and correct
+                    Next = segment.Next // copy forward the "next" page
+                };
+                // and shorten the current segment, pointing the "next" to the new segment
+                segment.End = endOfReservation - delta;
+                segment.Next = remainingData;
+
+                // if this is the write-head: change that
+                // note that the tail index doesn't change,
+                // nor does the buffer-size (the amount of data
+                // remaining on the tail)
+                CompareExchangeWritingHead(remainingData, segment);
+            }
+
+
+        }
+        private unsafe BufferSegment FindSegment(Memory<byte> reservation, out int offset)
+        {
+            // ok, so what we're going to do is walk the segments from _commitHead, to find our span
+            var segment = _commitHead;
+            offset = -1;
+            while (segment != null)
+            {
+                if(reservation.IsSliceOf(segment.Buffer.Data, out offset))
+                {
+                    // found it!
+                    break;
+                }
+                segment = segment.Next;
+            }
+            if (segment == null)
+            {
+                throw new ArgumentException("Reservation not found");
+            }
+            return segment;
+        }
+
+        internal Memory<byte> Reserve(int length)
+        {
+            if (length <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(length));
+            }
+            Ensure(length);
+            var span = Memory;
+            AdvanceWriter(length);
+            return span.Length == length ? span : span.Slice(0, length);
+        }
+
         // Can't use enums with Interlocked
         private static class State
         {

@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 
 namespace Channels
@@ -94,5 +95,27 @@ namespace Channels
         {
             return _channel.FlushAsync();
         }
+
+        /// <summary>
+        /// Writes past a block of output data, allowing the caller to supply this
+        /// value at a later point. This is in particular useful for writing
+        /// length-prefix values after the actual data has been written.
+        /// </summary>
+        public Memory<byte> Reserve(int length)
+            => _channel.Reserve(length);
+
+        /// <summary>
+        /// Writes past a block of output data, allowing the caller to supply this
+        /// value at a later point. This is in particular useful for writing
+        /// length-prefix values after the actual data has been written.
+        /// </summary>
+        public Memory<byte> Reserve<[Primitive]T>() where T : struct
+            => _channel.Reserve(Unsafe.SizeOf<T>());
+
+        /// <summary>
+        /// Resolve the previously taken reservation, and remove any unused bytes from the
+        /// </summary>
+        public void Truncate(Memory<byte> reservation, int length)
+            => _channel.Truncate(reservation, length);
     }
 }
