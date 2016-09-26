@@ -7,7 +7,7 @@ using Xunit;
 
 namespace Channels.Tests
 {
-    public class UnpooledChannelFacts
+    public class UnownedBufferChannelFacts
     {
         [Fact]
         public async Task CanConsumeData()
@@ -133,7 +133,7 @@ namespace Channels.Tests
                     break;
                 }
 
-                var ch = (char)buffer.FirstSpan[0];
+                var ch = (char)((Span<byte>)buffer.First)[0];
                 Assert.Equal(message[index++], ch);
                 channel.Advance(buffer.Start.Seek(1));
             }

@@ -17,7 +17,7 @@ namespace Channels
             _buffer = buffer;
         }
 
-        public Span<byte> Data => new Span<byte>(_buffer.Array, _buffer.Offset, _buffer.Count);
+        public Memory<byte> Data => new Memory<byte>(_buffer.Array, _buffer.Offset, _buffer.Count);
 
         public void Dispose()
         {

@@ -22,7 +22,7 @@ namespace Channels
         /// <returns></returns>
         public static IReadableChannel AsReadableChannel(this Stream stream, CancellationToken cancellationToken)
         {
-            var streamAdaptor = new StreamUnpooledChannelAdaptor(stream);
+            var streamAdaptor = new UnownedBufferStream(stream);
             streamAdaptor.Produce(cancellationToken);
             return streamAdaptor.Channel;
         }
@@ -49,11 +49,10 @@ namespace Channels
             }
         }
 
-        private class StreamUnpooledChannelAdaptor : Stream
+        private class UnownedBufferStream : Stream
         {
             private readonly Stream _stream;
-            private readonly UnpooledChannel _channel;
-            private CancellationToken cancellationToken;
+            private readonly UnownedBufferChannel _channel;
 
             public IReadableChannel Channel => _channel;
 
@@ -82,10 +81,10 @@ namespace Channels
                 }
             }
 
-            public StreamUnpooledChannelAdaptor(Stream stream)
+            public UnownedBufferStream(Stream stream)
             {
                 _stream = stream;
-                _channel = new UnpooledChannel();
+                _channel = new UnownedBufferChannel();
             }
 
             public override void Write(byte[] buffer, int offset, int count)
