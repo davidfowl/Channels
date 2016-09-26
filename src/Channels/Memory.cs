@@ -9,6 +9,8 @@ namespace Channels
 {
     public struct Memory<T>
     {
+        public static unsafe Memory<T> Empty = new Memory<T>(null, 0, 0);
+
         private readonly T[] _array;
         private readonly int _offset;
         private readonly unsafe void* _memory;
