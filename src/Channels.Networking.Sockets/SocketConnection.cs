@@ -72,7 +72,7 @@ namespace Channels.Networking.Sockets
 
             ShutdownSocketWhenWritingCompletedAsync();
             ReceiveFromSocketAndPushToChannelAsync();
-            ReadFromChannelAndWriteToSocktAsync();
+            ReadFromChannelAndWriteToSocketAsync();
         }
 
         /// <summary>
@@ -497,7 +497,7 @@ namespace Channels.Networking.Sockets
             return buffer;
         }
 
-        private async void ReadFromChannelAndWriteToSocktAsync()
+        private async void ReadFromChannelAndWriteToSocketAsync()
         {
             SocketAsyncEventArgs args = null;
             try
@@ -516,25 +516,27 @@ namespace Channels.Networking.Sockets
 
                         foreach (var memory in buffer)
                         {
-                            SetBuffer(memory, args);
+                            int remaining = memory.Length;
+                            while (remaining != 0)
+                            {
+                                SetBuffer(memory, args, memory.Length - remaining);
 
-                            if (Socket.SendAsync(args)) //  initiator calls SendAsync
-                            {
-                                // wait async for the semaphore to be released by the callback
-                                await ((Signal)args.UserToken).WaitAsync();
-                            }
-                            else
-                            {
-                                // if SendAsync returns sync, we have the conch - nothing to do - we already sent
-                            }
-                            // either way, need to validate
-                            if (args.SocketError != SocketError.Success)
-                            {
-                                throw new SocketException((int)args.SocketError);
-                            }
-                            if (args.BytesTransferred != memory.Length)
-                            {
-                                throw new NotImplementedException("We didn't send everything; oops!");
+                                if (Socket.SendAsync(args)) //  initiator calls SendAsync
+                                {
+                                    // wait async for the semaphore to be released by the callback
+                                    await ((Signal)args.UserToken).WaitAsync();
+                                }
+                                else
+                                {
+                                    // if SendAsync returns sync, we have the conch - nothing to do - we already sent
+                                }
+                                // either way, need to validate
+                                if (args.SocketError != SocketError.Success)
+                                {
+                                    throw new SocketException((int)args.SocketError);
+                                }
+
+                                remaining -= args.BytesTransferred;
                             }
                         }
                     }
@@ -567,14 +569,14 @@ namespace Channels.Networking.Sockets
         }
 
         // unsafe+async not good friends
-        private unsafe void SetBuffer(Memory<byte> memory, SocketAsyncEventArgs args)
+        private unsafe void SetBuffer(Memory<byte> memory, SocketAsyncEventArgs args, int ignore = 0)
         {
             ArraySegment<byte> segment;
             if (!memory.TryGetArray(out segment))
             {
                 throw new InvalidOperationException("Memory is not backed by an array; oops!");
             }
-            args.SetBuffer(segment.Array, segment.Offset, segment.Count);
+            args.SetBuffer(segment.Array, segment.Offset + ignore, segment.Count - ignore);
         }
 
         private void Shutdown()
