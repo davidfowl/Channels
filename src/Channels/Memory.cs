@@ -1,9 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using System.Threading.Tasks;
 
 namespace Channels
 {
@@ -16,7 +12,7 @@ namespace Channels
         private readonly unsafe void* _memory;
         private readonly int _memoryLength;
 
-        public unsafe Memory(void* pointer, int offset, int length)
+        public unsafe Memory(void* pointer, int length)
         {
             unsafe
             {
@@ -24,7 +20,7 @@ namespace Channels
             }
 
             _array = null;
-            _offset = offset;
+            _offset = 0;
             _memoryLength = length;
         }
 
@@ -92,7 +88,8 @@ namespace Channels
             // TODO: Bounds check
             if (_array == null)
             {
-                return new Memory<T>(_memory, _offset + offset, length);
+                var memory = (byte*)_memory + (Unsafe.SizeOf<T>() * offset);
+                return new Memory<T>(memory, length);
             }
 
             return new Memory<T>(_array, _offset + offset, length, _memory != null);
