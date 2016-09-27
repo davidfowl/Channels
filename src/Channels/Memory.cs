@@ -24,7 +24,11 @@ namespace Channels
             _memoryLength = length;
         }
 
-        public unsafe Memory(T[] array, int offset, int length, bool isPinned = false)
+        public Memory(T[] array) : this(array, 0, array.Length)
+        {
+        }
+
+        public Memory(T[] array, int offset, int length, bool isPinned = false)
         {
             unsafe
             {
@@ -44,28 +48,39 @@ namespace Channels
             _memoryLength = length;
         }
 
-        public Span<T> Span => this;
+        public Span<T> Span
+        {
+            get
+            {
+                if (Length == 0)
+                {
+                    return Span<T>.Empty;
+                }
+
+                if (_array != null)
+                {
+                    return _array.Slice(_offset, Length);
+                }
+                else
+                {
+                    unsafe
+                    {
+                        return new Span<T>(UnsafePointer, Length);
+                    }
+                }
+            }
+        }
 
         public bool IsEmpty => Length == 0;
 
         public static implicit operator Span<T>(Memory<T> memory)
         {
-            if (memory.Length == 0)
-            {
-                return Span<T>.Empty;
-            }
+            return memory.Span;
+        }
 
-            if (memory._array != null)
-            {
-                return memory._array.Slice(memory._offset, memory.Length);
-            }
-            else
-            {
-                unsafe
-                {
-                    return new Span<T>(memory.UnsafePointer, memory._memoryLength);
-                }
-            }
+        public static implicit operator ReadOnlySpan<T>(Memory<T> memory)
+        {
+            return memory.Span;
         }
 
         public unsafe void* UnsafePointer
@@ -88,8 +103,7 @@ namespace Channels
             // TODO: Bounds check
             if (_array == null)
             {
-                var memory = (byte*)_memory + (Unsafe.SizeOf<T>() * offset);
-                return new Memory<T>(memory, length);
+                return new Memory<T>((byte*)_memory + (Unsafe.SizeOf<T>() * offset), length);
             }
 
             return new Memory<T>(_array, _offset + offset, length, _memory != null);
