@@ -28,7 +28,7 @@ namespace Channels.Tests
             unsafe
             {
                 IntPtr raw = Marshal.AllocHGlobal(10);
-                var memory = new Memory<byte>((void*)raw, 0, 10);
+                var memory = new Memory<byte>((void*)raw, 10);
                 Assert.True((void*)raw == memory.UnsafePointer);
                 Marshal.FreeHGlobal(raw);
             }
@@ -83,7 +83,7 @@ namespace Channels.Tests
 
                 fixed (byte* ptr = data)
                 {
-                    var memory = new Memory<byte>(ptr, 0, data.Length);
+                    var memory = new Memory<byte>(ptr, data.Length);
                     var slice = memory.Slice(0, 5);
                     var span = slice.Span;
                     for (int i = 0; i < 5; i++)
