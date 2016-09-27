@@ -23,7 +23,7 @@ namespace Channels
         }
 
         /// <summary>
-        /// The current <see cref="Span{Byte}"/>
+        /// The current <see cref="Memory{Byte}"/>
         /// </summary>
         public Memory<byte> Current => _current;
 
@@ -36,7 +36,7 @@ namespace Channels
         }
 
         /// <summary>
-        /// Moves to the next <see cref="Span{Byte}"/> in the <see cref="ReadableBuffer"/>
+        /// Moves to the next <see cref="Memory{Byte}"/> in the <see cref="ReadableBuffer"/>
         /// </summary>
         /// <returns></returns>
         public bool MoveNext()
