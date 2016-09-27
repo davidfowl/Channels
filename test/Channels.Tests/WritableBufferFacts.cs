@@ -280,5 +280,109 @@ namespace Channels.Tests
                 await output.FlushAsync();
             }
         }
+
+        [Fact]
+        public void CanReReadDataThatHasNotBeenFlushed_LargeData()
+        {
+            using (var memoryPool = new MemoryPool())
+            {
+                var channel = new Channel(memoryPool);
+
+                var output = channel.Alloc();
+
+                byte[] predictablyGibberish = new byte[512];
+                const int SEED = 1235412;
+                Random random = new Random(SEED);
+                for (int i = 0; i < 50; i++)
+                {
+                    for (int j = 0; j < predictablyGibberish.Length; j++)
+                    {
+                        // doing it this way to be 100% sure about repeating the PRNG order
+                        predictablyGibberish[j] = (byte)random.Next(0, 256);
+                    }
+                    output.Write(predictablyGibberish);
+                }
+
+                var readable = output.AsReadableBuffer();
+                Assert.False(readable.IsSingleSpan);
+                Assert.False(readable.IsEmpty);
+                Assert.Equal(50 * 512, readable.Length);
+
+                random = new Random(SEED);
+                int correctCount = 0;
+                foreach (var memory in readable)
+                {
+                    Span<byte> span = memory;
+                    for (int i = 0; i < span.Length; i++)
+                    {
+                        if (span[i] == (byte)random.Next(0, 256)) correctCount++;
+                    }
+                }
+                Assert.Equal(50 * 512, correctCount);
+            }
+        }
+
+        [Fact]
+        public void CanReReadDataThatHasNotBeenFlushed_SmallData()
+        {
+            using (var memoryPool = new MemoryPool())
+            {
+                var channel = new Channel(memoryPool);
+                var output = channel.Alloc();
+
+                Assert.True(output.AsReadableBuffer().IsEmpty);
+                Assert.Equal(0, output.AsReadableBuffer().Length);
+
+
+                output.WriteUtf8String("hello world");
+                var readable = output.AsReadableBuffer();
+
+                // check that looks about right
+                Assert.False(readable.IsEmpty);
+                Assert.Equal(11, readable.Length);
+                Assert.True(readable.Equals(Encoding.UTF8.GetBytes("hello world")));
+                Assert.True(readable.Slice(1, 3).Equals(Encoding.UTF8.GetBytes("ell")));
+
+                // check it all works after we write more
+                output.WriteUtf8String("more data");
+
+                // note that the snapshotted readable should not have changed by this
+                Assert.False(readable.IsEmpty);
+                Assert.Equal(11, readable.Length);
+                Assert.True(readable.Equals(Encoding.UTF8.GetBytes("hello world")));
+                Assert.True(readable.Slice(1, 3).Equals(Encoding.UTF8.GetBytes("ell")));
+
+                // if we fetch it again, we can see everything
+                readable = output.AsReadableBuffer();
+                Assert.False(readable.IsEmpty);
+                Assert.Equal(20, readable.Length);
+                Assert.True(readable.Equals(Encoding.UTF8.GetBytes("hello worldmore data")));
+            }
+        }
+
+        [Fact]
+        public async Task CanWriteFixedLengthPrefixDataEfficiently()
+        {
+            using (var memoryPool = new MemoryPool())
+            {
+                var channel = new Channel(memoryPool);
+
+                var output = channel.Alloc();
+                output.Write(new byte[] { 42 });
+                var prefix = output.Reserve<int>();
+                int len = output.WriteUtf8String("Hello world!");
+
+                // note: this is just using the inbuilt undefined endianness
+                // approach while we standardize on a write API
+                prefix.Span.Write(len);
+
+                var hex = BitConverter.ToString(output.AsReadableBuffer().ToArray());
+                Assert.Equal("2A-0C-00-00-00-48-65-6C-6C-6F-20-77-6F-72-6C-64-21", hex);
+                //            42 12           H  e  l  l  o     w  o  r  l  d  !
+
+                await output.FlushAsync();
+            }
+        }
+
     }
 }

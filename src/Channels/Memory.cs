@@ -109,6 +109,41 @@ namespace Channels
             return new Memory<T>(_array, _offset + offset, length, _memory != null);
         }
 
+        /// <summary>
+        /// Determines whether the current span is a slice of the supplied span
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public unsafe bool IsSliceOf(Memory<T> parentSpan)
+        {
+            var elementSize = Unsafe.SizeOf<T>();
+
+            // if this instance is array-based, they must both be; parent must encapsulate the child (current instance)
+            if (_array != null || parentSpan._array != null)
+            {
+                return (object)parentSpan._array == (object)_array
+                    && parentSpan._offset <= _offset
+                    && (parentSpan._offset + parentSpan._memoryLength) >= (_offset + _memoryLength);
+            }
+
+            // otherwise, pointers:
+            byte* thisStart = (byte*)UnsafePointer, parentStart = (byte*)parentSpan.UnsafePointer;
+
+            return parentStart <= thisStart // check lower limit
+                && ((thisStart - parentStart) % Unsafe.SizeOf<T>()) == 0 // check alignment
+                && (parentStart + (parentSpan._memoryLength * Unsafe.SizeOf<T>()))
+                >= (thisStart + (_memoryLength * Unsafe.SizeOf<T>())); // check upper limit
+        }
+
+        /// <summary>
+        /// Determines whether the current span is a slice of the supplied span
+        /// </summary>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        public bool IsSliceOf(Memory<T> parentSpan, out int start)
+        {
+            start = _offset - parentSpan._offset;
+            return IsSliceOf(parentSpan);
+        }
+
         public bool TryGetArray(out ArraySegment<T> buffer)
         {
             if (_array == null)

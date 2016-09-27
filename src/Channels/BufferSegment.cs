@@ -55,12 +55,12 @@ namespace Channels
         }
 
         // Cloning ctor
-        private BufferSegment(IBuffer buffer, int start, int end)
+        internal BufferSegment(IBuffer buffer, int start, int end, bool readOnly = true)
         {
             Buffer = buffer;
             Start = start;
             End = end;
-            ReadOnly = true;
+            ReadOnly = readOnly;
 
             Buffer = Buffer.Preserve(start, end - start);
         }

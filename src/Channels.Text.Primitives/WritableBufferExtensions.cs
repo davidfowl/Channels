@@ -9,16 +9,18 @@ namespace Channels.Text.Primitives
         private static readonly Encoding Utf8Encoding = Encoding.UTF8;
         private static readonly Encoding ASCIIEncoding = Encoding.ASCII;
 
-        public static void WriteAsciiString(this WritableBuffer buffer, string value)
+        public static int WriteAsciiString(this WritableBuffer buffer, string value)
             => WriteString(buffer, value, ASCIIEncoding);
 
-        public static void WriteUtf8String(this WritableBuffer buffer, string value)
+        public static int WriteUtf8String(this WritableBuffer buffer, string value)
             => WriteString(buffer, value, Utf8Encoding);
 
         // review: make public?
-        private static unsafe void WriteString(this WritableBuffer buffer, string value, Encoding encoding)
+        private static unsafe int WriteString(this WritableBuffer buffer, string value, Encoding encoding)
         {
+            if (string.IsNullOrEmpty(value)) return 0;
             int bytesPerChar = encoding.GetMaxByteCount(1);
+            int totalBytesWritten = 0;
             fixed (char* s = value)
             {
                 int remainingChars = value.Length, charOffset = 0;
@@ -32,11 +34,13 @@ namespace Channels.Text.Primitives
                     int bytesWritten = encoding.GetBytes(s + charOffset, charsThisBatch,
                         (byte*)memory.UnsafePointer, memory.Length);
 
+                    totalBytesWritten += bytesWritten;
                     charOffset += charsThisBatch;
                     remainingChars -= charsThisBatch;
                     buffer.Advance(bytesWritten);
                 }
             }
+            return totalBytesWritten;
         }
 
         // REVIEW: See if we can use IFormatter here
