@@ -132,12 +132,7 @@ namespace Channels
                 await _readWaiting;
 
                 // We need to preserve any buffers that haven't been consumed
-                var current = _head;
-                while (current != null)
-                {
-                    current.Buffer = current.Buffer.Preserve(0, current.Buffer.Data.Length);
-                    current = current.Next;
-                }
+                _head = BufferSegment.Clone(new ReadCursor(_head), new ReadCursor(_tail, _tail?.End ?? 0), out _tail);
 
                 // Cancel this task if this write is cancelled
                 cancellationToken.ThrowIfCancellationRequested();
