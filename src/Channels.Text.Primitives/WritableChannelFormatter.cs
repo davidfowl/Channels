@@ -7,7 +7,7 @@ using System.Text;
 
 namespace Channels.Text.Primitives
 {
-    public class WritableChannelFormatter : IFormatter
+    public class WritableChannelFormatter : ITextOutput
     {
         private readonly IWritableChannel _channel;
         private WritableBuffer _writableBuffer;
@@ -21,7 +21,7 @@ namespace Channels.Text.Primitives
 
         public EncodingData Encoding { get; }
 
-        public Span<byte> FreeBuffer
+        public Span<byte> Buffer
         {
             get
             {
@@ -31,14 +31,14 @@ namespace Channels.Text.Primitives
             }
         }
 
-        public void CommitBytes(int bytes)
+        public void Advance(int bytes)
         {
             _writableBuffer.Advance(bytes);
         }
 
-        public void ResizeBuffer(int desiredFreeBytesHint = -1)
+        public void Enlarge(int desiredFreeBytesHint = 0)
         {
-            _writableBuffer.Ensure(desiredFreeBytesHint == -1 ? 2048 : desiredFreeBytesHint);
+            _writableBuffer.Ensure(desiredFreeBytesHint == 0 ? 2048 : desiredFreeBytesHint);
         }
 
         public void Write(Span<byte> data)
