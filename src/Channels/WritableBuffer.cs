@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
+using System.Buffers;
 using System.Threading.Tasks;
 
 namespace Channels
@@ -9,7 +10,7 @@ namespace Channels
     /// <summary>
     /// Represents a buffer that can write a sequential series of bytes.
     /// </summary>
-    public struct WritableBuffer
+    public struct WritableBuffer : IOutput
     {
         private Channel _channel;
 
@@ -27,6 +28,10 @@ namespace Channels
         /// Returns the number of bytes currently written and uncommitted.
         /// </summary>
         public int BytesWritten => AsReadableBuffer().Length;
+
+        Span<byte> IOutput.Buffer => Memory;
+
+        void IOutput.Enlarge(int desiredBufferLength) => Ensure(desiredBufferLength);
 
         /// <summary>
         /// Obtain a readable buffer over the data written but uncommitted to this buffer.
