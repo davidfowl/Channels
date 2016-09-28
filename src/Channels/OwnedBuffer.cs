@@ -23,6 +23,11 @@ namespace Channels
         }
 
         // We're owned, we're always "preserved"
-        public IBuffer Preserve(int offset, int length) => this;
+        public IBuffer Preserve(int offset, int length, out int newStart, out int newEnd)
+        {
+            newStart = 0;
+            newEnd = Data.Length;
+            return this;
+        }
     }
 }

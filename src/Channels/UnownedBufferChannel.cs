@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -255,17 +256,26 @@ namespace Channels
         /// </summary>
         /// <returns>A <see cref="ReadableBufferAwaitable"/> representing the asynchronous read operation.</returns>
         // Called by the READER
-        public ReadableBufferAwaitable ReadAsync() => new ReadableBufferAwaitable(this);
+        public ReadableBufferAwaitable ReadAsync()
+        {
+            return new ReadableBufferAwaitable(this);
+        }
 
         // Called by the READER
+        private static int counter = 0;
         void IReadableBufferAwaiter.OnCompleted(Action continuation)
         {
             if (ReferenceEquals(_awaitableState, _awaitableIsNotCompleted))
             {
                 // Register our continuation
                 _awaitableState = continuation;
-                _startingReadingTcs.TrySetResult(null);
-                _readWaiting.Open();
+
+                // NOTE(anurse): NEVER open both gates at once, it can cause WriteAsync to unblock before a new reader has actually arrived.
+                if (!_startingReadingTcs.TrySetResult(null))
+                {
+                    // We've already started reading, so open the ReadWaiting gate instead
+                    _readWaiting.Open();
+                }
             }
             else if (ReferenceEquals(_awaitableState, _awaitableIsCompleted))
             {
@@ -338,7 +348,7 @@ namespace Channels
             // Allow the WriteAsync end to throw the OperationCanceledException
             _readWaiting.Open();
 
-            if(Writing.IsCompleted)
+            if (Writing.IsCompleted)
             {
                 Dispose();
             }

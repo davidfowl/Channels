@@ -24,11 +24,13 @@ namespace Channels
             // GC works
         }
 
-        public IBuffer Preserve(int offset, int length)
+        public IBuffer Preserve(int offset, int length, out int newStart, out int newEnd)
         {
             // Copy to a new Owned Buffer.
             var buffer = new byte[length];
             Buffer.BlockCopy(_buffer.Array, _buffer.Offset + offset, buffer, 0, length);
+            newStart = 0;
+            newEnd = length;
             return new OwnedBuffer(buffer);
         }
     }
