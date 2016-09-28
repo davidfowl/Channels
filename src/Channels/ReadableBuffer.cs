@@ -82,13 +82,13 @@ namespace Channels
             begin = new ReadCursor(segmentHead);
             end = new ReadCursor(segmentTail, segmentTail.End);
 
-            begin.TryGetBuffer(end, out _first, out begin);
-
             _start = begin;
             _end = end;
             _isOwner = true;
 
             _length = buffer._length;
+
+            begin.TryGetBuffer(end, out _first, out begin);
         }
 
         /// <summary>

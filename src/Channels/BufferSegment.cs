@@ -57,12 +57,10 @@ namespace Channels
         // Cloning ctor
         private BufferSegment(IBuffer buffer, int start, int end)
         {
-            Buffer = buffer;
+            Buffer = buffer.Preserve(start, end - start, out start, out end);
             Start = start;
             End = end;
             ReadOnly = true;
-
-            Buffer = Buffer.Preserve(start, end - start);
         }
 
         public void Dispose()

@@ -167,6 +167,11 @@ namespace Channels.Tests
 
                 // Never consume, to force buffers to be copied
                 channel.Advance(buffer.Start, buffer.Start.Seek(index));
+
+                // Yield the task. This will ensure that we don't have any Tasks idling
+                // around in UnownedBufferChannel.OnCompleted
+                await Task.Yield();
+
                 index++;
             }
 

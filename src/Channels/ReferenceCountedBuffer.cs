@@ -12,7 +12,7 @@ namespace Channels
 
         protected abstract void DisposeBuffer();
 
-        public IBuffer Preserve(int offset, int count)
+        public IBuffer Preserve(int offset, int count, out int newStart, out int newEnd)
         {
             lock (_lockObj)
             {
@@ -20,6 +20,8 @@ namespace Channels
             }
 
             // Ignore the offset and count, we're just going to reference count the buffer
+            newStart = offset;
+            newEnd = offset + count;
             return this;
         }
 
