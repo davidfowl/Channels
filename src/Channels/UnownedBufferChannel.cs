@@ -262,7 +262,6 @@ namespace Channels
         }
 
         // Called by the READER
-        private static int counter = 0;
         void IReadableBufferAwaiter.OnCompleted(Action continuation)
         {
             if (ReferenceEquals(_awaitableState, _awaitableIsNotCompleted))
