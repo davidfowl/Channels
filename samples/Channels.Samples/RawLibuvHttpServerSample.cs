@@ -61,14 +61,11 @@ namespace Channels.Samples
                                     break;
                             }
 
-                            unsafe
-                            {
-                                formatter.Append("HTTP/1.1 200 OK");
-                                formatter.Append("\r\nContent-Length: 13");
-                                formatter.Append("\r\nContent-Type: text/plain");
-                                formatter.Append("\r\n\r\n");
-                                formatter.Append("Hello, World!");
-                            }
+                            formatter.Append("HTTP/1.1 200 OK");
+                            formatter.Append("\r\nContent-Length: 13");
+                            formatter.Append("\r\nContent-Type: text/plain");
+                            formatter.Append("\r\n\r\n");
+                            formatter.Append("Hello, World!");
 
                             await formatter.FlushAsync();
 
