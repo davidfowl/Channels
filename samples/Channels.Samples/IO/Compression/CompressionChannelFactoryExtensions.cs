@@ -63,15 +63,32 @@ namespace Channels.Samples.IO.Compression
 
                     unsafe
                     {
-                        _deflater.SetInput((IntPtr)memory.UnsafePointer, memory.Length);
+                        // TODO: Pin pointer if not pinned
+                        void* inPointer;
+                        if (memory.TryGetPointer(out inPointer))
+                        {
+                            _deflater.SetInput((IntPtr)inPointer, memory.Length);
+                        }
+                        else
+                        {
+                            throw new InvalidOperationException("Pointer needs to be pinned");
+                        }
                     }
 
                     while (!_deflater.NeedsInput())
                     {
                         unsafe
                         {
-                            int written = _deflater.ReadDeflateOutput((IntPtr)writerBuffer.Memory.UnsafePointer, writerBuffer.Memory.Length);
-                            writerBuffer.Advance(written);
+                            void* outPointer;
+                            if (writerBuffer.Memory.TryGetPointer(out outPointer))
+                            {
+                                int written = _deflater.ReadDeflateOutput((IntPtr)outPointer, writerBuffer.Memory.Length);
+                                writerBuffer.Advance(written);
+                            }
+                            else
+                            {
+                                throw new InvalidOperationException("Pointer needs to be pinned");
+                            }
                         }
                     }
 
@@ -84,7 +101,7 @@ namespace Channels.Samples.IO.Compression
                     await writerBuffer.FlushAsync();
                 }
 
-                bool flushed;
+                bool flushed = false;
                 do
                 {
                     // Need to do more stuff here
@@ -93,16 +110,24 @@ namespace Channels.Samples.IO.Compression
 
                     unsafe
                     {
-                        int compressedBytes;
-                        flushed = _deflater.Flush((IntPtr)memory.UnsafePointer, memory.Length, out compressedBytes);
-                        writerBuffer.Advance(compressedBytes);
+                        void* pointer;
+                        if (memory.TryGetPointer(out pointer))
+                        {
+                            int compressedBytes;
+                            flushed = _deflater.Flush((IntPtr)pointer, memory.Length, out compressedBytes);
+                            writerBuffer.Advance(compressedBytes);
+                        }
+                        else
+                        {
+                            throw new InvalidOperationException("Pointer needs to be pinned");
+                        }
                     }
 
                     await writerBuffer.FlushAsync();
                 }
                 while (flushed);
 
-                bool finished;
+                bool finished = false;
                 do
                 {
                     // Need to do more stuff here
@@ -111,9 +136,13 @@ namespace Channels.Samples.IO.Compression
 
                     unsafe
                     {
-                        int compressedBytes;
-                        finished = _deflater.Finish((IntPtr)memory.UnsafePointer, memory.Length, out compressedBytes);
-                        writerBuffer.Advance(compressedBytes);
+                        void* pointer;
+                        if (memory.TryGetPointer(out pointer))
+                        {
+                            int compressedBytes;
+                            finished = _deflater.Finish((IntPtr)pointer, memory.Length, out compressedBytes);
+                            writerBuffer.Advance(compressedBytes);
+                        }
                     }
 
                     await writerBuffer.FlushAsync();
@@ -154,11 +183,26 @@ namespace Channels.Samples.IO.Compression
                     {
                         unsafe
                         {
-                            _inflater.SetInput((IntPtr)memory.UnsafePointer, memory.Length);
+                            void* pointer;
+                            if (memory.TryGetPointer(out pointer))
+                            {
+                                _inflater.SetInput((IntPtr)pointer, memory.Length);
 
-                            int written = _inflater.Inflate((IntPtr)memory.UnsafePointer, memory.Length);
-
-                            writerBuffer.Advance(written);
+                                void* writePointer;
+                                if (writerBuffer.Memory.TryGetPointer(out writePointer))
+                                {
+                                    int written = _inflater.Inflate((IntPtr)writePointer, writerBuffer.Memory.Length);
+                                    writerBuffer.Advance(written);
+                                }
+                                else
+                                {
+                                    throw new InvalidOperationException("Pointer needs to be pinned");
+                                }
+                            }
+                            else
+                            {
+                                throw new InvalidOperationException("Pointer needs to be pinned");
+                            }
 
                             var consumed = memory.Length - _inflater.AvailableInput;
 

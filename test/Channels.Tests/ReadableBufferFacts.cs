@@ -187,7 +187,9 @@ namespace Channels.Tests
 
                 Assert.True(found);
                 var remaining = readBuffer.Slice(cursor);
-                Assert.True((byte*)remaining.First.UnsafePointer == addresses[i]);
+                void* pointer;
+                Assert.True(remaining.First.TryGetPointer(out pointer));
+                Assert.True((byte*)pointer == addresses[i]);
             }
         }
 
@@ -196,10 +198,12 @@ namespace Channels.Tests
 
             byte*[] addresses = new byte*[readBuffer.Length];
             int index = 0;
-            foreach (var span in readBuffer)
+            foreach (var memory in readBuffer)
             {
-                byte* ptr = (byte*)span.UnsafePointer;
-                for (int i = 0; i < span.Length; i++)
+                void* pointer;
+                memory.TryGetPointer(out pointer);
+                var ptr = (byte*)pointer;
+                for (int i = 0; i < memory.Length; i++)
                 {
                     addresses[index++] = ptr++;
                 }
@@ -235,7 +239,9 @@ namespace Channels.Tests
 
         private unsafe void TestValue(ref ReadableBuffer readBuffer, ulong value)
         {
-            var ptr = (byte*)readBuffer.First.UnsafePointer;
+            void* pointer;
+            Assert.True(readBuffer.First.TryGetPointer(out pointer));
+            var ptr = (byte*)pointer;
             string s = value.ToString(CultureInfo.InvariantCulture);
             int written;
             fixed (char* c = s)

@@ -34,7 +34,7 @@ namespace Channels.Samples.IO
             _channel.ReadingStarted.ContinueWith((t, state) =>
             {
                 ((ReadOperation)state).Read();
-            }, 
+            },
             readOperation);
         }
 
@@ -99,8 +99,12 @@ namespace Channels.Samples.IO
             public unsafe void Read()
             {
                 var buffer = Channel.Alloc(2048);
-
-                var data = (IntPtr)buffer.Memory.UnsafePointer;
+                void* pointer;
+                if (!buffer.Memory.TryGetPointer(out pointer))
+                {
+                    throw new InvalidOperationException("Memory needs to be pinned");
+                }
+                var data = (IntPtr)pointer;
                 var count = buffer.Memory.Length;
 
                 var overlapped = ThreadPoolBoundHandle.AllocateNativeOverlapped(PreAllocatedOverlapped);
