@@ -1,11 +1,10 @@
 ﻿using Channels.Networking.Sockets.Internal;
 using System;
+using System.Buffers;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
-using System.Threading;
 using System.Threading.Tasks;
-using System.Buffers;
 
 namespace Channels.Networking.Sockets
 {
@@ -15,13 +14,10 @@ namespace Channels.Networking.Sockets
     public class SocketConnection : IChannel
     {
         private static readonly EventHandler<SocketAsyncEventArgs> _asyncCompleted = OnAsyncCompleted;
-        // try with a trivial "pool" at first
-        private static SocketAsyncEventArgs spare;
 
-        // TODO: consider a better pooling strategy here; small fragments of a larger buffer
-        // would be much cheaper, but is it too much tracking overhead? could use a 64*size
-        // buffer using a ulong as a bit-vector to track which blocks are in use, for example
-        private static byte[] _recycledSmallBuffer;
+        private static readonly ObjectPool<SocketAsyncEventArgs> _argsPool = new ObjectPool<SocketAsyncEventArgs>();
+
+        private static readonly MicroBufferPool _smallBuffers = new MicroBufferPool(8, 4096); // 32k
 
         // track the state of which strategy to use; need to use a known-safe
         // strategy until we can decide which to use (by observing behavior)
@@ -115,7 +111,7 @@ namespace Channels.Networking.Sockets
 
         internal static SocketAsyncEventArgs GetOrCreateSocketAsyncEventArgs()
         {
-            var obj = Interlocked.Exchange(ref spare, null);
+            var obj = _argsPool.TryTake();
             if (obj == null)
             {
                 obj = new SocketAsyncEventArgs();
@@ -137,7 +133,7 @@ namespace Channels.Networking.Sockets
             if (args != null)
             {
                 args.SetBuffer(null, 0, 0); // make sure we don't keep a slab alive
-                Interlocked.Exchange(ref spare, args);
+                _argsPool.PutBack(args);
             }
         }
         /// <summary>
@@ -242,7 +238,7 @@ namespace Channels.Networking.Sockets
                 args = GetOrCreateSocketAsyncEventArgs();
                 while (!_input.Writing.IsCompleted)
                 {
-                    byte[] initialDataBuffer = null;
+                    var initialSegment = default(ArraySegment<byte>);
                     int bytesFromInitialDataBuffer = 0;
 
 
@@ -255,13 +251,13 @@ namespace Channels.Networking.Sockets
                             case BufferStyle.Unknown:
                                 try
                                 {
-                                    initialDataBuffer = await ReceiveInitialDataUnknownStrategyAsync(args);
+                                    initialSegment = await ReceiveInitialDataUnknownStrategyAsync(args);
                                 }
-                                catch (Exception ex)
+                                catch
                                 {
-                                    initialDataBuffer = null;
+                                    initialSegment = default(ArraySegment<byte>);
                                 }
-                                if (initialDataBuffer == null)
+                                if (initialSegment.Array == null)
                                 {
                                     continue; // redo from start
                                 }
@@ -284,8 +280,8 @@ namespace Channels.Networking.Sockets
                                 // waiting for input on a socket; fine for 1 socket, not so fine for 100,000 sockets
 
                                 // do a short receive while we wait (async) for data
-                                initialDataBuffer = LeaseSmallBuffer();
-                                args.SetBuffer(initialDataBuffer, 0, initialDataBuffer.Length);
+                                initialSegment = LeaseSmallBuffer();
+                                args.SetBuffer(initialSegment.Array, initialSegment.Offset, initialSegment.Count);
                                 if (Socket.ReceiveAsync(args))
                                 {
                                     // wait async for the io work to be completed
@@ -303,16 +299,16 @@ namespace Channels.Networking.Sockets
                         // buffered *on the socket*, else EOF
                         if ((bytesFromInitialDataBuffer = args.BytesTransferred) <= 0)
                         {
-                            if ((object)initialDataBuffer == (object)_zeroLengthBuffer)
+                            if ((object)initialSegment.Array == (object)_zeroLengthBuffer)
                             {
                                 // sentinel value that means we should just
                                 // consume sync (we expect there to be data)
-                                initialDataBuffer = null;
+                                initialSegment = default(ArraySegment<byte>);
                             }
                             else
                             {
                                 // socket reported EOF
-                                RecycleSmallBuffer(ref initialDataBuffer);
+                                RecycleSmallBuffer(ref initialSegment);
                             }
                             if (Socket.Available == 0)
                             {
@@ -327,19 +323,19 @@ namespace Channels.Networking.Sockets
                     // certainly want to coalesce the initial buffer (from the speculative receive) with the initial
                     // data, but we probably don't want to buffer indefinitely; for now, it will buffer up to 4 pages
                     // before flushing (entirely arbitrarily) - might want to make this configurable later
-                    var buffer = _input.Alloc(SmallBufferBytes * 2);
+                    var buffer = _input.Alloc(_smallBuffers.BytesPerItem * 2);
                     const int FlushInputEveryBytes = 4 * MemoryPool.MaxPooledBlockLength;
                     try
                     {
-                        if (initialDataBuffer != null)
+                        if (initialSegment.Array != null)
                         {
                             // need to account for anything that we got in the speculative receive
                             if (bytesFromInitialDataBuffer != 0)
                             {
-                                buffer.Write(new Span<byte>(initialDataBuffer, 0, bytesFromInitialDataBuffer));
+                                buffer.Write(new Span<byte>(initialSegment.Array, initialSegment.Offset, bytesFromInitialDataBuffer));
                             }
                             // make the small buffer available to other consumers
-                            RecycleSmallBuffer(ref initialDataBuffer);
+                            RecycleSmallBuffer(ref initialSegment);
                         }
 
                         bool isEOF = false;
@@ -398,28 +394,24 @@ namespace Channels.Networking.Sockets
         }
 
 
-        private const int SmallBufferBytes = 8;
-        private static byte[] LeaseSmallBuffer()
+        private static ArraySegment<byte> LeaseSmallBuffer()
         {
-            return Interlocked.Exchange(ref _recycledSmallBuffer, null) ?? new byte[SmallBufferBytes];
-        }
-        private void RecycleSmallBuffer(ref byte[] buffer)
-        {
-            if (buffer != null)
+            ArraySegment<byte> result;
+            if (!_smallBuffers.TryTake(out result))
             {
-                // this is used as a sentinel in the unknown-strategy code;
-                // don't recycle it
-                if ((object)buffer != (object)_zeroLengthBuffer)
-                {
-                    Interlocked.Exchange(ref _recycledSmallBuffer, buffer);
-                }
-                buffer = null;
+                result = new ArraySegment<byte>(new byte[_smallBuffers.BytesPerItem]);
             }
+            return result;
+        }
+        private void RecycleSmallBuffer(ref ArraySegment<byte> buffer)
+        {
+            _smallBuffers.TryPutBack(buffer);
+            buffer = default(ArraySegment<byte>);
         }
 
         /// returns null if the caller should redo from start; returns
         /// a non-null result to preocess the data
-        private async Task<byte[]> ReceiveInitialDataUnknownStrategyAsync(SocketAsyncEventArgs args)
+        private async Task<ArraySegment<byte>> ReceiveInitialDataUnknownStrategyAsync(SocketAsyncEventArgs args)
         {
 
             // to prove that it works OK, we need (after a read):
@@ -447,11 +439,11 @@ namespace Channels.Networking.Sockets
             {
                 // well, it didn't like that... switch to small buffers
                 _bufferStyle = BufferStyle.UseSmallBuffer;
-                return null;
+                return default(ArraySegment<byte>);
             }
             if (args.SocketError != SocketError.Success)
             {   // let the calling code explode
-                return _zeroLengthBuffer;
+                return new ArraySegment<byte>(_zeroLengthBuffer);
             }
 
             if (Socket.Available > 0)
@@ -462,13 +454,13 @@ namespace Channels.Networking.Sockets
                     _bufferStyle = BufferStyle.UseZeroLengthBuffer;
                 }
                 // we'll let the calling method pull the data out
-                return _zeroLengthBuffer;
+                return new ArraySegment<byte>(_zeroLengthBuffer);
             }
 
             // so now we need to detect if this is a genuine EOF; if it isn't,
             // that isn't conclusive, because could just be timing; but if it is: great
             var buffer = LeaseSmallBuffer();
-            args.SetBuffer(buffer, 0, buffer.Length);
+            args.SetBuffer(buffer.Array, buffer.Offset, buffer.Count);
             // we'll do a receive and see what happens
             if (Socket.ReceiveAsync(args))
             {
@@ -489,7 +481,7 @@ namespace Channels.Networking.Sockets
                     _bufferStyle = BufferStyle.UseZeroLengthBuffer;
                 }
                 // we'll let the calling method shut everything down
-                return _zeroLengthBuffer;
+                return new ArraySegment<byte>(_zeroLengthBuffer);
             }
 
             // otherwise, we got something that looked like an EOF from receive,
