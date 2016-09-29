@@ -1,11 +1,11 @@
 ﻿using Channels.Networking.Sockets.Internal;
 using System;
+using System.Buffers;
+using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
 using System.Runtime.InteropServices;
-using System.Threading;
 using System.Threading.Tasks;
-using System.Buffers;
 
 namespace Channels.Networking.Sockets
 {
@@ -15,13 +15,14 @@ namespace Channels.Networking.Sockets
     public class SocketConnection : IChannel
     {
         private static readonly EventHandler<SocketAsyncEventArgs> _asyncCompleted = OnAsyncCompleted;
-        // try with a trivial "pool" at first
-        private static SocketAsyncEventArgs spare;
 
-        // TODO: consider a better pooling strategy here; small fragments of a larger buffer
-        // would be much cheaper, but is it too much tracking overhead? could use a 64*size
-        // buffer using a ulong as a bit-vector to track which blocks are in use, for example
-        private static byte[] _recycledSmallBuffer;
+        private static readonly Queue<SocketAsyncEventArgs> _argsPool = new Queue<SocketAsyncEventArgs>();
+
+        private static readonly MicroBufferPool _smallBuffers;
+
+        internal static int SmallBuffersInUse = _smallBuffers?.InUse ?? 0;
+
+        const int SmallBufferSize = 8;
 
         // track the state of which strategy to use; need to use a known-safe
         // strategy until we can decide which to use (by observing behavior)
@@ -56,7 +57,14 @@ namespace Channels.Networking.Sockets
                 // default to "figure it out based on what happens"
                 _bufferStyle = BufferStyle.Unknown;
             }
+
+            if (_bufferStyle != BufferStyle.UseZeroLengthBuffer)
+            {
+                // we're going to need to use small buffers for awaiting input
+                _smallBuffers = new MicroBufferPool(SmallBufferSize, ushort.MaxValue);
+            }
         }
+
         internal SocketConnection(Socket socket, ChannelFactory channelFactory)
         {
             socket.NoDelay = true;
@@ -115,21 +123,28 @@ namespace Channels.Networking.Sockets
 
         internal static SocketAsyncEventArgs GetOrCreateSocketAsyncEventArgs()
         {
-            var obj = Interlocked.Exchange(ref spare, null);
-            if (obj == null)
+            SocketAsyncEventArgs args = null;
+            lock (_argsPool)
             {
-                obj = new SocketAsyncEventArgs();
-                obj.Completed += _asyncCompleted; // only for new, otherwise multi-fire
+                if (_argsPool.Count != 0)
+                {
+                    args = _argsPool.Dequeue();
+                }
             }
-            if (obj.UserToken is Signal)
+            if (args == null)
             {
-                ((Signal)obj.UserToken).Reset();
+                args = new SocketAsyncEventArgs();
+                args.Completed += _asyncCompleted; // only for new, otherwise multi-fire
+            }
+            if (args.UserToken is Signal)
+            {
+                ((Signal)args.UserToken).Reset();
             }
             else
             {
-                obj.UserToken = new Signal();
+                args.UserToken = new Signal();
             }
-            return obj;
+            return args;
         }
 
         internal static void RecycleSocketAsyncEventArgs(SocketAsyncEventArgs args)
@@ -137,7 +152,13 @@ namespace Channels.Networking.Sockets
             if (args != null)
             {
                 args.SetBuffer(null, 0, 0); // make sure we don't keep a slab alive
-                Interlocked.Exchange(ref spare, args);
+                lock (_argsPool)
+                {
+                    if (_argsPool.Count < 2048)
+                    {
+                        _argsPool.Enqueue(args);
+                    }
+                }
             }
         }
         /// <summary>
@@ -242,104 +263,110 @@ namespace Channels.Networking.Sockets
                 args = GetOrCreateSocketAsyncEventArgs();
                 while (!_input.Writing.IsCompleted)
                 {
-                    byte[] initialDataBuffer = null;
-                    int bytesFromInitialDataBuffer = 0;
+                    bool haveWriteBuffer = false;
+                    WritableBuffer buffer = default(WritableBuffer);
+                    var initialSegment = default(ArraySegment<byte>);
 
-
-                    if (Socket.Available == 0)
-                    {
-                        // now, this gets a bit messy unfortunately, because support for the ideal option
-                        // (zero-length reads) is platform dependent
-                        switch (_bufferStyle)
-                        {
-                            case BufferStyle.Unknown:
-                                try
-                                {
-                                    initialDataBuffer = await ReceiveInitialDataUnknownStrategyAsync(args);
-                                }
-                                catch (Exception ex)
-                                {
-                                    initialDataBuffer = null;
-                                }
-                                if (initialDataBuffer == null)
-                                {
-                                    continue; // redo from start
-                                }
-                                break;
-                            case BufferStyle.UseZeroLengthBuffer:
-                                // if we already have a buffer, use that (but: zero count); otherwise use a shared
-                                // zero-length; this avoids constantly changing the buffer that the args use, which
-                                // avoids some overheads
-                                args.SetBuffer(args.Buffer ?? _zeroLengthBuffer, 0, 0);
-                                if (Socket.ReceiveAsync(args))
-                                {
-                                    // wait async for the io work to be completed
-                                    await ((Signal)args.UserToken).WaitAsync();
-                                }
-                                break;
-                            case BufferStyle.UseSmallBuffer:
-                                // We need  to do a speculative receive with a *cheap* buffer while we wait for input; it would be *nice* if
-                                // we could do a zero-length receive, but this is not supported equally on all platforms (fine on Windows, but
-                                // linux hates it). The key aim here is to make sure that we don't tie up an entire block from the memory pool
-                                // waiting for input on a socket; fine for 1 socket, not so fine for 100,000 sockets
-
-                                // do a short receive while we wait (async) for data
-                                initialDataBuffer = LeaseSmallBuffer();
-                                args.SetBuffer(initialDataBuffer, 0, initialDataBuffer.Length);
-                                if (Socket.ReceiveAsync(args))
-                                {
-                                    // wait async for the io work to be completed
-                                    await ((Signal)args.UserToken).WaitAsync();
-                                }
-                                break;
-                        }
-                        if (args.SocketError != SocketError.Success)
-                        {
-                            throw new SocketException((int)args.SocketError);
-                        }
-
-                        // note we can't check BytesTransferred <= 0, as we always
-                        // expect 0; but if we returned, we expect data to be
-                        // buffered *on the socket*, else EOF
-                        if ((bytesFromInitialDataBuffer = args.BytesTransferred) <= 0)
-                        {
-                            if ((object)initialDataBuffer == (object)_zeroLengthBuffer)
-                            {
-                                // sentinel value that means we should just
-                                // consume sync (we expect there to be data)
-                                initialDataBuffer = null;
-                            }
-                            else
-                            {
-                                // socket reported EOF
-                                RecycleSmallBuffer(ref initialDataBuffer);
-                            }
-                            if (Socket.Available == 0)
-                            {
-                                // yup, definitely an EOF
-                                break;
-                            }
-                        }
-                    }
-
-
-                    // note that we will try to coalesce things here to reduce the number of flushes; we
-                    // certainly want to coalesce the initial buffer (from the speculative receive) with the initial
-                    // data, but we probably don't want to buffer indefinitely; for now, it will buffer up to 4 pages
-                    // before flushing (entirely arbitrarily) - might want to make this configurable later
-                    var buffer = _input.Alloc(SmallBufferBytes * 2);
-                    const int FlushInputEveryBytes = 4 * MemoryPool.MaxPooledBlockLength;
                     try
                     {
-                        if (initialDataBuffer != null)
+
+                        int bytesFromInitialDataBuffer = 0;
+
+                        if (Socket.Available == 0)
+                        {
+                            // now, this gets a bit messy unfortunately, because support for the ideal option
+                            // (zero-length reads) is platform dependent
+                            switch (_bufferStyle)
+                            {
+                                case BufferStyle.Unknown:
+                                    try
+                                    {
+                                        initialSegment = await ReceiveInitialDataUnknownStrategyAsync(args);
+                                    }
+                                    catch
+                                    {
+                                        initialSegment = default(ArraySegment<byte>);
+                                    }
+                                    if (initialSegment.Array == null)
+                                    {
+                                        continue; // redo from start
+                                    }
+                                    break;
+                                case BufferStyle.UseZeroLengthBuffer:
+                                    // if we already have a buffer, use that (but: zero count); otherwise use a shared
+                                    // zero-length; this avoids constantly changing the buffer that the args use, which
+                                    // avoids some overheads
+                                    args.SetBuffer(args.Buffer ?? _zeroLengthBuffer, 0, 0);
+                                    if (Socket.ReceiveAsync(args))
+                                    {
+                                        // wait async for the io work to be completed
+                                        await ((Signal)args.UserToken).WaitAsync();
+                                    }
+                                    break;
+                                case BufferStyle.UseSmallBuffer:
+                                    // We need  to do a speculative receive with a *cheap* buffer while we wait for input; it would be *nice* if
+                                    // we could do a zero-length receive, but this is not supported equally on all platforms (fine on Windows, but
+                                    // linux hates it). The key aim here is to make sure that we don't tie up an entire block from the memory pool
+                                    // waiting for input on a socket; fine for 1 socket, not so fine for 100,000 sockets
+
+                                    // do a short receive while we wait (async) for data
+                                    initialSegment = LeaseSmallBuffer();
+                                    args.SetBuffer(initialSegment.Array, initialSegment.Offset, initialSegment.Count);
+                                    if (Socket.ReceiveAsync(args))
+                                    {
+                                        // wait async for the io work to be completed
+                                        await ((Signal)args.UserToken).WaitAsync();
+                                    }
+                                    break;
+                            }
+                            if (args.SocketError != SocketError.Success)
+                            {
+                                throw new SocketException((int)args.SocketError);
+                            }
+
+                            // note we can't check BytesTransferred <= 0, as we always
+                            // expect 0; but if we returned, we expect data to be
+                            // buffered *on the socket*, else EOF
+                            if ((bytesFromInitialDataBuffer = args.BytesTransferred) <= 0)
+                            {
+                                if ((object)initialSegment.Array == (object)_zeroLengthBuffer)
+                                {
+                                    // sentinel value that means we should just
+                                    // consume sync (we expect there to be data)
+                                    initialSegment = default(ArraySegment<byte>);
+                                }
+                                else
+                                {
+                                    // socket reported EOF
+                                    RecycleSmallBuffer(ref initialSegment);
+                                }
+                                if (Socket.Available == 0)
+                                {
+                                    // yup, definitely an EOF
+                                    break;
+                                }
+                            }
+                        }
+
+
+                        // note that we will try to coalesce things here to reduce the number of flushes; we
+                        // certainly want to coalesce the initial buffer (from the speculative receive) with the initial
+                        // data, but we probably don't want to buffer indefinitely; for now, it will buffer up to 4 pages
+                        // before flushing (entirely arbitrarily) - might want to make this configurable later
+                        buffer = _input.Alloc(SmallBufferSize * 2);
+                        haveWriteBuffer = true;
+
+                        const int FlushInputEveryBytes = 4 * MemoryPool.MaxPooledBlockLength;
+
+                        if (initialSegment.Array != null)
                         {
                             // need to account for anything that we got in the speculative receive
                             if (bytesFromInitialDataBuffer != 0)
                             {
-                                buffer.Write(new Span<byte>(initialDataBuffer, 0, bytesFromInitialDataBuffer));
+                                buffer.Write(new Span<byte>(initialSegment.Array, initialSegment.Offset, bytesFromInitialDataBuffer));
                             }
                             // make the small buffer available to other consumers
-                            RecycleSmallBuffer(ref initialDataBuffer);
+                            RecycleSmallBuffer(ref initialSegment);
                         }
 
                         bool isEOF = false;
@@ -376,7 +403,11 @@ namespace Channels.Networking.Sockets
                     }
                     finally
                     {
-                        await buffer.FlushAsync();
+                        RecycleSmallBuffer(ref initialSegment);
+                        if (haveWriteBuffer)
+                        {
+                            await buffer.FlushAsync();
+                        }
                     }
                 }
                 _input.CompleteWriter();
@@ -398,28 +429,28 @@ namespace Channels.Networking.Sockets
         }
 
 
-        private const int SmallBufferBytes = 8;
-        private static byte[] LeaseSmallBuffer()
+        private static ArraySegment<byte> LeaseSmallBuffer()
         {
-            return Interlocked.Exchange(ref _recycledSmallBuffer, null) ?? new byte[SmallBufferBytes];
-        }
-        private void RecycleSmallBuffer(ref byte[] buffer)
-        {
-            if (buffer != null)
+            ArraySegment<byte> result;
+            if (!_smallBuffers.TryTake(out result))
             {
-                // this is used as a sentinel in the unknown-strategy code;
-                // don't recycle it
-                if ((object)buffer != (object)_zeroLengthBuffer)
-                {
-                    Interlocked.Exchange(ref _recycledSmallBuffer, buffer);
-                }
-                buffer = null;
+                // use a throw-away buffer as a fallback
+                result = new ArraySegment<byte>(new byte[_smallBuffers.BytesPerItem]);
             }
+            return result;
+        }
+        private void RecycleSmallBuffer(ref ArraySegment<byte> buffer)
+        {
+            if (buffer.Array != null)
+            {
+                _smallBuffers?.Recycle(buffer);
+            }
+            buffer = default(ArraySegment<byte>);
         }
 
         /// returns null if the caller should redo from start; returns
         /// a non-null result to preocess the data
-        private async Task<byte[]> ReceiveInitialDataUnknownStrategyAsync(SocketAsyncEventArgs args)
+        private async Task<ArraySegment<byte>> ReceiveInitialDataUnknownStrategyAsync(SocketAsyncEventArgs args)
         {
 
             // to prove that it works OK, we need (after a read):
@@ -447,11 +478,11 @@ namespace Channels.Networking.Sockets
             {
                 // well, it didn't like that... switch to small buffers
                 _bufferStyle = BufferStyle.UseSmallBuffer;
-                return null;
+                return default(ArraySegment<byte>);
             }
             if (args.SocketError != SocketError.Success)
             {   // let the calling code explode
-                return _zeroLengthBuffer;
+                return new ArraySegment<byte>(_zeroLengthBuffer);
             }
 
             if (Socket.Available > 0)
@@ -462,40 +493,49 @@ namespace Channels.Networking.Sockets
                     _bufferStyle = BufferStyle.UseZeroLengthBuffer;
                 }
                 // we'll let the calling method pull the data out
-                return _zeroLengthBuffer;
+                return new ArraySegment<byte>(_zeroLengthBuffer);
             }
 
             // so now we need to detect if this is a genuine EOF; if it isn't,
             // that isn't conclusive, because could just be timing; but if it is: great
             var buffer = LeaseSmallBuffer();
-            args.SetBuffer(buffer, 0, buffer.Length);
-            // we'll do a receive and see what happens
-            if (Socket.ReceiveAsync(args))
+            try
             {
-                // wait async for the io work to be completed
-                await ((Signal)args.UserToken).WaitAsync();
-            }
-            if (args.SocketError != SocketError.Success)
-            {   // we can't actually conclude  anything
-                RecycleSmallBuffer(ref buffer);
-                throw new SocketException((int)args.SocketError);
-            }
-            if (args.BytesTransferred <= 0)
-            {
-                RecycleSmallBuffer(ref buffer);
-                _seenReceiveZeroWithEOF = true;
-                if (_seenReceiveZeroWithAvailable)
+                args.SetBuffer(buffer.Array, buffer.Offset, buffer.Count);
+                // we'll do a receive and see what happens
+                if (Socket.ReceiveAsync(args))
                 {
-                    _bufferStyle = BufferStyle.UseZeroLengthBuffer;
+                    // wait async for the io work to be completed
+                    await ((Signal)args.UserToken).WaitAsync();
                 }
-                // we'll let the calling method shut everything down
-                return _zeroLengthBuffer;
-            }
+                if (args.SocketError != SocketError.Success)
+                {   // we can't actually conclude  anything
+                    RecycleSmallBuffer(ref buffer);
+                    throw new SocketException((int)args.SocketError);
+                }
+                if (args.BytesTransferred <= 0)
+                {
+                    RecycleSmallBuffer(ref buffer);
+                    _seenReceiveZeroWithEOF = true;
+                    if (_seenReceiveZeroWithAvailable)
+                    {
+                        _bufferStyle = BufferStyle.UseZeroLengthBuffer;
+                    }
+                    // we'll let the calling method shut everything down
+                    return new ArraySegment<byte>(_zeroLengthBuffer);
+                }
 
-            // otherwise, we got something that looked like an EOF from receive,
-            // but which wasn't really; we'll have to do things the hard way :(
-            _bufferStyle = BufferStyle.UseSmallBuffer;
-            return buffer;
+                // otherwise, we got something that looked like an EOF from receive,
+                // but which wasn't really; we'll have to do things the hard way :(
+                _bufferStyle = BufferStyle.UseSmallBuffer;
+                return buffer;
+            }
+            catch
+            {
+                // already recycled (or not) correctly in the success cases
+                RecycleSmallBuffer(ref buffer);
+                throw;
+            }
         }
 
         private async void ReadFromChannelAndWriteToSocketAsync()
