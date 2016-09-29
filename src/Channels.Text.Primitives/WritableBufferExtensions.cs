@@ -28,9 +28,19 @@ namespace Channels.Text.Primitives
 
                     var memory = buffer.Memory;
                     var charsThisBatch = Math.Min(remainingChars, memory.Length / bytesPerChar);
+                    int bytesWritten = 0;
 
-                    int bytesWritten = encoding.GetBytes(s + charOffset, charsThisBatch,
-                        (byte*)memory.UnsafePointer, memory.Length);
+                    void* pointer;
+                    ArraySegment<byte> data;
+                    if (memory.TryGetPointer(out pointer))
+                    {
+                        bytesWritten = encoding.GetBytes(s + charOffset, charsThisBatch,
+                        (byte*)pointer, memory.Length);
+                    }
+                    else if (memory.TryGetArray(out data))
+                    {
+                        bytesWritten = encoding.GetBytes(value, charOffset, charsThisBatch, data.Array, data.Offset);
+                    }
 
                     charOffset += charsThisBatch;
                     remainingChars -= charsThisBatch;

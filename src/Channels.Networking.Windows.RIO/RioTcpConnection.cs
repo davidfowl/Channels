@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
+using System.Buffers;
 using System.Threading;
 using System.Threading.Tasks;
 using Channels.Networking.Windows.RIO.Internal;
@@ -219,7 +220,12 @@ namespace Channels.Networking.Windows.RIO
 
         private unsafe RioBufferSegment GetSegmentFromMemory(Memory<byte> memory)
         {
-            var spanPtr = (IntPtr)memory.UnsafePointer;
+            void* pointer;
+            if(!memory.TryGetPointer(out pointer))
+            {
+                throw new InvalidOperationException("Memory needs to be pinned");
+            }
+            var spanPtr = (IntPtr)pointer;
             long startAddress;
             long spanAddress = spanPtr.ToInt64();
             var bufferId = _rioThread.GetBufferId(spanPtr, out startAddress);

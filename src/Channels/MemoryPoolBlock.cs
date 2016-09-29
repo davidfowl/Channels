@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Diagnostics;
 using System.Text;
 using System.Threading;
@@ -23,7 +24,7 @@ namespace Channels
         {
             _offset = offset;
             _length = length;
-            Data = new Memory<byte>(slab.Array, offset, length, isPinned: true);
+            Data = new Memory<byte>(slab.Array, offset, length, (byte*)slab.NativePointer.ToPointer() + offset);
 
             Pool = pool;
             Slab = slab;

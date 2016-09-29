@@ -197,7 +197,14 @@ namespace Channels.Networking.Libuv
         private unsafe Uv.uv_buf_t OnAlloc(UvStreamHandle handle, int status)
         {
             _inputBuffer = _input.Alloc(2048);
-            return handle.Libuv.buf_init((IntPtr)_inputBuffer.Memory.UnsafePointer, _inputBuffer.Memory.Length);
+
+            void* pointer;
+            if (!_inputBuffer.Memory.TryGetPointer(out pointer))
+            {
+                throw new InvalidOperationException("Pointer must be pinned");
+            }
+
+            return handle.Libuv.buf_init((IntPtr)pointer, _inputBuffer.Memory.Length);
         }
     }
 }

@@ -75,14 +75,30 @@ namespace Channels.Networking.Libuv.Interop
                 if (nBuffers == 1)
                 {
                     var memory = buffer.First;
-                    pBuffers[0] = Libuv.buf_init((IntPtr)memory.UnsafePointer, memory.Length);
+                    void* pointer;
+                    if (memory.TryGetPointer(out pointer))
+                    {
+                        pBuffers[0] = Libuv.buf_init((IntPtr)pointer, memory.Length);
+                    }
+                    else
+                    {
+                        throw new InvalidOperationException("Memory needs to be pinned");
+                    }
                 }
                 else
                 {
                     int i = 0;
+                    void* pointer;
                     foreach (var memory in buffer)
                     {
-                        pBuffers[i++] = Libuv.buf_init((IntPtr)memory.UnsafePointer, memory.Length);
+                        if (memory.TryGetPointer(out pointer))
+                        {
+                            pBuffers[i++] = Libuv.buf_init((IntPtr)pointer, memory.Length);
+                        }
+                        else
+                        {
+                            throw new InvalidOperationException("Memory needs to be pinned");
+                        }
                     }
                 }
 

@@ -91,14 +91,37 @@ namespace Channels.Text.Primitives
             if (buffer.IsSingleSpan)
             {
                 // It fits!
-                addr = (byte*)buffer.First.UnsafePointer;
+                void* pointer;
+                ArraySegment<byte> data;
+                if (buffer.First.TryGetPointer(out pointer))
+                {
+                    if (!PrimitiveParser.TryParse((byte*)pointer, 0, len, EncodingData.InvariantUtf8, Format.Parsed.HexUppercase, out value, out consumed))
+                    {
+                        throw new InvalidOperationException();
+                    }
+                }
+                else if (buffer.First.TryGetArray(out data))
+                {
+                    if (!PrimitiveParser.TryParse(data.Array, 0, EncodingData.InvariantUtf8, Format.Parsed.HexUppercase, out value, out consumed))
+                    {
+                        throw new InvalidOperationException();
+                    }
+                }
+                else
+                {
+                    throw new InvalidOperationException();
+                }
             }
             else if (len < 128) // REVIEW: What's a good number
             {
                 var data = stackalloc byte[len];
                 buffer.CopyTo(new Span<byte>(data, len));
-                addr = data; // memory allocated via stackalloc is valid and
-                // intact until the end of the method; we don't need to worry about scope
+                addr = data;
+
+                if (!PrimitiveParser.TryParse(addr, 0, len, EncodingData.InvariantUtf8, Format.Parsed.HexUppercase, out value, out consumed))
+                {
+                    throw new InvalidOperationException();
+                }
             }
             else
             {
@@ -108,13 +131,10 @@ namespace Channels.Text.Primitives
                 {
                     throw new InvalidOperationException();
                 }
+
                 return value;
             }
 
-            if (!PrimitiveParser.TryParse(addr, 0, len, EncodingData.InvariantUtf8, Format.Parsed.HexUppercase, out value, out consumed))
-            {
-                throw new InvalidOperationException();
-            }
             return value;
         }
 
@@ -138,9 +158,27 @@ namespace Channels.Text.Primitives
 
                 foreach (var memory in buffer)
                 {
-                    if (!AsciiUtilities.TryGetAsciiString((byte*)memory.UnsafePointer, output + offset, memory.Length))
+                    void* pointer;
+                    if (memory.TryGetPointer(out pointer))
                     {
-                        throw new InvalidOperationException();
+                        if (!AsciiUtilities.TryGetAsciiString((byte*)pointer, output + offset, memory.Length))
+                        {
+                            throw new InvalidOperationException();
+                        }
+                    }
+                    else
+                    {
+                        ArraySegment<byte> data;
+                        if (memory.TryGetArray(out data))
+                        {
+                            fixed (byte* ptr = &data.Array[0])
+                            {
+                                if (!AsciiUtilities.TryGetAsciiString(ptr + data.Offset, output + offset, memory.Length))
+                                {
+                                    throw new InvalidOperationException();
+                                }
+                            }
+                        }
                     }
 
                     offset += memory.Length;
