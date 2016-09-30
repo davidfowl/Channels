@@ -18,7 +18,7 @@ namespace Channels
         }
 
         /// <summary>
-        /// Returns the preserved <see cref="Buffer"/>.
+        /// Returns the preserved <see cref="ReadableBuffer"/>.
         /// </summary>
         public ReadableBuffer Buffer => _buffer;
 
