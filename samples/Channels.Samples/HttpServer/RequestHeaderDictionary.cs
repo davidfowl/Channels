@@ -211,7 +211,7 @@ namespace Channels.Samples.Http
 
         private struct HeaderValue
         {
-            public ReadableBuffer? Raw;
+            public PreservedBuffer? Raw;
             public StringValues? Value;
 
             public StringValues GetValue()
@@ -223,7 +223,7 @@ namespace Channels.Samples.Http
                         return StringValues.Empty;
                     }
 
-                    Value = Raw.Value.GetAsciiString();
+                    Value = Raw.Value.Buffer.GetAsciiString();
                 }
 
                 return Value.Value;

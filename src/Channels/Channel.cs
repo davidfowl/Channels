@@ -300,7 +300,7 @@ namespace Channels
                 return new ReadableBuffer(); // Nothing written return empty
             }
 
-            return new ReadableBuffer(new ReadCursor(_commitHead, _commitHeadIndex), new ReadCursor(_writingHead, _writingHead.End), isOwner: false);
+            return new ReadableBuffer(new ReadCursor(_commitHead, _commitHeadIndex), new ReadCursor(_writingHead, _writingHead.End));
         }
 
         private Task CompleteWriteAsync()

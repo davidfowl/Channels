@@ -14,7 +14,7 @@ namespace Channels.Networking.Libuv
         private static readonly Func<UvStreamHandle, int, object, Uv.uv_buf_t> _allocCallback = AllocCallback;
         private static readonly Action<UvWriteReq, int, Exception, object> _writeCallback = WriteCallback;
 
-        private readonly Queue<ReadableBuffer> _outgoing = new Queue<ReadableBuffer>(1);
+        private readonly Queue<PreservedBuffer> _outgoing = new Queue<PreservedBuffer>(1);
 
         protected readonly Channel _input;
         protected readonly Channel _output;

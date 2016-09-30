@@ -14,12 +14,11 @@ namespace Channels
     /// <summary>
     /// Represents a buffer that can read a sequential series of bytes.
     /// </summary>
-    public struct ReadableBuffer : IDisposable
+    public struct ReadableBuffer
     {
         private static readonly int VectorWidth = Vector<byte>.Count;
 
-        private readonly Memory<byte> _first;
-        private readonly bool _isOwner;
+        private Memory<byte> _first;
 
         private ReadCursor _start;
         private ReadCursor _end;
@@ -55,17 +54,10 @@ namespace Channels
         /// </summary>
         public ReadCursor End => _end;
 
-        internal ReadableBuffer(ReadCursor start, ReadCursor end) :
-            this(start, end, isOwner: false)
-        {
-
-        }
-
-        internal ReadableBuffer(ReadCursor start, ReadCursor end, bool isOwner)
+        internal ReadableBuffer(ReadCursor start, ReadCursor end)
         {
             _start = start;
             _end = end;
-            _isOwner = isOwner;
 
             start.TryGetBuffer(end, out _first, out start);
 
@@ -85,7 +77,6 @@ namespace Channels
 
             _start = begin;
             _end = end;
-            _isOwner = true;
 
             _length = buffer._length;
 
@@ -118,7 +109,7 @@ namespace Channels
         /// <param name="slice">A <see cref="ReadableBuffer"/> that matches all data up to and excluding the first byte</param>
         /// <param name="cursor">A <see cref="ReadCursor"/> that points to the second byte</param>
         /// <returns>True if the byte sequence was found, false if not found</returns>
-        public unsafe bool TrySliceTo(Span<byte> span, out ReadableBuffer slice, out ReadCursor cursor)
+        public bool TrySliceTo(Span<byte> span, out ReadableBuffer slice, out ReadCursor cursor)
         {
             var buffer = this;
             while (!buffer.IsEmpty)
@@ -303,9 +294,10 @@ namespace Channels
         /// This transfers ownership of the buffer from the <see cref="IReadableChannel"/> to the caller of this method. Preserved buffers must be disposed to avoid
         /// memory leaks.
         /// </summary>
-        public ReadableBuffer Preserve()
+        public PreservedBuffer Preserve()
         {
-            return new ReadableBuffer(ref this);
+            var buffer = new ReadableBuffer(ref this);
+            return new PreservedBuffer(ref buffer);
         }
 
         /// <summary>
@@ -342,35 +334,6 @@ namespace Channels
             var length = begin.GetLength(_end);
             _length = length;
             return length;
-        }
-
-        /// <summary>
-        /// Disposes preserved buffers. If the buffer hasn't been preserved this method will no-op.
-        /// </summary>
-        public void Dispose()
-        {
-            if (!_isOwner)
-            {
-                return;
-            }
-
-            var returnStart = _start.Segment;
-            var returnEnd = _end.Segment;
-
-            while (true)
-            {
-                var returnSegment = returnStart;
-                returnStart = returnStart?.Next;
-                returnSegment?.Dispose();
-
-                if (returnSegment == returnEnd)
-                {
-                    break;
-                }
-            }
-
-            _start = default(ReadCursor);
-            _end = default(ReadCursor);
         }
 
         /// <summary>
@@ -442,6 +405,12 @@ namespace Channels
                 value = value.Slice(memory.Length);
             }
             return true;
+        }
+
+        internal void ClearCursors()
+        {
+            _start = default(ReadCursor);
+            _end = default(ReadCursor);
         }
 
         /// <summary>

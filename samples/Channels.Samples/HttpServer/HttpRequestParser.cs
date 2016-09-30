@@ -8,9 +8,9 @@ namespace Channels.Samples
     {
         private ParsingState _state;
 
-        public ReadableBuffer HttpVersion { get; set; }
-        public ReadableBuffer Path { get; set; }
-        public ReadableBuffer Method { get; set; }
+        public PreservedBuffer HttpVersion { get; set; }
+        public PreservedBuffer Path { get; set; }
+        public PreservedBuffer Method { get; set; }
 
         public RequestHeaderDictionary RequestHeaders = new RequestHeaderDictionary();
 
