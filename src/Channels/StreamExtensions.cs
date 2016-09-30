@@ -33,20 +33,9 @@ namespace Channels
         /// <param name="stream"></param>
         /// <param name="channel"></param>
         /// <returns></returns>
-        public static async Task CopyToAsync(this Stream stream, IWritableChannel channel)
+        public static Task CopyToAsync(this Stream stream, IWritableChannel channel)
         {
-            try
-            {
-                await stream.CopyToAsync(new StreamChannel(channel));
-            }
-            catch (Exception ex)
-            {
-                channel.Complete(ex);
-            }
-            finally
-            {
-                channel.Complete();
-            }
+            return stream.CopyToAsync(new StreamChannel(channel));
         }
 
         private class UnownedBufferStream : Stream
