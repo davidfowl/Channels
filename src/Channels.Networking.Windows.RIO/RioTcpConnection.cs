@@ -37,7 +37,7 @@ namespace Channels.Networking.Windows.RIO
 
         private Task _sendTask;
 
-        private ReadableBuffer _sendingBuffer;
+        private PreservedBuffer _sendingBuffer;
         private WritableBuffer _buffer;
 
         internal RioTcpConnection(IntPtr socket, long connectionId, IntPtr requestQueue, RioThread rioThread, RegisteredIO rio)

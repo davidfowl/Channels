@@ -23,9 +23,9 @@ namespace Channels.Samples.Http
         public RequestHeaderDictionary RequestHeaders => _parser.RequestHeaders;
         public ResponseHeaderDictionary ResponseHeaders { get; } = new ResponseHeaderDictionary();
 
-        public ReadableBuffer HttpVersion => _parser.HttpVersion;
-        public ReadableBuffer Path => _parser.Path;
-        public ReadableBuffer Method => _parser.Method;
+        public PreservedBuffer HttpVersion => _parser.HttpVersion;
+        public PreservedBuffer Path => _parser.Path;
+        public PreservedBuffer Method => _parser.Method;
 
         // TODO: Check the http version
         public bool KeepAlive => true; //RequestHeaders.ContainsKey("Connection") && string.Equals(RequestHeaders["Connection"], "keep-alive");
