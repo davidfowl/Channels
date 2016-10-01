@@ -1,11 +1,12 @@
-﻿using Channels.Text.Primitives;
-using System;
+﻿using System;
+using System.Buffers;
 using System.Collections.Generic;
 using System.Globalization;
+using System.IO;
 using System.Linq;
-using System.Numerics;
 using System.Text;
 using System.Threading.Tasks;
+using Channels.Text.Primitives;
 using Xunit;
 
 namespace Channels.Tests
@@ -335,12 +336,12 @@ namespace Channels.Tests
                 output.Write(new byte[] { 3, 4, 5 });
                 output.Ensure(4031);
                 output.Write(new byte[] { 6, 7, 9 });
-                
+
                 var readable = output.AsReadableBuffer();
                 Assert.Equal(9, readable.Length);
 
                 int spanCount = 0;
-                foreach(var _ in readable)
+                foreach (var _ in readable)
                 {
                     spanCount++;
                 }
@@ -349,7 +350,7 @@ namespace Channels.Tests
                 byte[] local = new byte[9];
                 readable.CopyTo(local);
                 var span = new Span<byte>(local);
-                
+
                 Assert.Equal(span.Read<byte>(), readable.ReadLittleEndian<byte>());
                 Assert.Equal(span.Read<sbyte>(), readable.ReadLittleEndian<sbyte>());
                 Assert.Equal(span.Read<short>(), readable.ReadLittleEndian<short>());
@@ -361,6 +362,75 @@ namespace Channels.Tests
                 Assert.Equal(span.Read<float>(), readable.ReadLittleEndian<float>());
                 Assert.Equal(span.Read<double>(), readable.ReadLittleEndian<double>());
                 await output.FlushAsync();
+            }
+        }
+
+        [Fact]
+        public async Task CopyToAsync()
+        {
+            using (var cf = new ChannelFactory())
+            {
+                var channel = cf.CreateChannel();
+                var output = channel.Alloc();
+                output.WriteAsciiString("Hello World");
+                await output.FlushAsync();
+                var ms = new MemoryStream();
+                var rb = await channel.ReadAsync();
+                await rb.CopyToAsync(ms);
+                ms.Position = 0;
+                Assert.Equal(11, rb.Length);
+                Assert.Equal(11, ms.Length);
+                Assert.Equal(rb.ToArray(), ms.ToArray());
+                Assert.Equal("Hello World", Encoding.ASCII.GetString(ms.ToArray()));
+            }
+        }
+
+        [Fact]
+        public async Task CopyToAsyncNativeMemory()
+        {
+            using (var pool = new NativePool())
+            using (var cf = new ChannelFactory(pool))
+            {
+                var channel = cf.CreateChannel();
+                var output = channel.Alloc();
+                output.WriteAsciiString("Hello World");
+                await output.FlushAsync();
+                var ms = new MemoryStream();
+                var rb = await channel.ReadAsync();
+                await rb.CopyToAsync(ms);
+                ms.Position = 0;
+                Assert.Equal(11, rb.Length);
+                Assert.Equal(11, ms.Length);
+                Assert.Equal(rb.ToArray(), ms.ToArray());
+                Assert.Equal("Hello World", Encoding.ASCII.GetString(ms.ToArray()));
+            }
+        }
+
+        private class NativePool : IBufferPool
+        {
+            public void Dispose()
+            {
+
+            }
+
+            public IBuffer Lease(int size)
+            {
+                return new NativeBuffer(NativeBufferPool.Shared.Rent(size));
+            }
+
+            private class NativeBuffer : ReferenceCountedBuffer
+            {
+                public NativeBuffer(Memory<byte> memory)
+                {
+                    Data = memory;
+                }
+
+                public override Memory<byte> Data { get; }
+
+                protected override void DisposeBuffer()
+                {
+                    NativeBufferPool.Shared.Return(Data);
+                }
             }
         }
     }
