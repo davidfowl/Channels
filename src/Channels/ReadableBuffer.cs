@@ -3,8 +3,6 @@
 
 using System;
 using System.Buffers;
-using System.Collections;
-using System.Collections.Generic;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -15,8 +13,26 @@ namespace Channels
     /// Represents a buffer that can read a sequential series of bytes.
     /// </summary>
     public struct ReadableBuffer
-    {
-        private static readonly int VectorWidth = Vector<byte>.Count;
+    {   
+        // De Bruijn sequence https://github.com/aspnet/KestrelHttpServer/issues/1129
+        const ulong DEBRUIJN_SEQ64 = 0x03f79d71b4cb0a89;
+        private static readonly byte[] _debruijn64Xor =
+        {
+            0, 5, 0, 7, 6, 3, 0, 7,
+            7, 6, 5, 4, 3, 2, 0, 7,
+            6, 7, 4, 6, 6, 5, 2, 5,
+            4, 4, 3, 2, 2, 1, 0, 7,
+            5, 6, 3, 7, 5, 4, 1, 6,
+            4, 6, 2, 5, 3, 2, 1, 5,
+            3, 4, 1, 4, 2, 3, 1, 3,
+            1, 2, 1, 1, 0, 0, 0, 7,
+        };
+
+        // Convert these returns to jitted consts
+        private static readonly int VectorByteWidth = Vector<byte>.Count;
+        private static readonly int VectorUlongWidth = Vector<ulong>.Count;
+        private static readonly int BytesPerULong = VectorByteWidth / VectorUlongWidth;
+        private static readonly bool IsLittleEndian = BitConverter.IsLittleEndian;
 
         private Memory<byte> _first;
 
@@ -167,15 +183,15 @@ namespace Channels
 
                 if (Vector.IsHardwareAccelerated)
                 {
-                    while (currentSpan.Length >= VectorWidth)
+                    while (currentSpan.Length >= VectorByteWidth)
                     {
                         var data = currentSpan.Read<Vector<byte>>();
                         var byte0Equals = Vector.Equals(data, byte0Vector);
 
                         if (byte0Equals.Equals(Vector<byte>.Zero))
                         {
-                            currentSpan = currentSpan.Slice(VectorWidth);
-                            seek += VectorWidth;
+                            currentSpan = currentSpan.Slice(VectorByteWidth);
+                            seek += VectorByteWidth;
                         }
                         else
                         {
@@ -419,26 +435,60 @@ namespace Channels
         /// <param  name="byteEquals"></param >
         /// <returns>The first index of the result vector</returns>
         /// <exception cref="InvalidOperationException">byteEquals = 0</exception>
+        // Force inlining (117 + 29 + 29 = 175 IL bytes) Issue: https://github.com/dotnet/coreclr/issues/7386
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         internal static int FindFirstEqualByte(ref Vector<byte> byteEquals)
         {
-            if (!BitConverter.IsLittleEndian) return FindFirstEqualByteSlow(ref byteEquals);
-
-            // Quasi-tree search
-            var vector64 = Vector.AsVectorInt64(byteEquals);
-            for (var i = 0; i < Vector<long>.Count; i++)
+            // Jitted const eliminates branch
+            if (IsLittleEndian)
             {
-                var longValue = vector64[i];
-                if (longValue == 0) continue;
+                var result = -1;
+                var vector64 = Vector.AsVectorUInt64(byteEquals);
+                for (var i = 0; i < VectorUlongWidth; i += 2)
+                {
+                    ulong vectorChunk;
+                    if ((vectorChunk = vector64[i]) != 0)
+                    {
+                        // Single LEA instruction with jitted const (using function result)
+                        result = i * BytesPerULong + DeBruijnFindByteXor(vectorChunk);
+                        // Use break rather than inline return to reduce stack restore asm
+                        break;
+                    }
+                    else if ((vectorChunk = vector64[i + 1]) != 0)
+                    {
+                        // Single LEA instruction with jitted const (using function result)
+                        result = (i + 1) * BytesPerULong + DeBruijnFindByteXor(vectorChunk);
+                        // Use break rather than inline return to reduce stack restore asm
+                        break;
+                    }
+                }
 
-                return (i << 3) +
-                    ((longValue & 0x00000000ffffffff) > 0
-                        ? (longValue & 0x000000000000ffff) > 0
-                            ? (longValue & 0x00000000000000ff) > 0 ? 0 : 1
-                            : (longValue & 0x0000000000ff0000) > 0 ? 2 : 3
-                        : (longValue & 0x0000ffff00000000) > 0
-                            ? (longValue & 0x000000ff00000000) > 0 ? 4 : 5
-                            : (longValue & 0x00ff000000000000) > 0 ? 6 : 7);
+                if (result == -1)
+                {
+                    // Remove throw code to reduce inline size
+                    // https://github.com/dotnet/coreclr/pull/6103
+                    ThrowInvalidOperationException();
+                }
+
+                return result;
             }
+            else
+            {
+                return FindFirstEqualByteSlow(ref byteEquals);
+            }
+        }
+
+        // Force inlining (29 IL bytes) 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        private static int DeBruijnFindByteXor(ulong v)
+        {
+            // Cast result to byte to avoid indexing overflow check from using ulong
+            var index = (byte)(((v ^ (v - 1)) * DEBRUIJN_SEQ64) >> 58);
+            return _debruijn64Xor[index];
+        }
+
+        private static void ThrowInvalidOperationException()
+        {
             throw new InvalidOperationException();
         }
 
