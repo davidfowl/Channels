@@ -329,7 +329,7 @@ namespace Channels.Networking.Sockets
                             // buffered *on the socket*, else EOF
                             if ((bytesFromInitialDataBuffer = args.BytesTransferred) <= 0)
                             {
-                                if ((object)initialSegment.Array == (object)_zeroLengthBuffer)
+                                if (ReferenceEquals(initialSegment.Array, _zeroLengthBuffer))
                                 {
                                     // sentinel value that means we should just
                                     // consume sync (we expect there to be data)
