@@ -93,7 +93,7 @@ namespace Channels
                         {
                             // Fall back to copies if this was native memory and we were unable to get
                             //  something we could write
-                            buffer = new ArraySegment<byte>(memory.Span.CreateArray());
+                            buffer = new ArraySegment<byte>(memory.Span.ToArray());
                         }
 
                         await stream.WriteAsync(buffer.Array, buffer.Offset, buffer.Count);

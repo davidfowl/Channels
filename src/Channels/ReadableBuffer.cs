@@ -313,7 +313,7 @@ namespace Channels
 
             foreach (var memory in this)
             {
-                memory.Span.TryCopyTo(destination);
+                memory.Span.CopyTo(destination);
                 destination = destination.Slice(memory.Length);
             }
         }
