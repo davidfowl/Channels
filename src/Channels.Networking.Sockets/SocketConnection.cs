@@ -29,7 +29,10 @@ namespace Channels.Networking.Sockets
         private static BufferStyle _bufferStyle;
         private static bool _seenReceiveZeroWithAvailable, _seenReceiveZeroWithEOF;
 
-        private static readonly byte[] _zeroLengthBuffer = new byte[0];
+        private static readonly bool _sioLoopbackEnabled;
+
+        private static readonly byte[] _zeroLengthBuffer = new byte[0],
+            _sioLoopbackValue = BitConverter.GetBytes(1);
 
 
         private readonly bool _ownsChannelFactory;
@@ -45,6 +48,9 @@ namespace Channels.Networking.Sockets
             {
                 // zero-length receive works fine
                 _bufferStyle = BufferStyle.UseZeroLengthBuffer;
+
+                // SIO loopback is windows only
+                _sioLoopbackEnabled = true;
             }
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX)
                 || RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
@@ -195,6 +201,20 @@ namespace Channels.Networking.Sockets
             catch { }
         }
 
+        private static void EnableSioLoopbach(Socket socket)
+        {
+            // SIO_LOOPBACK_FAST_PATH (http://msdn.microsoft.com/en-us/library/windows/desktop/jj841212%28v=vs.85%29.aspx)
+            // Speeds up localhost operations significantly. OK to apply to a socket that will not be hooked up to localhost,
+            // or will be subject to WFP filtering.
+            const int SIO_LOOPBACK_FAST_PATH = -1744830448;
+
+            try
+            {
+                socket.IOControl(SIO_LOOPBACK_FAST_PATH, _sioLoopbackValue, null);
+            }
+            catch { } // speculative only; not all versions and not core-clr
+        }
+
         private static void OnConnect(SocketAsyncEventArgs e)
         {
             var tcs = (TaskCompletionSource<SocketConnection>)e.UserToken;
@@ -202,7 +222,12 @@ namespace Channels.Networking.Sockets
             {
                 if (e.SocketError == SocketError.Success)
                 {
-                    tcs.TrySetResult(new SocketConnection(e.ConnectSocket, (ChannelFactory)tcs.Task.AsyncState));
+                    var socket = e.ConnectSocket;
+                    if (_sioLoopbackEnabled)
+                    {
+                        EnableSioLoopbach(socket);
+                    }
+                    tcs.TrySetResult(new SocketConnection(socket, (ChannelFactory)tcs.Task.AsyncState));
                 }
                 else
                 {
