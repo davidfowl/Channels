@@ -29,7 +29,7 @@ namespace Channels
                 else
                 {
                     // Copy required 
-                    var array = memory.Span.CreateArray();
+                    var array = memory.Span.ToArray();
                     await stream.WriteAsync(array, 0, array.Length);
                 }
             }
