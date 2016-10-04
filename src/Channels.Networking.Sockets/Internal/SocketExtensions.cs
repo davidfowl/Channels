@@ -12,7 +12,7 @@ namespace Channels.Networking.Sockets.Internal
         {
             var signal = (Signal)args.UserToken;
             signal.Reset();
-            if(!socket.ReceiveAsync(args))
+            if (!socket.ReceiveAsync(args))
             {   // mark it as already complete (probably an error)
                 signal.Set();
             }
