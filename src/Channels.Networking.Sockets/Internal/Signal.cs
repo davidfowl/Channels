@@ -24,7 +24,7 @@ namespace Channels.Networking.Sockets.Internal
             _continuationMode = continuationMode;
         }
 
-        public bool IsCompleted => ReferenceEquals(Volatile.Read(ref _continuation), _completedSentinel);
+        public bool IsCompleted => ReferenceEquals(_completedSentinel, Volatile.Read(ref _continuation));
 
         private object SyncLock => this;
 
