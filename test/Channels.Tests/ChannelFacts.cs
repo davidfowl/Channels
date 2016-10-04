@@ -168,7 +168,7 @@ namespace Channels.Tests
                 Assert.Equal(11, buffer.Length);
                 Assert.True(buffer.IsSingleSpan);
                 var array = new byte[11];
-                buffer.First.Span.TryCopyTo(array);
+                buffer.First.Span.CopyTo(array);
                 Assert.Equal("Hello World", Encoding.ASCII.GetString(array));
             }
         }
@@ -226,9 +226,9 @@ namespace Channels.Tests
                 var spans = memory;
                 Assert.Equal(2, memory.Count);
                 var helloBytes = new byte[spans[0].Length];
-                spans[0].Span.TryCopyTo(helloBytes);
+                spans[0].Span.CopyTo(helloBytes);
                 var worldBytes = new byte[spans[1].Length];
-                spans[1].Span.TryCopyTo(worldBytes);
+                spans[1].Span.CopyTo(worldBytes);
                 Assert.Equal("Hello", Encoding.ASCII.GetString(helloBytes));
                 Assert.Equal(" World", Encoding.ASCII.GetString(worldBytes));
             }
