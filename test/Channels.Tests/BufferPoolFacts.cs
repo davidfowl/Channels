@@ -1,13 +1,11 @@
 ﻿using Channels.Networking.Sockets.Internal;
 using System;
-using System.Diagnostics;
 using Xunit;
 
 namespace Channels.Tests
 {
     public class BufferPoolFacts
     {
-
         [Fact]
         public void BufferPoolBasicUsage()
         {
@@ -52,5 +50,4 @@ namespace Channels.Tests
             Assert.Equal(4, pool.Available);
         }
     }
-    
 }
