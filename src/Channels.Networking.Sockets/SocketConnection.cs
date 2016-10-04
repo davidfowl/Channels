@@ -297,11 +297,9 @@ namespace Channels.Networking.Sockets
                                     // zero-length; this avoids constantly changing the buffer that the args use, which
                                     // avoids some overheads
                                     args.SetBuffer(args.Buffer ?? _zeroLengthBuffer, 0, 0);
-                                    if (Socket.ReceiveAsync(args))
-                                    {
-                                        // wait async for the io work to be completed
-                                        await ((Signal)args.UserToken).WaitAsync();
-                                    }
+
+                                    // await async for the io work to be completed
+                                    await Socket.ReceiveSignalAsync(args);
                                     break;
                                 case BufferStyle.UseSmallBuffer:
                                     // We need  to do a speculative receive with a *cheap* buffer while we wait for input; it would be *nice* if
@@ -312,11 +310,9 @@ namespace Channels.Networking.Sockets
                                     // do a short receive while we wait (async) for data
                                     initialSegment = LeaseSmallBuffer();
                                     args.SetBuffer(initialSegment.Array, initialSegment.Offset, initialSegment.Count);
-                                    if (Socket.ReceiveAsync(args))
-                                    {
-                                        // wait async for the io work to be completed
-                                        await ((Signal)args.UserToken).WaitAsync();
-                                    }
+
+                                    // await async for the io work to be completed
+                                    await Socket.ReceiveSignalAsync(args);
                                     break;
                             }
                             if (args.SocketError != SocketError.Success)
@@ -374,11 +370,8 @@ namespace Channels.Networking.Sockets
                         {
                             buffer.Ensure(); // ask for *something*, then use whatever is available (usually much much more)
                             SetBuffer(buffer.Memory, args);
-                            if (Socket.ReceiveAsync(args)) //  initiator calls ReceiveAsync
-                            {
-                                // wait async for the io work to be completed
-                                await ((Signal)args.UserToken).WaitAsync();
-                            }
+                            // await async for the io work to be completed
+                            await Socket.ReceiveSignalAsync(args);
 
                             // either way, need to validate
                             if (args.SocketError != SocketError.Success)
@@ -468,11 +461,7 @@ namespace Channels.Networking.Sockets
             {
                 args.SetBuffer(_zeroLengthBuffer, 0, 0);
                 // we'll do a receive and see what happens
-                if (Socket.ReceiveAsync(args))
-                {
-                    // wait async for the io work to be completed
-                    await ((Signal)args.UserToken).WaitAsync();
-                }
+                await Socket.ReceiveSignalAsync(args);
             }
             catch
             {
@@ -503,11 +492,8 @@ namespace Channels.Networking.Sockets
             {
                 args.SetBuffer(buffer.Array, buffer.Offset, buffer.Count);
                 // we'll do a receive and see what happens
-                if (Socket.ReceiveAsync(args))
-                {
-                    // wait async for the io work to be completed
-                    await ((Signal)args.UserToken).WaitAsync();
-                }
+                await Socket.ReceiveSignalAsync(args);
+
                 if (args.SocketError != SocketError.Success)
                 {   // we can't actually conclude  anything
                     RecycleSmallBuffer(ref buffer);
@@ -562,15 +548,9 @@ namespace Channels.Networking.Sockets
                             {
                                 SetBuffer(memory, args, memory.Length - remaining);
 
-                                if (Socket.SendAsync(args)) //  initiator calls SendAsync
-                                {
-                                    // wait async for the semaphore to be released by the callback
-                                    await ((Signal)args.UserToken).WaitAsync();
-                                }
-                                else
-                                {
-                                    // if SendAsync returns sync, we have the conch - nothing to do - we already sent
-                                }
+                                // await async for the io work to be completed
+                                await Socket.SendSignalAsync(args);
+
                                 // either way, need to validate
                                 if (args.SocketError != SocketError.Success)
                                 {
