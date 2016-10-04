@@ -11,9 +11,13 @@ using Xunit;
 
 namespace Channels.Tests
 {
-    public class SocketsFacts
+    public class SocketsFacts : IDisposable
     {
-
+        public void Dispose()
+        {
+            // am I leaking small buffers?
+            Assert.Equal(0, SocketConnection.SmallBuffersInUse);
+        }
         static readonly Span<byte> _ping = new Span<byte>(Encoding.ASCII.GetBytes("PING")), _pong = new Span<byte>(Encoding.ASCII.GetBytes("PING"));
 
         //[Fact]
