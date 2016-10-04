@@ -111,6 +111,17 @@ namespace Channels.Networking.Sockets
         /// <param name="channelFactory">Optionally allows the underlying channel factory (and hence memory pool) to be specified; if one is not provided, a channel factory will be instantiated and owned by the connection</param>
         public static Task<SocketConnection> ConnectAsync(IPEndPoint endPoint, ChannelFactory channelFactory = null)
         {
+            if (_sioLoopbackEnabled)
+            {
+                return Task.Run(() =>
+                {
+                    var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                    EnableSioLoopbach(socket);
+                    socket.Connect(endPoint);
+                    return new SocketConnection(socket, channelFactory);
+                });
+            }
+
             var args = new SocketAsyncEventArgs();
             args.RemoteEndPoint = endPoint;
             args.Completed += _asyncCompleted;
@@ -212,7 +223,7 @@ namespace Channels.Networking.Sockets
             {
                 socket.IOControl(SIO_LOOPBACK_FAST_PATH, _sioLoopbackValue, null);
             }
-            catch { } // speculative only; not all versions and not core-clr
+            catch { } // speculative only; not all OS versions
         }
 
         private static void OnConnect(SocketAsyncEventArgs e)
@@ -222,12 +233,7 @@ namespace Channels.Networking.Sockets
             {
                 if (e.SocketError == SocketError.Success)
                 {
-                    var socket = e.ConnectSocket;
-                    if (_sioLoopbackEnabled)
-                    {
-                        EnableSioLoopbach(socket);
-                    }
-                    tcs.TrySetResult(new SocketConnection(socket, (ChannelFactory)tcs.Task.AsyncState));
+                    tcs.TrySetResult(new SocketConnection(e.ConnectSocket, (ChannelFactory)tcs.Task.AsyncState));
                 }
                 else
                 {
