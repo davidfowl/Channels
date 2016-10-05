@@ -15,7 +15,9 @@ namespace Channels
     public struct ReadableBuffer
     {
         private static readonly ulong _powerOfTwoToHighByte = PowerOfTwoToHighByte();
-        private static readonly int VectorWidth = Vector<byte>.Count;
+
+        private const ulong byteBroadcastToUlong = ~0UL / byte.MaxValue;
+        private const ulong filterByteHighBitsInUlong = (byteBroadcastToUlong >> 1) | (byteBroadcastToUlong << (sizeof(ulong) * 8 - 1));
 
         private Memory<byte> _first;
 
@@ -167,15 +169,16 @@ namespace Channels
 
                 if (Vector.IsHardwareAccelerated)
                 {
-                    while (currentSpan.Length >= VectorWidth)
+                    // Search by Vector length (16/32/64 bytes)
+                    while (currentSpan.Length >= Vector<byte>.Count)
                     {
                         var data = currentSpan.Read<Vector<byte>>();
 
                         var byte0Equals = Vector.Equals(data, byte0Vector);
                         if (byte0Equals.Equals(Vector<byte>.Zero))
                         {
-                            currentSpan = currentSpan.Slice(VectorWidth);
-                            seek += VectorWidth;
+                            currentSpan = currentSpan.Slice(Vector<byte>.Count);
+                            seek += Vector<byte>.Count;
                         }
                         else
                         {
@@ -189,7 +192,30 @@ namespace Channels
 
                 if (!found)
                 {
-                    // Slow search
+                    // Search by Long length (8 bytes)
+                    while (currentSpan.Length >= sizeof(ulong))
+                    {
+                        var data = currentSpan.Read<ulong>();
+
+                        var byteEquals = SetLowBitsForByteMatch(data, b1);
+                        if (byteEquals == 0)
+                        {
+                            currentSpan = currentSpan.Slice(sizeof(ulong));
+                            seek += sizeof(ulong);
+                        }
+                        else
+                        {
+                            var index = LocateFirstFoundByte(byteEquals);
+                            seek += index;
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!found)
+                {
+                    // Byte by byte search
                     for (int i = 0; i < currentSpan.Length; i++)
                     {
                         if (currentSpan[i] == b1)
@@ -423,8 +449,8 @@ namespace Channels
         internal static int LocateFirstFoundByte(ref Vector<byte> byteEquals)
         {
             var vector64 = Vector.AsVectorInt64(byteEquals);
-            var i = 0;
             long longValue = 0;
+            var i = 0;
             for (; i < Vector<long>.Count; i++)
             {
                 longValue = vector64[i];
@@ -432,12 +458,29 @@ namespace Channels
                 break;
             }
 
-            // Flag least significant power of two bit
-            var powerOfTwoFlag = (ulong)(longValue & -longValue);
-            // Shift all powers of two into the high byte and extract
-            var foundByteIndex = (int)((powerOfTwoFlag * _powerOfTwoToHighByte) >> 61);
             // Single LEA instruction with jitted const (using function result)
-            return i * 8 + foundByteIndex;
+            return i * 8 + LocateFirstFoundByte(longValue);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static int LocateFirstFoundByte(long byteEquals)
+        {
+            // Flag least significant power of two bit
+            var powerOfTwoFlag = (ulong)(byteEquals & -byteEquals);
+            // Shift all powers of two into the high byte and extract
+            return (int)((powerOfTwoFlag * _powerOfTwoToHighByte) >> 61);
+        }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static long SetLowBitsForByteMatch(ulong ulongValue, byte search)
+        {
+            var value = ulongValue ^ (byteBroadcastToUlong * search);
+            return (long)(
+                (
+                    (value - byteBroadcastToUlong) &
+                    ~(value) & 
+                    filterByteHighBitsInUlong
+                ) >> 7);
         }
 
         /// <summary>

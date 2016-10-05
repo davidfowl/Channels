@@ -1,6 +1,5 @@
 ﻿using System;
 using BenchmarkDotNet.Configs;
-using BenchmarkDotNet.Diagnostics.Windows;
 using BenchmarkDotNet.Jobs;
 using BenchmarkDotNet.Running;
 
@@ -32,6 +31,11 @@ namespace Channels.Tests.Performance
             {
                 BenchmarkRunner.Run<ChannelsStreamsBenchmark>();
             }
+
+            if (type.HasFlag(BenchmarkType.TrySliceTo))
+            {
+                BenchmarkRunner.Run<TrySliceToBenchmark>();
+            }
         }
     }
 
@@ -39,26 +43,10 @@ namespace Channels.Tests.Performance
     public enum BenchmarkType : uint
     {
         Streams = 1,
+        TrySliceTo = 2,
         // add new ones in powers of two - e.g. 2,4,8,16...
 
         All = uint.MaxValue
-    }
-
-    public class DefaultConfig : ManualConfig
-    {
-        public DefaultConfig()
-        {
-            Add(Job.Default.
-                With(Platform.X64).
-                With(Jit.RyuJit).
-                With(Runtime.Clr).
-                WithLaunchCount(3).
-                WithIterationTime(200). // 200ms per iteration
-                WithWarmupCount(5).
-                WithTargetCount(10));
-
-            Add(new MemoryDiagnoser());
-        }
     }
 }
 
