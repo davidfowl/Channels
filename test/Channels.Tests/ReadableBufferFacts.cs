@@ -406,6 +406,45 @@ namespace Channels.Tests
             }
         }
 
+
+        [Fact]
+        public void CanUseArrayBasedReadableBuffers()
+        {
+            var data = Encoding.ASCII.GetBytes("***abc|def|ghijk****"); // note sthe padding here - verifying that it is omitted correctly
+            var buffer = ReadableBuffer.Create(data, 3, data.Length - 7);
+            Assert.Equal(13, buffer.Length);
+            var split = buffer.Split((byte)'|');
+            Assert.Equal(3, split.Count());
+            using (var iter = split.GetEnumerator())
+            {
+                Assert.True(iter.MoveNext());
+                var current = iter.Current;
+                Assert.Equal("abc", current.GetAsciiString());
+                using (var preserved = iter.Current.Preserve())
+                {
+                    Assert.Equal("abc", preserved.Buffer.GetAsciiString());                    
+                }
+
+                Assert.True(iter.MoveNext());
+                current = iter.Current;
+                Assert.Equal("def", current.GetAsciiString());
+                using (var preserved = iter.Current.Preserve())
+                {
+                    Assert.Equal("def", preserved.Buffer.GetAsciiString());
+                }
+
+                Assert.True(iter.MoveNext());
+                current = iter.Current;
+                Assert.Equal("ghijk", current.GetAsciiString());
+                using (var preserved = iter.Current.Preserve())
+                {
+                    Assert.Equal("ghijk", preserved.Buffer.GetAsciiString());
+                }
+
+                Assert.False(iter.MoveNext());
+            }                
+        }
+
         private class NativePool : IBufferPool
         {
             public void Dispose()
