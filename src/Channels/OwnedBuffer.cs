@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Buffers;
-using System.Diagnostics;
 
 namespace Channels
 {
@@ -11,23 +10,32 @@ namespace Channels
     {
         private byte[] _buffer;
 
+        /// <summary>
+        /// Create a new instance of <see cref="OwnedBuffer"/> that spans the array provided.
+        /// </summary>
         public OwnedBuffer(byte[] buffer)
         {
             _buffer = buffer;
         }
 
+        /// <summary>
+        /// Raw representation of the underlying data this <see cref="IBuffer"/> represents
+        /// </summary>
         public Memory<byte> Data => new Memory<byte>(_buffer);
 
-        public void Dispose()
+        void IDisposable.Dispose()
         {
             // No need, the GC can handle it.
         }
 
         // We're owned, we're always "preserved"
+        /// <summary>
+        /// <see cref="IBuffer.Preserve(int, int, out int, out int)"/>
+        /// </summary>
         public IBuffer Preserve(int offset, int length, out int newStart, out int newEnd)
         {
-            newStart = 0;
-            newEnd = Data.Length;
+            newStart = offset;
+            newEnd = offset + length;
             return this;
         }
     }

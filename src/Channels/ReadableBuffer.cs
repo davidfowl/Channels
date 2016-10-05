@@ -469,5 +469,31 @@ namespace Channels
             }
             throw new InvalidOperationException();
         }
+
+
+        /// <summary>
+        /// Create a <see cref="ReadableBuffer"/> over an array.
+        /// </summary>
+        public static ReadableBuffer Create(byte[] data, int offset, int length)
+        {
+            if (data == null)
+            {
+                throw new ArgumentNullException(nameof(data));
+            }
+
+            if (offset < 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(offset));
+            }
+
+            if(length  < 0 || (offset + length) > data.Length)
+            {
+                throw new ArgumentOutOfRangeException(nameof(length));
+            }
+
+            var buffer = new OwnedBuffer(data);
+            var segment = new BufferSegment(buffer, offset, offset + length);
+            return new ReadableBuffer(new ReadCursor(segment, offset), new ReadCursor(segment, offset + length));
+        }
     }
 }
