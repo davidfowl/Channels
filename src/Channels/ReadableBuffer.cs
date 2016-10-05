@@ -4,6 +4,7 @@
 using System;
 using System.Buffers;
 using System.Numerics;
+using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace Channels
@@ -13,6 +14,7 @@ namespace Channels
     /// </summary>
     public struct ReadableBuffer
     {
+        private static readonly ulong _powerOfTwoToHighByte = PowerOfTwoToHighByte();
         private static readonly int VectorWidth = Vector<byte>.Count;
 
         private Memory<byte> _first;
@@ -168,8 +170,8 @@ namespace Channels
                     while (currentSpan.Length >= VectorWidth)
                     {
                         var data = currentSpan.Read<Vector<byte>>();
-                        var byte0Equals = Vector.Equals(data, byte0Vector);
 
+                        var byte0Equals = Vector.Equals(data, byte0Vector);
                         if (byte0Equals.Equals(Vector<byte>.Zero))
                         {
                             currentSpan = currentSpan.Slice(VectorWidth);
@@ -177,7 +179,7 @@ namespace Channels
                         }
                         else
                         {
-                            var index = FindFirstEqualByte(ref byte0Equals);
+                            var index = LocateFirstFoundByte(ref byte0Equals);
                             seek += index;
                             found = true;
                             break;
@@ -412,60 +414,30 @@ namespace Channels
         }
 
         /// <summary>
-        /// Find first byte
+        /// Locate the first of the found bytes
         /// </summary>
         /// <param  name="byteEquals"></param >
         /// <returns>The first index of the result vector</returns>
-        /// <exception cref="InvalidOperationException">byteEquals = 0</exception>
-        internal static int FindFirstEqualByte(ref Vector<byte> byteEquals)
+        // Force inlining (64 IL bytes, 91 bytes asm) Issue: https://github.com/dotnet/coreclr/issues/7386
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
+        internal static int LocateFirstFoundByte(ref Vector<byte> byteEquals)
         {
-            if (!BitConverter.IsLittleEndian) return FindFirstEqualByteSlow(ref byteEquals);
-
-            // Quasi-tree search
             var vector64 = Vector.AsVectorInt64(byteEquals);
-            for (var i = 0; i < Vector<long>.Count; i++)
+            var i = 0;
+            long longValue = 0;
+            for (; i < Vector<long>.Count; i++)
             {
-                var longValue = vector64[i];
+                longValue = vector64[i];
                 if (longValue == 0) continue;
-
-                return (i << 3) +
-                    ((longValue & 0x00000000ffffffff) > 0
-                        ? (longValue & 0x000000000000ffff) > 0
-                            ? (longValue & 0x00000000000000ff) > 0 ? 0 : 1
-                            : (longValue & 0x0000000000ff0000) > 0 ? 2 : 3
-                        : (longValue & 0x0000ffff00000000) > 0
-                            ? (longValue & 0x000000ff00000000) > 0 ? 4 : 5
-                            : (longValue & 0x00ff000000000000) > 0 ? 6 : 7);
+                break;
             }
-            throw new InvalidOperationException();
-        }
 
-        // Internal for testing
-        internal static int FindFirstEqualByteSlow(ref Vector<byte> byteEquals)
-        {
-            // Quasi-tree search
-            var vector64 = Vector.AsVectorInt64(byteEquals);
-            for (var i = 0; i < Vector<long>.Count; i++)
-            {
-                var longValue = vector64[i];
-                if (longValue == 0) continue;
-
-                var shift = i << 1;
-                var offset = shift << 2;
-                var vector32 = Vector.AsVectorInt32(byteEquals);
-                if (vector32[shift] != 0)
-                {
-                    if (byteEquals[offset] != 0) return offset;
-                    if (byteEquals[offset + 1] != 0) return offset + 1;
-                    if (byteEquals[offset + 2] != 0) return offset + 2;
-                    return offset + 3;
-                }
-                if (byteEquals[offset + 4] != 0) return offset + 4;
-                if (byteEquals[offset + 5] != 0) return offset + 5;
-                if (byteEquals[offset + 6] != 0) return offset + 6;
-                return offset + 7;
-            }
-            throw new InvalidOperationException();
+            // Flag least significant power of two bit
+            var powerOfTwoFlag = (ulong)(longValue & -longValue);
+            // Shift all powers of two into the high byte and extract
+            var foundByteIndex = (int)((powerOfTwoFlag * _powerOfTwoToHighByte) >> 61);
+            // Single LEA instruction with jitted const (using function result)
+            return i * 8 + foundByteIndex;
         }
 
         /// <summary>
@@ -504,6 +476,11 @@ namespace Channels
             var buffer = new OwnedBuffer(data);
             var segment = new BufferSegment(buffer, offset, offset + length);
             return new ReadableBuffer(new ReadCursor(segment, offset), new ReadCursor(segment, offset + length));
+        }
+
+        private static ulong PowerOfTwoToHighByte()
+        {
+            return BitConverter.IsLittleEndian ? 0x20406080A0C0E0ul : 0xE0C0A080604020ul;
         }
     }
 }
