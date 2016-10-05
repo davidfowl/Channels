@@ -43,20 +43,16 @@ namespace Channels.Samples.Framing
                             }
 
                             Line line;
-                            if (!decoder.TryDecode(ref input, out line))
+                            while (decoder.TryDecode(ref input, out line))
                             {
-                                if (channel.Input.Reading.IsCompleted)
-                                {
-                                    // Didn't get the whole frame and the connection ended
-                                    throw new EndOfStreamException();
-                                }
-
-                                // Need more data
-                                continue;
+                                await handler.HandleAsync(line);
                             }
 
-                            await handler.HandleAsync(line);
-
+                            if (!input.IsEmpty && channel.Input.Reading.IsCompleted)
+                            {
+                                // Didn't get the whole frame and the connection ended
+                                throw new EndOfStreamException();
+                            }
                         }
                         finally
                         {
