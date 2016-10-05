@@ -22,12 +22,12 @@ namespace Channels.Tests
         }
 
         [Fact]
-        public void SignalBecomesNotCompletedWhenResultFetched()
+        public void SignalDoesNotBecomeCompletedWhenResultFetched()
         {
             var signal = new Signal();
             signal.Set();
             signal.GetResult();
-            Assert.False(signal.IsCompleted);
+            Assert.True(signal.IsCompleted);
         }
 
         [Fact]
@@ -56,7 +56,7 @@ namespace Channels.Tests
             });
 
             Assert.Equal(1, Volatile.Read(ref wasInvoked));
-            Assert.False(signal.IsCompleted);
+            Assert.True(signal.IsCompleted);
         }
 
         [Fact]
@@ -65,6 +65,8 @@ namespace Channels.Tests
             var signal = new Signal();
             signal.Set();
             await signal;
+            Assert.True(signal.IsCompleted);
+            signal.Reset();
             Assert.False(signal.IsCompleted);
         }
 
@@ -78,7 +80,7 @@ namespace Channels.Tests
                 signal.Set();
             });
             await signal;
-            Assert.False(signal.IsCompleted);
+            Assert.True(signal.IsCompleted);
         }
 
         [Fact]
@@ -104,6 +106,8 @@ namespace Channels.Tests
             signal.Set();
             Assert.True(signal.IsCompleted);
             signal.GetResult();
+            Assert.True(signal.IsCompleted);
+            signal.Reset();
             Assert.False(signal.IsCompleted); // only set "once"
         }
 

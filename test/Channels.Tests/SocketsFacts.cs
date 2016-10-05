@@ -20,7 +20,7 @@ namespace Channels.Tests
         }
         static readonly Span<byte> _ping = new Span<byte>(Encoding.ASCII.GetBytes("PING")), _pong = new Span<byte>(Encoding.ASCII.GetBytes("PING"));
 
-        //[Fact]
+        [Fact(Skip = "flakey?")]
         public void CanCreateWorkingEchoServer_ChannelLibuvServer_NonChannelClient()
         {
             var endpoint = new IPEndPoint(IPAddress.Loopback, 5010);
@@ -101,7 +101,7 @@ namespace Channels.Tests
             Assert.Equal(MessageToSend, reply);
         }
 
-        //[Fact]
+        [Fact(Skip = "flakey?")]
         public async Task RunStressPingPongTest_Libuv()
         {
             var endpoint = new IPEndPoint(IPAddress.Loopback, 5020);
@@ -126,7 +126,7 @@ namespace Channels.Tests
             }
         }
 
-        //[Fact]
+        [Fact]
         public async Task RunStressPingPongTest_Socket()
         {
             var endpoint = new IPEndPoint(IPAddress.Loopback, 5020);
