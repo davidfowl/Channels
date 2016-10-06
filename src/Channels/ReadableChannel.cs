@@ -19,7 +19,7 @@ namespace Channels
         /// <param name="pool">The <see cref="IBufferPool"/> that buffers will be allocated from.</param>
         protected ReadableChannel(IBufferPool pool)
         {
-            _channel = new Channel(pool);
+            _channel = new Channel(pool, TransientBufferSegmentFactory.Default);
         }
 
         /// <summary>

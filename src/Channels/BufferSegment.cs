@@ -6,8 +6,7 @@ using System.Text;
 
 namespace Channels
 {
-    // TODO: Pool segments
-    internal class BufferSegment : IDisposable
+    internal abstract class BufferSegment : IDisposable
     {
         /// <summary>
         /// The buffer being tracked
@@ -36,7 +35,6 @@ namespace Channels
         /// </summary>
         public BufferSegment Next;
 
-
         /// <summary>
         /// If true, data should not be written into the backing block after the End offset. Data between start and end should never be modified
         /// since this would break cloning.
@@ -45,29 +43,30 @@ namespace Channels
 
         public int Length => End - Start;
 
-
-        // Leasing ctor
-        public BufferSegment(IBuffer buffer)
+        // Leasing initializer
+        protected void Initialize(IBuffer buffer)
         {
             Buffer = buffer;
             Start = 0;
             End = 0;
+            ReadOnly = false;
+            Next = null;
         }
 
-        // Cloning ctor
-        internal BufferSegment(IBuffer buffer, int start, int end)
+        // Cloning initializer
+        protected void Initialize(IBuffer buffer, int start, int end)
         {
             Buffer = buffer.Preserve(start, end - start, out start, out end);
             Start = start;
             End = end;
             ReadOnly = true;
+            Next = null;
         }
 
         public void Dispose()
         {
             Buffer.Dispose();
         }
-
 
         /// <summary>
         /// ToString overridden for debugger convenience. This displays the "active" byte information in this block as ASCII characters.
@@ -85,31 +84,31 @@ namespace Channels
             return builder.ToString();
         }
 
-        public static BufferSegment Clone(ReadCursor beginBuffer, ReadCursor endBuffer, out BufferSegment lastSegment)
+        public static BufferSegment Clone(IBufferSegmentFactory bufferSegmentFactory, ReadCursor beginBuffer, ReadCursor endBuffer, out BufferSegment lastSegment)
         {
             var beginOrig = beginBuffer.Segment;
             var endOrig = endBuffer.Segment;
 
             if (beginOrig == endOrig)
             {
-                lastSegment = new BufferSegment(beginOrig.Buffer, beginBuffer.Index, endBuffer.Index);
+                lastSegment = bufferSegmentFactory.Create(beginOrig.Buffer, beginBuffer.Index, endBuffer.Index);
                 return lastSegment;
             }
 
-            var beginClone = new BufferSegment(beginOrig.Buffer, beginBuffer.Index, beginOrig.End);
+            var beginClone = bufferSegmentFactory.Create(beginOrig.Buffer, beginBuffer.Index, beginOrig.End);
             var endClone = beginClone;
 
             beginOrig = beginOrig.Next;
 
             while (beginOrig != endOrig)
             {
-                endClone.Next = new BufferSegment(beginOrig.Buffer, beginOrig.Start, beginOrig.End);
+                endClone.Next = bufferSegmentFactory.Create(beginOrig.Buffer, beginOrig.Start, beginOrig.End);
 
                 endClone = endClone.Next;
                 beginOrig = beginOrig.Next;
             }
 
-            lastSegment = new BufferSegment(endOrig.Buffer, endOrig.Start, endBuffer.Index);
+            lastSegment = bufferSegmentFactory.Create(endOrig.Buffer, endOrig.Start, endBuffer.Index);
             endClone.Next = lastSegment;
 
             return beginClone;

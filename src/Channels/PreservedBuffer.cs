@@ -10,11 +10,24 @@ namespace Channels
     /// </summary>
     public struct PreservedBuffer : IDisposable
     {
+        private readonly IBufferSegmentFactory _segmentFactory;
         private ReadableBuffer _buffer;
 
-        internal PreservedBuffer(ref ReadableBuffer buffer)
+        internal PreservedBuffer(ref ReadableBuffer buffer, IBufferSegmentFactory segmentFactory)
         {
-            _buffer = buffer;
+            _segmentFactory = segmentFactory;
+
+            var begin = buffer.Start;
+            var end = buffer.End;
+
+            BufferSegment segmentTail;
+            var segmentHead = BufferSegment.Clone(_segmentFactory, begin, end, out segmentTail);
+
+            begin = new ReadCursor(segmentHead);
+            end = new ReadCursor(segmentTail, segmentTail.End);
+
+
+            _buffer = new ReadableBuffer(begin, end);
         }
 
         /// <summary>
@@ -34,7 +47,10 @@ namespace Channels
             {
                 var returnSegment = returnStart;
                 returnStart = returnStart?.Next;
-                returnSegment?.Dispose();
+                if (returnSegment != null)
+                {
+                    _segmentFactory.Dispose(returnSegment);
+                }
 
                 if (returnSegment == returnEnd)
                 {

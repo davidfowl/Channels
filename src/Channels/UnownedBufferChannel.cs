@@ -109,7 +109,7 @@ namespace Channels
                 cancellationToken.ThrowIfCancellationRequested();
 
                 // Allocate a new segment to hold the buffer being written.
-                var segment = new BufferSegment(buffer);
+                var segment = TransientBufferSegmentFactory.Default.Create(buffer);
                 segment.End = buffer.Data.Length;
 
                 if (_head == null)
@@ -133,7 +133,7 @@ namespace Channels
                 await _readWaiting;
 
                 // We need to preserve any buffers that haven't been consumed
-                _head = BufferSegment.Clone(new ReadCursor(_head), new ReadCursor(_tail, _tail?.End ?? 0), out _tail);
+                _head = BufferSegment.Clone(TransientBufferSegmentFactory.Default, new ReadCursor(_head), new ReadCursor(_tail, _tail?.End ?? 0), out _tail);
 
                 // Cancel this task if this write is cancelled
                 cancellationToken.ThrowIfCancellationRequested();
@@ -328,7 +328,7 @@ namespace Channels
                 var returnSegment = segment;
                 segment = segment.Next;
 
-                returnSegment.Dispose();
+                TransientBufferSegmentFactory.Default.Dispose(returnSegment);
             }
 
             _head = null;

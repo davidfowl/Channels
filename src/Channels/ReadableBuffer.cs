@@ -3,10 +3,7 @@
 
 using System;
 using System.Buffers;
-using System.Collections;
-using System.Collections.Generic;
 using System.Numerics;
-using System.Runtime.CompilerServices;
 using System.Text;
 
 namespace Channels
@@ -19,7 +16,7 @@ namespace Channels
         private static readonly int VectorWidth = Vector<byte>.Count;
 
         private Memory<byte> _first;
-
+        
         private ReadCursor _start;
         private ReadCursor _end;
         private int _length;
@@ -62,25 +59,6 @@ namespace Channels
             start.TryGetBuffer(end, out _first, out start);
 
             _length = -1;
-        }
-
-        private ReadableBuffer(ref ReadableBuffer buffer)
-        {
-            var begin = buffer._start;
-            var end = buffer._end;
-
-            BufferSegment segmentTail;
-            var segmentHead = BufferSegment.Clone(begin, end, out segmentTail);
-
-            begin = new ReadCursor(segmentHead);
-            end = new ReadCursor(segmentTail, segmentTail.End);
-
-            _start = begin;
-            _end = end;
-
-            _length = buffer._length;
-
-            begin.TryGetBuffer(end, out _first, out begin);
         }
 
         /// <summary>
@@ -296,8 +274,7 @@ namespace Channels
         /// </summary>
         public PreservedBuffer Preserve()
         {
-            var buffer = new ReadableBuffer(ref this);
-            return new PreservedBuffer(ref buffer);
+            return new PreservedBuffer(ref this, TransientBufferSegmentFactory.Default);
         }
 
         /// <summary>
@@ -492,7 +469,8 @@ namespace Channels
             }
 
             var buffer = new OwnedBuffer(data);
-            var segment = new BufferSegment(buffer, offset, offset + length);
+            var segmentFactory = TransientBufferSegmentFactory.Default;
+            var segment = segmentFactory.Create(buffer, offset, offset + length);
             return new ReadableBuffer(new ReadCursor(segment, offset), new ReadCursor(segment, offset + length));
         }
     }
