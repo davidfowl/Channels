@@ -72,7 +72,7 @@ namespace Channels.Text.Primitives
 
             uint value;
             var utf8Buffer = new Utf8String(textSpan);
-            if (!PrimitiveParser.TryParse(utf8Buffer, out value))
+            if (!PrimitiveParser.TryParseUIn32(utf8Buffer, out value))
             {
                 throw new InvalidOperationException();
             }
@@ -95,14 +95,14 @@ namespace Channels.Text.Primitives
                 ArraySegment<byte> data;
                 if (buffer.First.TryGetPointer(out pointer))
                 {
-                    if (!PrimitiveParser.TryParse((byte*)pointer, 0, len, EncodingData.InvariantUtf8, Format.Parsed.HexUppercase, out value, out consumed))
+                    if (!PrimitiveParser.TryParseUInt64((byte*)pointer, 0, len, EncodingData.InvariantUtf8, Format.Parsed.HexUppercase, out value, out consumed))
                     {
                         throw new InvalidOperationException();
                     }
                 }
                 else if (buffer.First.TryGetArray(out data))
                 {
-                    if (!PrimitiveParser.TryParse(data.Array, 0, EncodingData.InvariantUtf8, Format.Parsed.HexUppercase, out value, out consumed))
+                    if (!PrimitiveParser.TryParseUInt64(data.Array, 0, EncodingData.InvariantUtf8, Format.Parsed.HexUppercase, out value, out consumed))
                     {
                         throw new InvalidOperationException();
                     }
@@ -118,7 +118,7 @@ namespace Channels.Text.Primitives
                 buffer.CopyTo(new Span<byte>(data, len));
                 addr = data;
 
-                if (!PrimitiveParser.TryParse(addr, 0, len, EncodingData.InvariantUtf8, Format.Parsed.HexUppercase, out value, out consumed))
+                if (!PrimitiveParser.TryParseUInt64(addr, 0, len, EncodingData.InvariantUtf8, Format.Parsed.HexUppercase, out value, out consumed))
                 {
                     throw new InvalidOperationException();
                 }
@@ -127,7 +127,7 @@ namespace Channels.Text.Primitives
             {
                 // Heap allocated copy to parse into array (should be rare)
                 var arr = buffer.ToArray();
-                if (!PrimitiveParser.TryParse(arr, 0, EncodingData.InvariantUtf8, Format.Parsed.HexUppercase, out value, out consumed))
+                if (!PrimitiveParser.TryParseUInt64(arr, 0, EncodingData.InvariantUtf8, Format.Parsed.HexUppercase, out value, out consumed))
                 {
                     throw new InvalidOperationException();
                 }
