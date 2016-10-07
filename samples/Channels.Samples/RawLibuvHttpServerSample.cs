@@ -14,6 +14,8 @@ namespace Channels.Samples
     {
         public static void Run()
         {
+            byte[] jsonPath = Encoding.UTF8.GetBytes("/json");
+
             var ip = IPAddress.Any;
             int port = 5000;
             var thread = new UvThread();
@@ -60,6 +62,14 @@ namespace Channels.Samples
                                     throw new Exception();
                                 default:
                                     break;
+                            }
+
+                            if (httpParser.Path.Buffer.StartsWith(jsonPath))
+                            {
+                                // Read the content length
+                                var length = httpParser.RequestHeaders.GetHeaderRaw("Content-Length").GetUInt32();
+
+                                // parse some JSON
                             }
 
                             formatter.Append("HTTP/1.1 200 OK");

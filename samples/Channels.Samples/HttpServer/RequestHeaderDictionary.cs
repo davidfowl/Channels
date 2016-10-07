@@ -57,6 +57,16 @@ namespace Channels.Samples.Http
             };
         }
 
+        public ReadableBuffer GetHeaderRaw(string key)
+        {
+            HeaderValue value;
+            if (_headers.TryGetValue(key, out value))
+            {
+                return value.Raw.Value.Buffer;
+            }
+            return default(ReadableBuffer);
+        }
+
         private string GetHeaderKey(ref ReadableBuffer key)
         {
             // Uppercase the things
