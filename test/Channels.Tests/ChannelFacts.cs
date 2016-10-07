@@ -42,7 +42,8 @@ namespace Channels.Tests
                 buffer.WriteLittleEndian(8);
 
                 // Make sure we don't see it yet
-                var reader = await c.ReadAsync();
+                var result = await c.ReadAsync();
+                var reader = result.Buffer;
 
                 Assert.Equal(len - 5, reader.Length);
 
@@ -52,7 +53,7 @@ namespace Channels.Tests
                 // Now flush
                 await buffer.FlushAsync();
 
-                reader = await c.ReadAsync();
+                reader = (await c.ReadAsync()).Buffer;
 
                 Assert.Equal(12, reader.Length);
                 Assert.Equal(10, reader.ReadLittleEndian<int>());
@@ -81,7 +82,8 @@ namespace Channels.Tests
                 buffer.WriteLittleEndian(8);
 
                 // Make sure we don't see it yet
-                var reader = await c.ReadAsync();
+                var result = await c.ReadAsync();
+                var reader = result.Buffer;
 
                 Assert.Equal(4, reader.Length);
                 Assert.Equal(10, reader.ReadLittleEndian<int>());
@@ -92,7 +94,7 @@ namespace Channels.Tests
                 // Now flush
                 await buffer.FlushAsync();
 
-                reader = await c.ReadAsync();
+                reader = (await c.ReadAsync()).Buffer;
 
                 Assert.Equal(12, reader.Length);
                 Assert.Equal(10, reader.ReadLittleEndian<int>());
@@ -118,7 +120,8 @@ namespace Channels.Tests
 
                 var c2 = cf.CreateChannel();
                 await c2.WriteAsync(bytes);
-                var c2Buffer = await c2.ReadAsync();
+                var result = await c2.ReadAsync();
+                var c2Buffer = result.Buffer;
 
                 Assert.Equal(bytes.Length, c2Buffer.Length);
 
@@ -133,7 +136,8 @@ namespace Channels.Tests
                 c2.Advance(c2Buffer.End);
 
                 // Now read and make sure we only see the comitted data
-                var reader = await c.ReadAsync();
+                result = await c.ReadAsync();
+                var reader = result.Buffer;
 
                 Assert.Equal(4, reader.Length);
                 Assert.Equal(10, reader.ReadLittleEndian<int>());
@@ -144,7 +148,7 @@ namespace Channels.Tests
                 // Flush the second set of writes
                 await buffer.FlushAsync();
 
-                reader = await c.ReadAsync();
+                reader = (await c.ReadAsync()).Buffer;
 
                 // int, int, "Hello"
                 Assert.Equal(13, reader.Length);
@@ -163,7 +167,8 @@ namespace Channels.Tests
                 var bytes = Encoding.ASCII.GetBytes("Hello World");
 
                 await channel.WriteAsync(bytes);
-                var buffer = await channel.ReadAsync();
+                var result = await channel.ReadAsync();
+                var buffer = result.Buffer;
 
                 Assert.Equal(11, buffer.Length);
                 Assert.True(buffer.IsSingleSpan);
@@ -193,7 +198,8 @@ namespace Channels.Tests
 
                 await Assert.ThrowsAsync<OperationCanceledException>(async () =>
                 {
-                    var buffer = await channel.ReadAsync();
+                    var result = await channel.ReadAsync();
+                    var buffer = result.Buffer;
                 });
             }
         }
@@ -214,7 +220,8 @@ namespace Channels.Tests
                 writeBuffer.Write(bytes);
                 await writeBuffer.FlushAsync();
 
-                var buffer = await channel.ReadAsync();
+                var result = await channel.ReadAsync();
+                var buffer = result.Buffer;
                 Assert.False(buffer.IsSingleSpan);
                 var helloBuffer = buffer.Slice(blockSize - 5);
                 Assert.False(helloBuffer.IsSingleSpan);
@@ -243,7 +250,8 @@ namespace Channels.Tests
                 var bytes = Encoding.ASCII.GetBytes("Hello World");
 
                 await channel.WriteAsync(bytes);
-                var buffer = await channel.ReadAsync();
+                var result = await channel.ReadAsync();
+                var buffer = result.Buffer;
                 ReadableBuffer slice;
                 ReadCursor cursor;
 
@@ -269,7 +277,8 @@ namespace Channels.Tests
                 writeBuffer.Write(bytes);
                 await writeBuffer.FlushAsync();
 
-                var buffer = await channel.ReadAsync();
+                var result = await channel.ReadAsync();
+                var buffer = result.Buffer;
                 ReadableBuffer slice;
                 ReadCursor cursor;
                 Assert.False(buffer.TrySliceTo((byte)'R', out slice, out cursor));
@@ -292,7 +301,8 @@ namespace Channels.Tests
                 writeBuffer.Write(bytes);
                 await writeBuffer.FlushAsync();
 
-                var buffer = await channel.ReadAsync();
+                var result = await channel.ReadAsync();
+                var buffer = result.Buffer;
                 ReadableBuffer slice;
                 ReadCursor cursor;
                 Assert.False(buffer.IsSingleSpan);

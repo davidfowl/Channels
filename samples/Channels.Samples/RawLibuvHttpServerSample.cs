@@ -30,23 +30,24 @@ namespace Channels.Samples
                         httpParser.Reset();
 
                         // Wait for data
-                        var input = await connection.Input.ReadAsync();
+                        var result = await connection.Input.ReadAsync();
+                        var input = result.Buffer;
 
                         try
                         {
-                            if (input.IsEmpty && connection.Input.Reading.IsCompleted)
+                            if (input.IsEmpty && result.IsCompleted)
                             {
                                 // No more data
                                 break;
                             }
 
                             // Parse the input http request
-                            var result = httpParser.ParseRequest(ref input);
+                            var parseResult = httpParser.ParseRequest(ref input);
 
-                            switch (result)
+                            switch (parseResult)
                             {
                                 case HttpRequestParser.ParseResult.Incomplete:
-                                    if (connection.Input.Reading.IsCompleted)
+                                    if (result.IsCompleted)
                                     {
                                         // Didn't get the whole request and the connection ended
                                         throw new EndOfStreamException();

@@ -45,9 +45,11 @@ namespace Channels
                     break;
                 }
 
-                var fin = input.Reading.IsCompleted;
 
-                var inputBuffer = awaiter.GetResult();
+                var result = awaiter.GetResult();
+                var inputBuffer = result.Buffer;
+
+                var fin = result.IsCompleted;
                 var sliced = inputBuffer.Slice(0, destination.Length);
                 sliced.CopyTo(destination);
                 int actual = sliced.Length;
@@ -76,11 +78,11 @@ namespace Channels
             // TODO: Use bufferSize argument
             while (!cancellationToken.IsCancellationRequested)
             {
-                var inputBuffer = await input.ReadAsync();
-
+                var result = await input.ReadAsync();
+                var inputBuffer = result.Buffer;
                 try
                 {
-                    if (inputBuffer.IsEmpty && input.Reading.IsCompleted)
+                    if (inputBuffer.IsEmpty && result.IsCompleted)
                     {
                         return;
                     }
@@ -111,9 +113,10 @@ namespace Channels
         {
             while (true)
             {
-                var inputBuffer = await input.ReadAsync();
+                var result = await input.ReadAsync();
+                var inputBuffer = result.Buffer;
 
-                var fin = input.Reading.IsCompleted;
+                var fin = result.IsCompleted;
 
                 try
                 {
@@ -139,9 +142,10 @@ namespace Channels
         {
             while (true)
             {
-                var inputBuffer = await input.ReadAsync();
+                var result = await input.ReadAsync();
+                var inputBuffer = result.Buffer;
 
-                var fin = input.Reading.IsCompleted;
+                var fin = result.IsCompleted;
 
                 var sliced = inputBuffer.Slice(0, destination.Length);
                 sliced.CopyTo(destination);

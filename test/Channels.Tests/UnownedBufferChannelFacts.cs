@@ -27,9 +27,10 @@ namespace Channels.Tests
 
             while (true)
             {
-                var buffer = await channel.ReadAsync();
+                var result = await channel.ReadAsync();
+                var buffer = result.Buffer;
                 calls++;
-                if (buffer.IsEmpty && channel.Reading.IsCompleted)
+                if (buffer.IsEmpty && result.IsCompleted)
                 {
                     // Done
                     break;
@@ -70,10 +71,12 @@ namespace Channels.Tests
 
             while (true)
             {
+                ChannelReadResult result;
                 ReadableBuffer buffer;
                 try
                 {
-                    buffer = await channel.ReadAsync();
+                    result = await channel.ReadAsync();
+                    buffer = result.Buffer;
                 }
                 catch (OperationCanceledException)
                 {
@@ -83,14 +86,9 @@ namespace Channels.Tests
                 {
                     calls++;
                 }
-                if (buffer.IsEmpty && channel.Reading.IsCompleted)
+                if (buffer.IsEmpty && result.IsCompleted)
                 {
                     // Done
-                    break;
-                }
-
-                if (channel.Reading.IsCanceled)
-                {
                     break;
                 }
 
@@ -103,7 +101,6 @@ namespace Channels.Tests
             }
 
             Assert.Equal(2, calls);
-            Assert.True(channel.Reading.IsCanceled);
         }
 
         [Fact]
@@ -125,9 +122,10 @@ namespace Channels.Tests
 
             while (true)
             {
-                var buffer = await channel.ReadAsync();
+                var result = await channel.ReadAsync();
+                var buffer = result.Buffer;
 
-                if (buffer.IsEmpty && channel.Reading.IsCompleted)
+                if (buffer.IsEmpty && result.IsCompleted)
                 {
                     // Done
                     break;
@@ -160,7 +158,8 @@ namespace Channels.Tests
 
             while (index <= message.Length)
             {
-                var buffer = await channel.ReadAsync();
+                var result = await channel.ReadAsync();
+                var buffer = result.Buffer;
 
                 var ch = Encoding.UTF8.GetString(buffer.Slice(0, index).ToArray());
                 Assert.Equal(message.Substring(0, index), ch);
@@ -197,10 +196,12 @@ namespace Channels.Tests
             InvalidOperationException thrown = null;
             while (true)
             {
+                ChannelReadResult result;
                 ReadableBuffer buffer;
                 try
                 {
-                    buffer = await channel.ReadAsync();
+                    result = await channel.ReadAsync();
+                    buffer = result.Buffer;
                 }
                 catch (InvalidOperationException ex)
                 {
@@ -209,7 +210,7 @@ namespace Channels.Tests
                 }
 
                 calls++;
-                if (buffer.IsEmpty && channel.Reading.IsCompleted)
+                if (buffer.IsEmpty && result.IsCompleted)
                 {
                     // Done
                     break;

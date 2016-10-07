@@ -48,7 +48,7 @@ namespace Channels
         /// <summary>
         /// Asynchronously reads a sequence of bytes from the current <see cref="ReadableChannel"/>.
         /// </summary>
-        /// <returns>A <see cref="ReadableBufferAwaitable"/> representing the asynchronous read operation.</returns>
-        public ReadableBufferAwaitable ReadAsync() => _channel.ReadAsync();
+        /// <returns>A <see cref="ReadableChannelAwaitable"/> representing the asynchronous read operation.</returns>
+        public ReadableChannelAwaitable ReadAsync() => _channel.ReadAsync();
     }
 }

@@ -6,20 +6,20 @@ namespace Channels
     /// <summary>
     /// An awaitable object that represents an asynchronous read operation
     /// </summary>
-    public struct ReadableBufferAwaitable : ICriticalNotifyCompletion
+    public struct ReadableChannelAwaitable : ICriticalNotifyCompletion
     {
         private readonly IReadableBufferAwaiter _awaiter;
 
-        public ReadableBufferAwaitable(IReadableBufferAwaiter awaiter)
+        public ReadableChannelAwaitable(IReadableBufferAwaiter awaiter)
         {
             _awaiter = awaiter;
         }
 
         public bool IsCompleted => _awaiter.IsCompleted;
 
-        public ReadableBuffer GetResult() => _awaiter.GetBuffer();
+        public ChannelReadResult GetResult() => _awaiter.GetResult();
 
-        public ReadableBufferAwaitable GetAwaiter() => this;
+        public ReadableChannelAwaitable GetAwaiter() => this;
 
         public void UnsafeOnCompleted(Action continuation) => _awaiter.OnCompleted(continuation);
 

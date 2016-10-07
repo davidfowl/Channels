@@ -32,11 +32,12 @@ namespace Channels.Samples.Framing
                     while (true)
                     {
                         // Wait for data
-                        var input = await channel.Input.ReadAsync();
+                        var result = await channel.Input.ReadAsync();
+                        var input = result.Buffer;
 
                         try
                         {
-                            if (input.IsEmpty && channel.Input.Reading.IsCompleted)
+                            if (input.IsEmpty && result.IsCompleted)
                             {
                                 // No more data
                                 break;
@@ -48,7 +49,7 @@ namespace Channels.Samples.Framing
                                 await handler.HandleAsync(line);
                             }
 
-                            if (!input.IsEmpty && channel.Input.Reading.IsCompleted)
+                            if (!input.IsEmpty && result.IsCompleted)
                             {
                                 // Didn't get the whole frame and the connection ended
                                 throw new EndOfStreamException();

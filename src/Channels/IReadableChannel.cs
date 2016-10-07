@@ -11,14 +11,8 @@ namespace Channels
         /// <summary>
         /// Asynchronously reads a sequence of bytes from the current <see cref="IReadableChannel"/>.
         /// </summary>
-        /// <returns>A <see cref="ReadableBufferAwaitable"/> representing the asynchronous read operation.</returns>
-        ReadableBufferAwaitable ReadAsync();
-
-        /// <summary>
-        /// Gets a task that completes when no more data will be added to the channel.
-        /// </summary>
-        /// <remarks>This task indicates the producer has completed and will not write anymore data.</remarks>
-        Task Reading { get; }
+        /// <returns>A <see cref="ReadableChannelAwaitable"/> representing the asynchronous read operation.</returns>
+        ReadableChannelAwaitable ReadAsync();
 
         /// <summary>
         /// Moves forward the channel's read cursor to after the consumed data.
@@ -26,7 +20,7 @@ namespace Channels
         /// <param name="consumed">Marks the extent of the data that has been succesfully proceesed.</param>
         /// <param name="examined">Marks the extent of the data that has been read and examined.</param>
         /// <remarks>
-        /// The memory for the consumed data will be released and no longer available. 
+        /// The memory for the consumed data will be released and no longer available.
         /// The examined data communicates to the channel when it should signal more data is available.
         /// </remarks>
         void Advance(ReadCursor consumed, ReadCursor examined);

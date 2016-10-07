@@ -459,8 +459,8 @@ namespace Channels
         /// <summary>
         /// Asynchronously reads a sequence of bytes from the current <see cref="IReadableChannel"/>.
         /// </summary>
-        /// <returns>A <see cref="ReadableBufferAwaitable"/> representing the asynchronous read operation.</returns>
-        public ReadableBufferAwaitable ReadAsync() => new ReadableBufferAwaitable(this);
+        /// <returns>A <see cref="ReadableChannelAwaitable"/> representing the asynchronous read operation.</returns>
+        public ReadableChannelAwaitable ReadAsync() => new ReadableChannelAwaitable(this);
 
         void IReadableBufferAwaiter.OnCompleted(Action continuation)
         {
@@ -494,20 +494,21 @@ namespace Channels
             }
         }
 
-        ReadableBuffer IReadableBufferAwaiter.GetBuffer()
+        ChannelReadResult IReadableBufferAwaiter.GetResult()
         {
             if (!IsCompleted)
             {
                 throw new InvalidOperationException("can't GetResult unless completed");
             }
 
-            if (Reading.IsCompleted)
+            var readingIsCompleted = Reading.IsCompleted;
+            if (readingIsCompleted)
             {
                 // Observe any exceptions if the reading task is completed
                 Reading.GetAwaiter().GetResult();
             }
 
-            return Read();
+            return new ChannelReadResult(Read(), readingIsCompleted);
         }
 
         private void Dispose()

@@ -65,22 +65,23 @@ namespace Channels.Samples.Http
 
             while (true)
             {
-                var buffer = await _input.ReadAsync();
+                var result = await _input.ReadAsync();
+                var buffer = result.Buffer;
 
                 try
                 {
-                    if (buffer.IsEmpty && _input.Reading.IsCompleted)
+                    if (buffer.IsEmpty && result.IsCompleted)
                     {
                         // We're done with this connection
                         return;
                     }
 
-                    var result = _parser.ParseRequest(ref buffer);
+                    var parserResult = _parser.ParseRequest(ref buffer);
 
-                    switch (result)
+                    switch (parserResult)
                     {
                         case HttpRequestParser.ParseResult.Incomplete:
-                            if (_input.Reading.IsCompleted)
+                            if (result.IsCompleted)
                             {
                                 // Didn't get the whole request and the connection ended
                                 throw new EndOfStreamException();
