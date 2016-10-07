@@ -34,7 +34,8 @@ namespace Channels.Tests
                 await writeBuffer.FlushAsync();
 
                 // now read it back
-                var readBuffer = await channel.ReadAsync();
+                var result = await channel.ReadAsync();
+                var readBuffer = result.Buffer;
                 Assert.False(readBuffer.IsSingleSpan);
                 Assert.Equal(totalBytes, readBuffer.Length);
                 TestIndexOfWorksForAllLocations(ref readBuffer, 42);
@@ -59,7 +60,8 @@ namespace Channels.Tests
                 await writeBuffer.FlushAsync();
 
                 // now read it back
-                var readBuffer = await channel.ReadAsync();
+                var result = await channel.ReadAsync();
+                var readBuffer = result.Buffer;
                 Assert.False(readBuffer.IsSingleSpan);
                 Assert.Equal(data.Length, readBuffer.Length);
 
@@ -108,7 +110,8 @@ namespace Channels.Tests
                 await writeBuffer.FlushAsync(); // by overwriting the buffer in-situ
 
                 // now read it back
-                var readBuffer = await channel.ReadAsync();
+                var result = await channel.ReadAsync();
+                var readBuffer = result.Buffer;
 
                 ReadUInt64GivesExpectedValues(ref readBuffer);
             }
@@ -131,7 +134,8 @@ namespace Channels.Tests
                 writeBuffer.Write(bytes);
                 await writeBuffer.FlushAsync();
 
-                var buffer = await channel.ReadAsync();
+                var result = await channel.ReadAsync();
+                var buffer = result.Buffer;
                 var trimmed = buffer.TrimStart();
                 var outputBytes = trimmed.ToArray();
 
@@ -157,7 +161,8 @@ namespace Channels.Tests
                 writeBuffer.Write(bytes);
                 await writeBuffer.FlushAsync();
 
-                var buffer = await channel.ReadAsync();
+                var result = await channel.ReadAsync();
+                var buffer = result.Buffer;
                 ReadableBuffer slice;
                 ReadCursor cursor;
                 Assert.True(buffer.TrySliceTo(sliceToBytes, out slice, out cursor));
@@ -375,7 +380,8 @@ namespace Channels.Tests
                 output.WriteAsciiString("Hello World");
                 await output.FlushAsync();
                 var ms = new MemoryStream();
-                var rb = await channel.ReadAsync();
+                var result = await channel.ReadAsync();
+                var rb = result.Buffer;
                 await rb.CopyToAsync(ms);
                 ms.Position = 0;
                 Assert.Equal(11, rb.Length);
@@ -396,7 +402,8 @@ namespace Channels.Tests
                 output.WriteAsciiString("Hello World");
                 await output.FlushAsync();
                 var ms = new MemoryStream();
-                var rb = await channel.ReadAsync();
+                var result = await channel.ReadAsync();
+                var rb = result.Buffer;
                 await rb.CopyToAsync(ms);
                 ms.Position = 0;
                 Assert.Equal(11, rb.Length);
@@ -422,7 +429,7 @@ namespace Channels.Tests
                 Assert.Equal("abc", current.GetAsciiString());
                 using (var preserved = iter.Current.Preserve())
                 {
-                    Assert.Equal("abc", preserved.Buffer.GetAsciiString());                    
+                    Assert.Equal("abc", preserved.Buffer.GetAsciiString());
                 }
 
                 Assert.True(iter.MoveNext());
@@ -442,7 +449,7 @@ namespace Channels.Tests
                 }
 
                 Assert.False(iter.MoveNext());
-            }                
+            }
         }
 
         private class NativePool : IBufferPool

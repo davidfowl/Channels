@@ -533,7 +533,8 @@ namespace Channels.Networking.Sockets
 
                 while (true)
                 {
-                    var buffer = await _output.ReadAsync();
+                    var result = await _output.ReadAsync();
+                    var buffer = result.Buffer;
                     try
                     {
                         if (buffer.IsEmpty && _output.Reading.IsCompleted)

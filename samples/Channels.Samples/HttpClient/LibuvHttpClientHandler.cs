@@ -71,7 +71,8 @@ namespace Channels.Samples
             // TODO: pipelining support!
             while (true)
             {
-                var responseBuffer = await connection.Input.ReadAsync();
+                var result = await connection.Input.ReadAsync();
+                var responseBuffer = result.Buffer;
 
                 var consumed = responseBuffer.Start;
 
@@ -96,7 +97,7 @@ namespace Channels.Samples
                         state.Consumed = default(ReadCursor);
                     }
 
-                    if (responseBuffer.IsEmpty && connection.Input.Reading.IsCompleted)
+                    if (responseBuffer.IsEmpty && result.IsCompleted)
                     {
                         break;
                     }

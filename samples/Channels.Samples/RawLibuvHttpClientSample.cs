@@ -36,13 +36,14 @@ namespace Channels.Samples
         }
         private static async Task CopyCompletedAsync(IReadableChannel input, IWritableChannel channel)
         {
-            var inputBuffer = await input.ReadAsync();
+            var result = await input.ReadAsync();
+            var inputBuffer = result.Buffer;
 
             while (true)
             {
                 try
                 {
-                    if (inputBuffer.IsEmpty && input.Reading.IsCompleted)
+                    if (inputBuffer.IsEmpty && result.IsCompleted)
                     {
                         return;
                     }
@@ -66,7 +67,8 @@ namespace Channels.Samples
                     break;
                 }
 
-                inputBuffer = await awaiter;
+                result = await input.ReadAsync();
+                inputBuffer = result.Buffer;
             }
         }
 

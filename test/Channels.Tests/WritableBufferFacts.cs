@@ -36,7 +36,8 @@ namespace Channels.Tests
                 buffer.WriteUInt64(value);
                 await buffer.FlushAsync();
 
-                var inputBuffer = await channel.ReadAsync();
+                var result = await channel.ReadAsync();
+                var inputBuffer = result.Buffer;
 
                 Assert.Equal(valueAsString, inputBuffer.GetUtf8String());
             }
@@ -65,7 +66,8 @@ namespace Channels.Tests
                 int offset = 0;
                 while (true)
                 {
-                    var input = await channel.ReadAsync();
+                    var result = await channel.ReadAsync();
+                    var input = result.Buffer;
                     if (input.Length == 0) break;
 
                     Assert.True(input.Equals(new Span<byte>(data, offset, input.Length)));
@@ -99,7 +101,8 @@ namespace Channels.Tests
                 int offset = 0;
                 while (true)
                 {
-                    var input = await channel.ReadAsync();
+                    var result = await channel.ReadAsync();
+                    var input = result.Buffer;
                     if (input.Length == 0) break;
 
                     string s = ReadableBufferExtensions.GetUtf8String(input);
@@ -133,7 +136,8 @@ namespace Channels.Tests
                 int offset = 0;
                 while (true)
                 {
-                    var input = await channel.ReadAsync();
+                    var result = await channel.ReadAsync();
+                    var input = result.Buffer;
                     if (input.Length == 0) break;
 
                     string s = ReadableBufferExtensions.GetAsciiString(input);

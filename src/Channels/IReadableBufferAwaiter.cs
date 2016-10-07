@@ -6,7 +6,7 @@ namespace Channels
     {
         bool IsCompleted { get; }
 
-        ReadableBuffer GetBuffer();
+        ChannelReadResult GetResult();
 
         void OnCompleted(Action continuation);
     }

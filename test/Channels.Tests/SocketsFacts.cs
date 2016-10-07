@@ -66,9 +66,11 @@ namespace Channels.Tests
 
                     while (true)
                     {
-                        var input = await client.Input.ReadAsync();
+                        var result = await client.Input.ReadAsync();
+                        var input = result.Buffer;
+
                         // wait for the end of the data before processing anything
-                        if (client.Input.Reading.IsCompleted)
+                        if (result.IsCompleted)
                         {
                             reply = input.GetUtf8String();
                             client.Input.Advance(input.End);
@@ -163,8 +165,10 @@ namespace Channels.Tests
                 bool havePong = false;
                 while (true)
                 {
-                    var inputBuffer = await channel.Input.ReadAsync();
-                    if (inputBuffer.IsEmpty && channel.Input.Reading.IsCompleted)
+                    var result = await channel.Input.ReadAsync();
+                    var inputBuffer = result.Buffer;
+
+                    if (inputBuffer.IsEmpty && result.IsCompleted)
                     {
                         channel.Input.Advance(inputBuffer.End);
                         break;
@@ -208,8 +212,10 @@ namespace Channels.Tests
             {
                 while (true)
                 {
-                    var inputBuffer = await channel.Input.ReadAsync();
-                    if (inputBuffer.IsEmpty && channel.Input.Reading.IsCompleted)
+                    var result = await channel.Input.ReadAsync();
+                    var inputBuffer = result.Buffer;
+
+                    if (inputBuffer.IsEmpty && result.IsCompleted)
                     {
                         channel.Input.Advance(inputBuffer.End);
                         break;
@@ -272,8 +278,10 @@ namespace Channels.Tests
             {
                 while (true)
                 {
-                    ReadableBuffer request = await channel.Input.ReadAsync();
-                    if (request.IsEmpty && channel.Input.Reading.IsCompleted)
+                    var result = await channel.Input.ReadAsync();
+                    var request = result.Buffer;
+
+                    if (request.IsEmpty && result.IsCompleted)
                     {
                         channel.Input.Advance(request.End);
                         break;
@@ -290,8 +298,8 @@ namespace Channels.Tests
             }
             catch (Exception ex)
             {
-                if (!(channel.Input?.Reading?.IsCompleted ?? true)) channel.Input.Complete(ex);
-                if (!(channel.Output?.Writing?.IsCompleted ?? true)) channel.Output.Complete(ex);
+                channel.Input.Complete(ex);
+                channel.Output.Complete(ex);
             }
             finally
             {

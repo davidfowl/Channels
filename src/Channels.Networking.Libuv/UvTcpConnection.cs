@@ -54,14 +54,15 @@ namespace Channels.Networking.Libuv
             {
                 while (true)
                 {
-                    var buffer = await _output.ReadAsync();
+                    var result = await _output.ReadAsync();
+                    var buffer = result.Buffer;
 
                     try
                     {
                         // Make sure we're on the libuv thread
                         await _thread;
 
-                        if (buffer.IsEmpty && _output.Reading.IsCompleted)
+                        if (buffer.IsEmpty && result.IsCompleted)
                         {
                             break;
                         }
