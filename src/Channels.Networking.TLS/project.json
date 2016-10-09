@@ -1,0 +1,24 @@
+{
+  "version": "0.2.0-beta-*",
+  "description": "Secure Channels implementation using TLS based on losely System.Net.Security.SslStream",
+  "packOptions": {
+    "projectUrl": "https://github.com/davidfowl/Channels"
+  },
+  "buildOptions": {
+    "allowUnsafe": true,
+    "keyFile": "../../tools/Key.snk"
+  },
+
+  "dependencies": {
+    "NETStandard.Library": "1.6.0",
+    "System.Slices": "0.1.0-e161004-1",
+    "Channels": {
+      "target": "project"
+    }
+  },
+
+  "frameworks": {
+    "net451": {},
+    "netstandard1.3": {}
+  }
+}
