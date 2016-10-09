@@ -12,17 +12,17 @@ namespace Channels
     /// </summary>
     public struct WritableBuffer : IOutput
     {
-        private Channel _channel;
+        private WritableChannel _writableChannel;
 
-        internal WritableBuffer(Channel channel)
+        internal WritableBuffer(WritableChannel writableChannel)
         {
-            _channel = channel;
+            _writableChannel = writableChannel;
         }
 
         /// <summary>
         /// Available memory.
         /// </summary>
-        public Memory<byte> Memory => _channel.Memory;
+        public Memory<byte> Memory => _writableChannel.Channel.Memory;
 
         /// <summary>
         /// Returns the number of bytes currently written and uncommitted.
@@ -38,7 +38,7 @@ namespace Channels
         /// </summary>
         public ReadableBuffer AsReadableBuffer()
         {
-            return _channel.AsReadableBuffer();
+            return _writableChannel.Channel.AsReadableBuffer();
         }
 
         /// <summary>
@@ -54,7 +54,7 @@ namespace Channels
         /// </exception>
         public void Ensure(int count = 1)
         {
-            _channel.Ensure(count);
+            _writableChannel.Channel.Ensure(count);
         }
 
         /// <summary>
@@ -63,7 +63,7 @@ namespace Channels
         /// <param name="buffer">The <see cref="ReadableBuffer"/> to append</param>
         public void Append(ref ReadableBuffer buffer)
         {
-            _channel.Append(ref buffer);
+            _writableChannel.Channel.Append(ref buffer);
         }
 
         /// <summary>
@@ -75,7 +75,7 @@ namespace Channels
         /// <exception cref="ArgumentOutOfRangeException"><paramref name="bytesWritten"/> is negative.</exception>
         public void Advance(int bytesWritten)
         {
-            _channel.AdvanceWriter(bytesWritten);
+            _writableChannel.Channel.AdvanceWriter(bytesWritten);
         }
 
         /// <summary>
@@ -87,7 +87,7 @@ namespace Channels
         /// </remarks>
         public void Commit()
         {
-            _channel.Commit();
+            _writableChannel.Commit();
         }
 
         /// <summary>
@@ -97,7 +97,7 @@ namespace Channels
         /// <returns>A task that completes when the data is fully flushed.</returns>
         public Task FlushAsync()
         {
-            return _channel.FlushAsync();
+            return _writableChannel.FlushAsync();
         }
     }
 }

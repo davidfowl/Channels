@@ -24,6 +24,8 @@ namespace Channels
 
         public Channel CreateChannel() => new Channel(_pool);
 
+        public NullChannel CreateNullChannel() => new NullChannel(_pool);
+
         public IReadableChannel MakeReadableChannel(Stream stream)
         {
             if (!stream.CanRead)

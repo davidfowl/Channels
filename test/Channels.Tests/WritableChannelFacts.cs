@@ -6,14 +6,14 @@ using Xunit;
 
 namespace Channels.Tests
 {
-    public class WritableBufferFacts
+    public class WritableChannelFacts
     {
         [Fact]
         public async Task CanWriteNothingToBuffer()
         {
-            using (var memoryPool = new MemoryPool())
+            using (var cf = new ChannelFactory())
             {
-                var channel = new Channel(memoryPool);
+                var channel = cf.CreateNullChannel();
                 var buffer = channel.Alloc();
 
                 Assert.True(buffer.Memory.IsEmpty);
@@ -37,9 +37,9 @@ namespace Channels.Tests
         [InlineData(60000000000000000, "60000000000000000")]
         public async Task CanWriteUInt64ToBuffer(ulong value, string valueAsString)
         {
-            using (var memoryPool = new MemoryPool())
+            using (var cf = new ChannelFactory())
             {
-                var channel = new Channel(memoryPool);
+                var channel = cf.CreateNullChannel();
                 var buffer = channel.Alloc();
 
                 Assert.True(buffer.Memory.IsEmpty);
@@ -51,11 +51,6 @@ namespace Channels.Tests
                 await buffer.FlushAsync();
 
                 Assert.True(buffer.Memory.IsEmpty);
-
-                var result = await channel.ReadAsync();
-                var inputBuffer = result.Buffer;
-
-                Assert.Equal(valueAsString, inputBuffer.GetUtf8String());
             }
         }
 
@@ -69,12 +64,11 @@ namespace Channels.Tests
         {
             byte[] data = new byte[length];
             new Random(length).NextBytes(data);
-            using (var memoryPool = new MemoryPool())
+            using (var cf = new ChannelFactory())
             {
-                var channel = new Channel(memoryPool);
+                var channel = cf.CreateNullChannel();
 
                 var output = channel.Alloc();
-
                 Assert.True(output.Memory.IsEmpty);
 
                 output.Write(data);
@@ -85,22 +79,9 @@ namespace Channels.Tests
 
                 Assert.True(output.Memory.IsEmpty);
 
-                channel.CompleteWriter();
+                channel.Complete();
 
                 Assert.True(output.Memory.IsEmpty);
-
-                int offset = 0;
-                while (true)
-                {
-                    var result = await channel.ReadAsync();
-                    var input = result.Buffer;
-                    if (input.Length == 0) break;
-
-                    Assert.True(input.Equals(new Span<byte>(data, offset, input.Length)));
-                    offset += input.Length;
-                    channel.Advance(input.End);
-                }
-                Assert.Equal(data.Length, offset);
             }
         }
 
@@ -114,9 +95,9 @@ namespace Channels.Tests
         {
             string data = new string('#', length);
             FillRandomStringData(data, length);
-            using (var memoryPool = new MemoryPool())
+            using (var cf = new ChannelFactory())
             {
-                var channel = new Channel(memoryPool);
+                var channel = cf.CreateNullChannel();
                 var output = channel.Alloc();
 
                 Assert.True(output.Memory.IsEmpty);
@@ -129,23 +110,10 @@ namespace Channels.Tests
 
                 Assert.True(output.Memory.IsEmpty);
 
-                channel.CompleteWriter();
+                channel.Complete();
 
                 Assert.True(output.Memory.IsEmpty);
 
-                int offset = 0;
-                while (true)
-                {
-                    var result = await channel.ReadAsync();
-                    var input = result.Buffer;
-                    if (input.Length == 0) break;
-
-                    string s = ReadableBufferExtensions.GetUtf8String(input);
-                    Assert.Equal(data.Substring(offset, input.Length), s);
-                    offset += input.Length;
-                    channel.Advance(input.End);
-                }
-                Assert.Equal(data.Length, offset);
             }
         }
         [Theory]
@@ -158,9 +126,9 @@ namespace Channels.Tests
         {
             string data = new string('#', length);
             FillRandomStringData(data, length);
-            using (var memoryPool = new MemoryPool())
+            using (var cf = new ChannelFactory())
             {
-                var channel = new Channel(memoryPool);
+                var channel = cf.CreateNullChannel();
 
                 var output = channel.Alloc();
 
@@ -174,21 +142,7 @@ namespace Channels.Tests
 
                 Assert.True(output.Memory.IsEmpty);
 
-                channel.CompleteWriter();
-
-                int offset = 0;
-                while (true)
-                {
-                    var result = await channel.ReadAsync();
-                    var input = result.Buffer;
-                    if (input.Length == 0) break;
-
-                    string s = ReadableBufferExtensions.GetAsciiString(input);
-                    Assert.Equal(data.Substring(offset, input.Length), s);
-                    offset += input.Length;
-                    channel.Advance(input.End);
-                }
-                Assert.Equal(data.Length, offset);
+                channel.Complete();
             }
         }
 
@@ -208,9 +162,9 @@ namespace Channels.Tests
         [Fact]
         public void CanReReadDataThatHasNotBeenCommitted_SmallData()
         {
-            using (var memoryPool = new MemoryPool())
+            using (var cf = new ChannelFactory())
             {
-                var channel = new Channel(memoryPool);
+                var channel = cf.CreateNullChannel();
                 var output = channel.Alloc();
 
                 Assert.True(output.AsReadableBuffer().IsEmpty);
@@ -246,9 +200,9 @@ namespace Channels.Tests
         [Fact]
         public void CanReReadDataThatHasNotBeenCommitted_LargeData()
         {
-            using (var memoryPool = new MemoryPool())
+            using (var cf = new ChannelFactory())
             {
-                var channel = new Channel(memoryPool);
+                var channel = cf.CreateNullChannel();
 
                 var output = channel.Alloc();
 
@@ -287,9 +241,9 @@ namespace Channels.Tests
         [Fact]
         public async Task CanAppendSelfWhileEmpty()
         { // not really an expectation; just an accepted caveat
-            using (var memoryPool = new MemoryPool())
+            using (var cf = new ChannelFactory())
             {
-                var channel = new Channel(memoryPool);
+                var channel = cf.CreateNullChannel();
 
                 var output = channel.Alloc();
                 var readable = output.AsReadableBuffer();
@@ -305,9 +259,9 @@ namespace Channels.Tests
         {
             byte[] chunk = new byte[512];
             new Random().NextBytes(chunk);
-            using (var memoryPool = new MemoryPool())
+            using (var cf = new ChannelFactory())
             {
-                var channel = new Channel(memoryPool);
+                var channel = cf.CreateNullChannel();
 
                 var output = channel.Alloc();
 

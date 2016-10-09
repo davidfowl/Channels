@@ -12,7 +12,7 @@ namespace Channels
     /// <summary>
     /// Default <see cref="IWritableChannel"/> and <see cref="IReadableChannel"/> implementation.
     /// </summary>
-    public class Channel : IReadableChannel, IWritableChannel, IReadableBufferAwaiter
+    public class Channel : WritableChannel, IReadableChannel, IWritableChannel, IReadableBufferAwaiter
     {
         // TODO: Make this configurable for channel creation
         private const int _bufferSize = 4096;
@@ -50,6 +50,7 @@ namespace Channels
         /// </summary>
         /// <param name="pool"></param>
         public Channel(IBufferPool pool)
+            : base((Channel)null)
         {
             _pool = pool;
             _awaitableState = _awaitableIsNotCompleted;
@@ -73,7 +74,7 @@ namespace Channels
         /// This task indicates the consumer has completed and will not read anymore data.
         /// When this task is triggered, the producer should stop producing data.
         /// </remarks>
-        public Task Writing => _writingTcs.Task;
+        internal new Task Writing => _writingTcs.Task;
 
         bool IReadableBufferAwaiter.IsCompleted => IsCompleted;
 
@@ -86,7 +87,7 @@ namespace Channels
         /// </summary>
         /// <param name="minimumSize">The minimum size buffer to allocate</param>
         /// <returns>A <see cref="WritableBuffer"/> that can be written to.</returns>
-        public WritableBuffer Alloc(int minimumSize = 0)
+        internal new WritableBuffer Alloc(int minimumSize = 0)
         {
             // CompareExchange not required as its setting to current value if test fails
             if (Interlocked.Exchange(ref _producingState, State.Active) != State.NotActive)
@@ -226,7 +227,7 @@ namespace Channels
             }
         }
 
-        internal void Commit()
+        internal new void Commit()
         {
             // CompareExchange not required as its setting to current value if test fails
             if (Interlocked.Exchange(ref _producingState, State.NotActive) != State.Active)
@@ -282,7 +283,7 @@ namespace Channels
             } // and if zero, just do nothing; don't need to validate tail etc
         }
 
-        internal Task FlushAsync()
+        internal new Task FlushAsync()
         {
             if (_producingState == State.Active)
             {
