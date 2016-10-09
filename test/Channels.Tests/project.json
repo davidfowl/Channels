@@ -2,7 +2,8 @@
   "buildOptions": {
     "warningsAsErrors": true,
     "keyFile": "../../tools/Key.snk",
-    "allowUnsafe": true
+    "allowUnsafe": true,
+    "copyToOutput": "../../data/TestCert.pfx"
   },
   "dependencies": {
     "dotnet-test-xunit": "2.2.0-preview2-build1029",

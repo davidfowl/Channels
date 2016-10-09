@@ -1,4 +1,7 @@
-﻿using System.IO;
+﻿using System;
+using System.IO;
+using System.Runtime.InteropServices;
+using Channels.Networking.TLS.Internal;
 
 namespace Channels.Networking.TLS
 {
@@ -19,6 +22,8 @@ namespace Channels.Networking.TLS
         public IReadableChannel Input => _outputChannel;
         public IWritableChannel Output => _inputChannel;
 
+        public object Coonsole { get; private set; }
+
         internal async void StartReading<T>(T securityContext) where T : ISecureContext
         {
             _contextToDispose = securityContext;
@@ -27,66 +32,53 @@ namespace Channels.Networking.TLS
                 //If it is a client we need to start by sending a client hello straight away
                 var output = _lowerChannel.Output.Alloc();
                 securityContext.ProcessContextMessage(output);
-                if(output.BytesWritten == 0) output.Commit(); else await output.FlushAsync();
-                
+                if (output.BytesWritten == 0)
+                {
+                    output.Commit();
+                }
+                else
+                {
+                    await output.FlushAsync();
+                }
                 while (true)
                 {
                     var result = await _lowerChannel.Input.ReadAsync();
                     var buffer = result.Buffer;
+
                     try
                     {
                         if (buffer.IsEmpty && result.IsCompleted)
                         {
                             break;
                         }
-                        while (true)
+                        ReadableBuffer messageBuffer;
+                        TlsFrameType frameType;
+                        while (SecureContextExtensions.CheckForFrameType(ref buffer, out messageBuffer, out frameType))
                         {
-                            ReadableBuffer messageBuffer;
-                            var frameType = SecureContextExtensions.CheckForFrameType(ref buffer, out messageBuffer);
-
-                            //Incomplete frame so we check if the channel has completed, if not we wait for moar bytes!
-                            if (frameType == TlsFrameType.Incomplete)
-                            {
-                                if (result.IsCompleted)
-                                {
-                                    throw new EndOfStreamException("There was a termination of the channel mid message");
-                                }
-                                break;
-                            }
-
-                            // IF we have an invalid frame type we need to throw an exception and terminate, 
-                            // no mucking around for a secure connection
-                            if (frameType == TlsFrameType.Invalid)
-                            {
-                                throw new EndOfStreamException("We have recieved an invalid tls frame");
-                            }
-
                             //We have app data or tokens at this point so slice out the message
                             //If we have app data, we will slice it out and process it
                             if (frameType == TlsFrameType.AppData)
                             {
                                 var decryptedData = _outputChannel.Alloc();
                                 securityContext.Decrypt(messageBuffer, decryptedData);
-
                                 await decryptedData.FlushAsync();
                             }
-
-                            if (frameType == TlsFrameType.Handshake || frameType == TlsFrameType.ChangeCipherSpec)
+                            else
                             {
-                                try
+                                //Must be a token or a change cipher message
+                                output = _lowerChannel.Output.Alloc();
+                                securityContext.ProcessContextMessage(messageBuffer, output);
+                                if (output.BytesWritten == 0)
                                 {
-                                    output = _lowerChannel.Output.Alloc();
-                                    securityContext.ProcessContextMessage(messageBuffer, output);
-                                    if (output.BytesWritten == 0) output.Commit(); else await output.FlushAsync();
-
-                                    if (securityContext.ReadyToSend)
-                                    {
-                                        StartWriting(securityContext);
-                                    }
+                                    output.Commit();
                                 }
-                                catch
+                                else
                                 {
-                                    throw;
+                                    await output.FlushAsync();
+                                }
+                                if (securityContext.ReadyToSend)
+                                {
+                                    StartWriting(securityContext);
                                 }
                             }
                         }
@@ -101,12 +93,15 @@ namespace Channels.Networking.TLS
             {
                 //Close down the lower channel
                 _lowerChannel.Input.Complete();
+                _lowerChannel.Output.Complete();
                 //Tell the upper consumer that we aren't sending any more data
                 _outputChannel.CompleteWriter();
                 _outputChannel.CompleteReader();
+                _inputChannel.CompleteReader();
+                _inputChannel.CompleteWriter();
             }
         }
-
+        
         private async void StartWriting<T>(T securityContext) where T : ISecureContext
         {
             var maxBlockSize = (SecurityContext.BlockSize - securityContext.HeaderSize - securityContext.TrailerSize);
@@ -148,11 +143,14 @@ namespace Channels.Networking.TLS
             }
             finally
             {
-                //Tell the upper channel we aren't processing anything
+                ///Close down the lower channel
+                _lowerChannel.Input.Complete();
+                _lowerChannel.Output.Complete();
+                //Tell the upper consumer that we aren't sending any more data
+                _outputChannel.CompleteWriter();
+                _outputChannel.CompleteReader();
                 _inputChannel.CompleteReader();
                 _inputChannel.CompleteWriter();
-                //Tell the lower channel we are not going to write any more
-                _lowerChannel.Output.Complete();
             }
         }
 

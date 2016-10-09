@@ -43,6 +43,15 @@ namespace Channels.Networking.TLS.Internal
         public int reserved;
     }
 
+    internal unsafe struct _SecPkgContext_KeyInfo
+    {
+        public void* sSignatureAlgorithmName;
+        public void* sEncryptAlgorithmName;
+        public uint KeySize;
+        public uint SignatureAlgorithm;
+        public uint EncryptAlgorithm;
+    }
+
     [StructLayout(LayoutKind.Sequential)]
     internal unsafe struct SecurityBuffer
     {

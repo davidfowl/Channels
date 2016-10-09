@@ -19,6 +19,10 @@
 
   "frameworks": {
     "net451": {},
-    "netstandard1.3": {}
+    "netstandard1.3": {
+      "dependencies": {
+        "System.Threading.ThreadPool": "4.0.10"
+      }
+    }
   }
 }

@@ -114,6 +114,7 @@ namespace Channels.Networking.TLS.Internal
         Lifespan = 0x02,
         DceInfo = 0x03,
         StreamSizes = 0x04,
+        KeyInfo = 0x05,
         Authority = 0x06,
         PackageInfo = 0x0A,
         UniqueBindings = 0x19,

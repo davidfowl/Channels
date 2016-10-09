@@ -35,6 +35,9 @@ namespace Channels.Networking.TLS.Internal
         internal static extern int QueryContextAttributesW(ref SSPIHandle phContext, [In] ContextAttribute contextFlag, [Out] out ContextStreamSizes sizes);
 
         [DllImport(Dll, ExactSpelling = true, SetLastError = true, CharSet = CharSet.Unicode)]
+        internal static extern int QueryContextAttributesW(ref SSPIHandle phContext, [In] ContextAttribute contextFlag, [Out] out _SecPkgContext_KeyInfo sizes);
+
+        [DllImport(Dll, ExactSpelling = true, SetLastError = true, CharSet = CharSet.Unicode)]
         internal static extern int QueryContextAttributesW(ref SSPIHandle phContext, [In] ContextAttribute contextFlag, [Out] out ContextApplicationProtocol protocolInfo);
 
         [DllImport(Dll, ExactSpelling = true, SetLastError = true)]

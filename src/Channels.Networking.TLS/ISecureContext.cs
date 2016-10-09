@@ -3,7 +3,7 @@ using Channels.Networking.TLS.Internal;
 
 namespace Channels.Networking.TLS
 {
-    internal interface ISecureContext: IDisposable
+    internal interface ISecureContext : IDisposable
     {
         int TrailerSize { get; set; }
         int HeaderSize { get; set; }

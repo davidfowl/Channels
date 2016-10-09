@@ -27,7 +27,7 @@ namespace Channels.Networking.TLS
         public int HeaderSize { get { return _headerSize; } set { _headerSize = value; } }
         public int TrailerSize { get { return _trailerSize; } set { _trailerSize = value; } }
         public SSPIHandle ContextHandle => _contextPointer;
-
+        
         /// <summary>
         /// Without a payload from the client the server will just return straight away.
         /// </summary>
@@ -160,7 +160,6 @@ namespace Channels.Networking.TLS
                         InteropSspi.QueryContextAttributesW(ref _contextPointer, ContextAttribute.StreamSizes, out ss);
                         _headerSize = ss.header;
                         _trailerSize = ss.trailer;
-
                         if (_securityContext.LengthOfSupportedProtocols > 0)
                         {
                             _negotiatedProtocol = ApplicationProtocols.FindNegotiatedProtocol(_contextPointer);

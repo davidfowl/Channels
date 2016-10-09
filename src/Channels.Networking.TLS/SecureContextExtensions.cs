@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Channels.Networking.TLS.Internal;
 
@@ -45,7 +46,8 @@ namespace Channels.Networking.TLS
             var result = (SecurityStatus)InteropSspi.EncryptMessage(ref handle, 0, sdcInOut, 0);
             if (result == 0)
             {
-                encryptedData.Advance(context.HeaderSize + context.TrailerSize + unencrypted.Length);
+                var totalSize = securityBuff[0].size + securityBuff[1].size + securityBuff[2].size;
+                encryptedData.Advance(totalSize);
                 return result;
             }
             else
@@ -65,7 +67,6 @@ namespace Channels.Networking.TLS
                 }
                 throw new InvalidOperationException($"There was an issue encrypting the data {result}");
             }
-
         }
 
         /// <summary>
@@ -173,22 +174,22 @@ namespace Channels.Networking.TLS
         /// <param name="buffer">The input buffer, it will be returned with the frame sliced out if there is a complete frame found</param>
         /// <param name="messageBuffer">If a frame is found this contains that frame</param>
         /// <returns>The status of the check for frame</returns>
-        internal static TlsFrameType CheckForFrameType(ref ReadableBuffer buffer, out ReadableBuffer messageBuffer)
+        internal static bool CheckForFrameType(ref ReadableBuffer buffer, out ReadableBuffer messageBuffer, out TlsFrameType frameType)
         {
+            frameType = TlsFrameType.Incomplete;
             //Need at least 5 bytes to be useful
             if (buffer.Length < 5)
             {
                 messageBuffer = default(ReadableBuffer);
-                return TlsFrameType.Incomplete;
+                return false;
             }
-            var messageType = (TlsFrameType)buffer.ReadBigEndian<byte>();
+            frameType = (TlsFrameType)buffer.ReadBigEndian<byte>();
 
             //Check it's a valid frametype for what we are expecting
-            if (messageType != TlsFrameType.AppData && messageType != TlsFrameType.Alert
-                && messageType != TlsFrameType.ChangeCipherSpec && messageType != TlsFrameType.Handshake)
+            if (frameType != TlsFrameType.AppData && frameType != TlsFrameType.Alert
+                && frameType != TlsFrameType.ChangeCipherSpec && frameType != TlsFrameType.Handshake)
             {
-                messageBuffer = default(ReadableBuffer);
-                return TlsFrameType.Invalid;
+                throw new FormatException($"The tls frame type was invalid value was {frameType}");
             }
             //now we get the version
             var version = buffer.Slice(1).ReadBigEndian<ushort>();
@@ -196,18 +197,19 @@ namespace Channels.Networking.TLS
             if (version < 0x300 || version >= 0x500)
             {
                 messageBuffer = default(ReadableBuffer);
-                return TlsFrameType.Invalid;
+                Debugger.Break();
+                throw new FormatException($"The tls frame type was invalid due to the version value was {frameType}");
             }
             var length = buffer.Slice(3).ReadBigEndian<ushort>();
-
-            if (buffer.Length >= length)
+            // If we have a full frame slice it out and move the original buffer forward
+            if (buffer.Length >= (length + 5))
             {
                 messageBuffer = buffer.Slice(0, length + 5);
                 buffer = buffer.Slice(messageBuffer.End);
-                return messageType;
+                return true;
             }
             messageBuffer = default(ReadableBuffer);
-            return TlsFrameType.Incomplete;
+            return false;
         }
     }
 }

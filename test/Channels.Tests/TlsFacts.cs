@@ -17,78 +17,81 @@ namespace Channels.Tests
 {
     public class TlsFacts
     {
-        [Fact]
-        public async Task EncryptDecryptStress()
-        {
-            var testString = "The quick brown fox jumped over the lazy dog";
-            var cetPath = System.IO.Path.Combine(PlatformServices.Default.Application.ApplicationBasePath, "data", "TestCert.pfx");
-            X509Certificate cert = new X509Certificate(cetPath, "Test123t");
+        private static readonly string _certificatePath = System.IO.Path.Combine(PlatformServices.Default.Application.ApplicationBasePath, "data", "TestCert.pfx");
+        private static readonly string _certificatePassword = "Test123t";
+        private static readonly string _shortTestString = "The quick brown fox jumped over the lazy dog.";
 
+        [Fact]
+        public async Task EncryptDecryptChannelsAllThings()
+        {
+            using (X509Certificate cert = new X509Certificate(_certificatePath, _certificatePassword))
             using (ChannelFactory factory = new ChannelFactory())
             {
+                using (var serverContext = new SecurityContext(factory, "CARoot", true, cert))
+                using (var clientContext = new SecurityContext(factory, "CARoot", false, null))
+                {
+                    var ip = new IPEndPoint(IPAddress.Loopback, 5022);
+                    using (var server = new SocketListener(factory))
+                    {
+                        server.OnConnection((c) => Echo(serverContext.CreateSecureChannel(c)));
+                        server.Start(ip);
+                        using (var client = clientContext.CreateSecureChannel(await SocketConnection.ConnectAsync(ip, factory)))
+                        {
+                            var outputBuffer = client.Output.Alloc();
+                            outputBuffer.WriteUtf8String(_shortTestString);
+                            await outputBuffer.FlushAsync();
 
-                var serverContext = new SecurityContext(factory, "Test", true, cert);
-                var clientContext = new SecurityContext(factory, "Test", false, null);
+                            //Now check we get the same thing back
+                            string resultString;
+                            while (true)
+                            {
+                                var result = await client.Input.ReadAsync();
+                                if (result.Buffer.Length >= _shortTestString.Length)
+                                {
+                                    resultString = result.Buffer.GetUtf8String();
+                                    client.Input.Advance(result.Buffer.End);
+                                    break;
+                                }
+                                client.Input.Advance(result.Buffer.Start, result.Buffer.End);
+                            }
 
-                var lowerClientChannel = new TestingIChannel(factory);
-                var lowerServerChannel = new TestingIChannel(lowerClientChannel.RawOutput, lowerClientChannel.RawInput);
-
-                var serverChannel = serverContext.CreateSecureChannel(lowerServerChannel);
-                var clientChannel = clientContext.CreateSecureChannel(lowerClientChannel);
-
-                var writeBuffer = serverChannel.Output.Alloc();
-                writeBuffer.WriteUtf8String(testString);
-                await writeBuffer.FlushAsync();
-
-                //Get the decrypted string
-                var results = await clientChannel.Input.ReadAsync();
-
-                //Finally we should have the same string on the unencrypted output
-                var resultString = results.Buffer.GetUtf8String();
-
-                clientChannel.Input.Advance(results.Buffer.End, results.Buffer.End);
-
-                Assert.Equal(testString, resultString);
-
-                lowerClientChannel.Input.Complete();
-                lowerClientChannel.Output.Complete();
-
-                serverChannel.Dispose();
-                clientChannel.Dispose();
+                            Assert.Equal(_shortTestString, resultString);
+                        }
+                        server.Stop();
+                    }
+                }
             }
         }
 
         [Fact]
         public async Task ServerChannelStreamClient()
         {
+            var ip = new IPEndPoint(IPAddress.Loopback, 5010);
+
             using (var channelFactory = new ChannelFactory())
+            using (var cert = new X509Certificate(_certificatePath, _certificatePassword))
+            using (var secContext = new SecurityContext(channelFactory, "CARoot", true, cert))
+            using (var server = new SocketListener(channelFactory))
             {
-                var cetPath = System.IO.Path.Combine(PlatformServices.Default.Application.ApplicationBasePath, "data", "TestCert.pfx");
-                var cert = new X509Certificate(cetPath, "Test123t");
-                using (var secContext = new SecurityContext(channelFactory, "localhost", true, cert))
+                server.OnConnection((c) => Echo(secContext.CreateSecureChannel(c)));
+                server.Start(ip);
+                using (var client = new TcpClient())
                 {
-                    var ip = new IPEndPoint(IPAddress.Loopback, 5010);
-                    using (var server = new SocketListener())
-                    {
-                        server.OnConnection((c) =>  Echo(secContext.CreateSecureChannel(c)));
-                        server.Start(ip);
-                        using (var client = new TcpClient())
-                        {
-                            await client.ConnectAsync(ip.Address, ip.Port);
-                            SslStream sslStream = new SslStream(client.GetStream(), false, ValidateServerCertificate, null,EncryptionPolicy.RequireEncryption);
-                            await sslStream.AuthenticateAsClientAsync("localhost");
-                            byte[] messsage = Encoding.UTF8.GetBytes("there's a function for that<EOF>");
-                            sslStream.Write(messsage);
-                            sslStream.Flush();
-                            // Read message from the server.
-                            string serverMessage = ReadMessage(sslStream);
-                            Assert.Equal("there's a function for that<EOF>",serverMessage);
-                        }
-                    }
+                    await client.ConnectAsync(ip.Address, ip.Port);
+                    SslStream sslStream = new SslStream(client.GetStream(), false, ValidateServerCertificate, null, EncryptionPolicy.RequireEncryption);
+                    await sslStream.AuthenticateAsClientAsync("CARoot");
+                    byte[] messsage = Encoding.UTF8.GetBytes(_shortTestString);
+                    sslStream.Write(messsage);
+                    sslStream.Flush();
+                    // Read message from the server.
+                    string serverMessage = ReadMessageFromStream(sslStream);
+                    Assert.Equal(_shortTestString, serverMessage);
                 }
+                server.Stop();
             }
         }
-        string ReadMessage(SslStream sslStream)
+
+        private string ReadMessageFromStream(SslStream sslStream)
         {
             // Read the  message sent by the server.
             // The end of the message is signaled using the
@@ -107,7 +110,7 @@ namespace Channels.Tests
                 decoder.GetChars(buffer, 0, bytes, chars, 0);
                 messageData.Append(chars);
                 // Check for EOF.
-                if (messageData.ToString().IndexOf("<EOF>") != -1)
+                if (messageData.Length == _shortTestString.Length)
                 {
                     break;
                 }
@@ -116,18 +119,17 @@ namespace Channels.Tests
             return messageData.ToString();
         }
 
-        public bool ValidateServerCertificate(
-              object sender,
-              X509Certificate certificate,
-              X509Chain chain,
-              SslPolicyErrors sslPolicyErrors)
+        public bool ValidateServerCertificate(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors)
         {
-            return true;
+            if (sslPolicyErrors == SslPolicyErrors.None || sslPolicyErrors == SslPolicyErrors.RemoteCertificateChainErrors)
+            {
+                return true;
+            }
+            return false;
         }
 
         private async void Echo(IChannel channel)
         {
-            
             try
             {
                 while (true)
@@ -158,6 +160,49 @@ namespace Channels.Tests
             finally
             {
                 channel?.Dispose();
+            }
+        }
+
+        [Fact]
+        public async Task StreamServerChannelClient()
+        {
+            var ip = new IPEndPoint(IPAddress.Loopback, 5011);
+            using (var cert = new X509Certificate(_certificatePath, _certificatePassword))
+            using (ChannelFactory factory = new ChannelFactory())
+            using (var clientContext = new SecurityContext(factory, "CARoot", false, null))
+            {
+                var listener = new TcpListener(ip);
+                listener.Start();
+
+                using (var client = clientContext.CreateSecureChannel(await SocketConnection.ConnectAsync(ip, factory)))
+                {
+                    var server = await listener.AcceptTcpClientAsync();
+                    using (var secureServer = new SslStream(server.GetStream(), false))
+                    {
+                        await secureServer.AuthenticateAsServerAsync(cert, false, System.Security.Authentication.SslProtocols.Tls, false);
+                        var buff = client.Output.Alloc();
+                        buff.WriteUtf8String(_shortTestString);
+                        await buff.FlushAsync();
+
+                        //Check that the server actually got it
+                        var tempBuff = new byte[_shortTestString.Length];
+                        int totalRead = 0;
+                        while (true)
+                        {
+                            int numberOfBytes = secureServer.Read(tempBuff, totalRead, _shortTestString.Length - totalRead);
+                            if (numberOfBytes == -1)
+                            {
+                                break;
+                            }
+                            totalRead += numberOfBytes;
+                            if (totalRead >= _shortTestString.Length)
+                            {
+                                break;
+                            }
+                        }
+                        Assert.Equal(_shortTestString, UTF8Encoding.UTF8.GetString(tempBuff));
+                    }
+                }
             }
         }
     }
