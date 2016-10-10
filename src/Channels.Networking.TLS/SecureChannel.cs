@@ -11,7 +11,7 @@ namespace Channels.Networking.TLS
         private Channel _outputChannel;
         private Channel _inputChannel;
         private ISecureContext _contextToDispose;
-
+        
         public SecureChannel(IChannel inChannel, ChannelFactory channelFactory)
         {
             _lowerChannel = inChannel;
@@ -21,8 +21,6 @@ namespace Channels.Networking.TLS
 
         public IReadableChannel Input => _outputChannel;
         public IWritableChannel Output => _inputChannel;
-
-        public object Coonsole { get; private set; }
 
         internal async void StartReading<T>(T securityContext) where T : ISecureContext
         {
