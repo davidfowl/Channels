@@ -67,7 +67,7 @@ namespace Channels.Tests
         [WindowsOnlyFact]
         public async Task ServerChannelStreamClient()
         {
-            var ip = new IPEndPoint(IPAddress.Loopback, 5010);
+            var ip = new IPEndPoint(IPAddress.Loopback, 5023);
 
             using (var channelFactory = new ChannelFactory())
             using (var cert = new X509Certificate(_certificatePath, _certificatePassword))
@@ -167,7 +167,7 @@ namespace Channels.Tests
         [WindowsOnlyFact]
         public async Task StreamServerChannelClient()
         {
-            var ip = new IPEndPoint(IPAddress.Loopback, 5011);
+            var ip = new IPEndPoint(IPAddress.Loopback, 5024);
             using (var cert = new X509Certificate(_certificatePath, _certificatePassword))
             using (ChannelFactory factory = new ChannelFactory())
             using (var clientContext = new SecurityContext(factory, "CARoot", false, null))
