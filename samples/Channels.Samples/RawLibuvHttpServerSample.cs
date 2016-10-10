@@ -21,15 +21,11 @@ namespace Channels.Samples
             listener.OnConnection(async connection =>
             {
                 var httpParser = new HttpRequestParser();
-                // var formatter = connection.Output.GetFormatter(EncodingData.InvariantUtf8);
-                // var writer = new StreamWriter(connection.GetStream(), new UTF8Encoding(false));
 
                 try
                 {
                     while (true)
                     {
-                        httpParser.Reset();
-
                         // Wait for data
                         var result = await connection.Input.ReadAsync();
                         var input = result.Buffer;
@@ -72,22 +68,7 @@ namespace Channels.Samples
                             output.WriteUtf8String("Hello, World!");
                             await output.FlushAsync();
 
-                            // Stream writers
-                            //writer.Write("HTTP/1.1 200 OK");
-                            //writer.Write("\r\nContent-Length: 13");
-                            //writer.Write("\r\nContent-Type: text/plain");
-                            //writer.Write("\r\n\r\n");
-                            //writer.Write("Hello, World!");
-                            //await writer.FlushAsync();
-
-                            // Formatters
-                            //formatter.Append("HTTP/1.1 200 OK");
-                            //formatter.Append("\r\nContent-Length: 13");
-                            //formatter.Append("\r\nContent-Type: text/plain");
-                            //formatter.Append("\r\n\r\n");
-                            //formatter.Append("Hello, World!");
-                            // await formatter.FlushAsync();
-
+                            httpParser.Reset();
                         }
                         finally
                         {
@@ -98,11 +79,7 @@ namespace Channels.Samples
                 }
                 finally
                 {
-                    // Close the input channel, which will tell the producer to stop producing
-                    connection.Input.Complete();
-
-                    // Close the output channel, which will close the connection
-                    connection.Output.Complete();
+                    connection.Dispose();
                 }
             });
 
