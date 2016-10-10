@@ -9,6 +9,7 @@ namespace Channels.Networking.TLS
         int HeaderSize { get; set; }
         SSPIHandle ContextHandle { get; }
         bool ReadyToSend { get; }
+        ApplicationProtocols.ProtocolIds NegotiatedProtocol { get; }
         void ProcessContextMessage(ReadableBuffer readBuffer, WritableBuffer writeBuffer);
         void ProcessContextMessage(WritableBuffer writeBuffer);
     }

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Threading.Tasks;
 using Channels.Networking.TLS.Internal;
 
 namespace Channels.Networking.TLS
@@ -11,6 +12,7 @@ namespace Channels.Networking.TLS
         private Channel _outputChannel;
         private Channel _inputChannel;
         private ISecureContext _contextToDispose;
+        private TaskCompletionSource<ApplicationProtocols.ProtocolIds> _handShakeCompleted = new TaskCompletionSource<ApplicationProtocols.ProtocolIds>();
         
         public SecureChannel(IChannel inChannel, ChannelFactory channelFactory)
         {
@@ -21,6 +23,8 @@ namespace Channels.Networking.TLS
 
         public IReadableChannel Input => _outputChannel;
         public IWritableChannel Output => _inputChannel;
+
+        public Task<ApplicationProtocols.ProtocolIds> HandShakeAsync() => _handShakeCompleted.Task;
 
         internal async void StartReading<T>(T securityContext) where T : ISecureContext
         {
@@ -63,20 +67,29 @@ namespace Channels.Networking.TLS
                             }
                             else
                             {
-                                //Must be a token or a change cipher message
-                                output = _lowerChannel.Output.Alloc();
-                                securityContext.ProcessContextMessage(messageBuffer, output);
-                                if (output.BytesWritten == 0)
+                                try
                                 {
-                                    output.Commit();
+                                    //Must be a token or a change cipher message
+                                    output = _lowerChannel.Output.Alloc();
+                                    securityContext.ProcessContextMessage(messageBuffer, output);
+                                    if (output.BytesWritten == 0)
+                                    {
+                                        output.Commit();
+                                    }
+                                    else
+                                    {
+                                        await output.FlushAsync();
+                                    }
+                                    if (securityContext.ReadyToSend)
+                                    {
+                                        StartWriting(securityContext);
+                                        _handShakeCompleted.SetResult(securityContext.NegotiatedProtocol);
+                                    }
                                 }
-                                else
+                                catch(Exception ex)
                                 {
-                                    await output.FlushAsync();
-                                }
-                                if (securityContext.ReadyToSend)
-                                {
-                                    StartWriting(securityContext);
+                                    _handShakeCompleted.SetException(ex);
+                                    throw;
                                 }
                             }
                         }
