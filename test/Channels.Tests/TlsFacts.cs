@@ -9,6 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Channels.Networking.Sockets;
 using Channels.Networking.TLS;
+using Channels.Tests.Internal;
 using Channels.Text.Primitives;
 using Microsoft.Extensions.PlatformAbstractions;
 using Xunit;
@@ -21,9 +22,7 @@ namespace Channels.Tests
         private static readonly string _certificatePassword = "Test123t";
         private static readonly string _shortTestString = "The quick brown fox jumped over the lazy dog.";
 
-        [Fact]
-        [Internal.OSSkipCondition(Internal.OperatingSystems.Linux, SkipReason = "Windows only API")]
-        [Internal.OSSkipCondition(Internal.OperatingSystems.MacOSX, SkipReason = "Windows Only API")]
+        [WindowsOnlyFact]
         public async Task EncryptDecryptChannelsAllThings()
         {
             using (X509Certificate cert = new X509Certificate(_certificatePath, _certificatePassword))
@@ -65,9 +64,7 @@ namespace Channels.Tests
             }
         }
 
-        [Fact]
-        [Internal.OSSkipCondition(Internal.OperatingSystems.Linux, SkipReason = "Windows only API")]
-        [Internal.OSSkipCondition(Internal.OperatingSystems.MacOSX, SkipReason = "Windows Only API")]
+        [WindowsOnlyFact]
         public async Task ServerChannelStreamClient()
         {
             var ip = new IPEndPoint(IPAddress.Loopback, 5010);
@@ -167,9 +164,7 @@ namespace Channels.Tests
             }
         }
 
-        [Fact]
-        [Internal.OSSkipCondition(Internal.OperatingSystems.Linux, SkipReason = "Windows only API")]
-        [Internal.OSSkipCondition(Internal.OperatingSystems.MacOSX, SkipReason = "Windows Only API")]
+        [WindowsOnlyFact]
         public async Task StreamServerChannelClient()
         {
             var ip = new IPEndPoint(IPAddress.Loopback, 5011);
