@@ -95,7 +95,7 @@ namespace Channels.Tests.Performance
                 var data = await input.ReadToEndAsync();
 
                 //ParseJson(data);
-                input.Advance(data.Start, data.End);
+                input.Advance(data.End);
             }
         }
 
