@@ -26,6 +26,7 @@ namespace Channels.Networking.TLS
         private string _hostName;
         private byte[] _alpnSupportedProtocols;
         private GCHandle _alpnHandle;
+        private SecurityBuffer _alpnBuffer;
         private ChannelFactory _channelFactory;
         
         /// <summary>
@@ -62,8 +63,8 @@ namespace Channels.Networking.TLS
         }
 
         internal SSPIHandle CredentialsHandle => _credsHandle;
-        internal IntPtr AlpnSupportedProtocols => _alpnHandle.IsAllocated ? _alpnHandle.AddrOfPinnedObject() : IntPtr.Zero;
-        internal int LengthOfSupportedProtocols => _alpnSupportedProtocols?.Length ?? 0;
+        internal bool AplnRequired => _alpnSupportedProtocols != null;
+        internal SecurityBuffer AplnBuffer => _alpnBuffer;
         internal string HostName => _hostName;
         public bool IsServer => _isServer;
 
@@ -76,6 +77,7 @@ namespace Channels.Networking.TLS
                 //We need to get a buffer for the ALPN negotiation and pin it for sending to the lower API
                 _alpnSupportedProtocols = ApplicationProtocols.GetBufferForProtocolId(alpnSupportedProtocols);
                 _alpnHandle = GCHandle.Alloc(_alpnSupportedProtocols, GCHandleType.Pinned);
+                _alpnBuffer = new SecurityBuffer((void*)_alpnHandle.AddrOfPinnedObject(), _alpnSupportedProtocols.Length, SecurityBufferType.ApplicationProtocols);
             }
             try
             {
@@ -141,8 +143,8 @@ namespace Channels.Networking.TLS
                 certContextArray = IntPtr.Zero,
                 cCreds = 0
             };
-            IntPtr certPointer;
 
+            IntPtr certPointer;
             if (_isServer)
             {
                 creds.grbitEnabledProtocols = InteropSspi.ServerProtocolMask;

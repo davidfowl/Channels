@@ -20,26 +20,15 @@ namespace Channels.Networking.TLS
             void* outBufferPointer;
             encryptedData.Memory.TryGetPointer(out outBufferPointer);
 
+            //Copy the unencrypted across to the encrypted channel, it will be updated in place and destroyed
             unencrypted.CopyTo(encryptedData.Memory.Slice(context.HeaderSize, unencrypted.Length));
 
             var securityBuff = stackalloc SecurityBuffer[4];
             SecurityBufferDescriptor sdcInOut = new SecurityBufferDescriptor(4);
-            securityBuff[0].size = context.HeaderSize;
-            securityBuff[0].type = SecurityBufferType.Header;
-            securityBuff[0].tokenPointer = outBufferPointer;
-
-            securityBuff[1].size = unencrypted.Length;
-            securityBuff[1].type = SecurityBufferType.Data;
-            securityBuff[1].tokenPointer = (byte*)outBufferPointer + context.HeaderSize;
-
-            securityBuff[2].size = context.TrailerSize;
-            securityBuff[2].type = SecurityBufferType.Trailer;
-            securityBuff[2].tokenPointer = (byte*)outBufferPointer + context.HeaderSize + unencrypted.Length;
-
-            securityBuff[3].size = 0;
-            securityBuff[3].tokenPointer = null;
-            securityBuff[3].type = SecurityBufferType.Empty;
-
+            securityBuff[0] = new SecurityBuffer(outBufferPointer, context.HeaderSize, SecurityBufferType.Header);
+            securityBuff[1] = new SecurityBuffer((byte*)outBufferPointer + context.HeaderSize, unencrypted.Length, SecurityBufferType.Data);
+            securityBuff[2] = new SecurityBuffer((byte*)securityBuff[1].tokenPointer + unencrypted.Length, context.TrailerSize, SecurityBufferType.Trailer);
+            
             sdcInOut.UnmanagedPointer = securityBuff;
 
             var handle = context.ContextHandle;
@@ -131,19 +120,7 @@ namespace Channels.Networking.TLS
         {
             var securityBuff = stackalloc SecurityBuffer[4];
             SecurityBufferDescriptor sdcInOut = new SecurityBufferDescriptor(4);
-            securityBuff[0].size = count;
-            securityBuff[0].tokenPointer = buffer;
-            securityBuff[0].type = SecurityBufferType.Data;
-            securityBuff[1].size = 0;
-            securityBuff[1].tokenPointer = null;
-            securityBuff[1].type = SecurityBufferType.Empty;
-            securityBuff[2].size = 0;
-            securityBuff[2].tokenPointer = null;
-            securityBuff[2].type = SecurityBufferType.Empty;
-            securityBuff[3].size = 0;
-            securityBuff[3].tokenPointer = null;
-            securityBuff[3].type = SecurityBufferType.Empty;
-
+            securityBuff[0] = new SecurityBuffer(buffer, count, SecurityBufferType.Data);
             sdcInOut.UnmanagedPointer = securityBuff;
 
             var errorCode = (SecurityStatus)InteropSspi.DecryptMessage(ref context, sdcInOut, 0, null);

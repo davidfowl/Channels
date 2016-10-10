@@ -55,6 +55,13 @@ namespace Channels.Networking.TLS.Internal
     [StructLayout(LayoutKind.Sequential)]
     internal unsafe struct SecurityBuffer
     {
+        public SecurityBuffer(void* bufferPointer, int bufferSize, SecurityBufferType bufferType)
+        {
+            tokenPointer = bufferPointer;
+            type = bufferType;
+            size = bufferSize;
+        }
+
         public int size;
         public SecurityBufferType type;
         public void* tokenPointer;

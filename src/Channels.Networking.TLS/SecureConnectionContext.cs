@@ -53,12 +53,8 @@ namespace Channels.Networking.TLS
             {
                 var output = new SecurityBufferDescriptor(2);
                 var outputBuff = stackalloc SecurityBuffer[2];
-                outputBuff[0].size = 0;
-                outputBuff[0].tokenPointer = null;
-                outputBuff[0].type = SecurityBufferType.Token;
-                outputBuff[1].type = SecurityBufferType.Alert;
-                outputBuff[1].size = 0;
-                outputBuff[1].tokenPointer = null;
+                outputBuff[0] = new SecurityBuffer(null, 0, SecurityBufferType.Token);
+                outputBuff[1] = new SecurityBuffer(null, 0, SecurityBufferType.Alert);
                 output.UnmanagedPointer = outputBuff;
 
                 var handle = _securityContext.CredentialsHandle;
@@ -111,29 +107,27 @@ namespace Channels.Networking.TLS
                             inputBuff[0].tokenPointer = (void*)handleForAllocation.AddrOfPinnedObject();
                         }
                     }
-
-                    outputBuff[1].type = SecurityBufferType.Empty;
-                    outputBuff[1].size = 0;
-                    outputBuff[1].tokenPointer = null;
+                    //If we have APLN extensions to send use the last buffer
+                    if(_securityContext.AplnRequired)
+                    {
+                        inputBuff[1] = _securityContext.AplnBuffer;
+                    }
                     input.UnmanagedPointer = inputBuff;
                     pointerToDescriptor = &input;
-
                 }
                 else
                 {
-                    if (_securityContext.LengthOfSupportedProtocols > 0)
+                    //Only build an input buffer if we have to send APLN extensions
+                    if (_securityContext.AplnRequired)
                     {
                         var input = new SecurityBufferDescriptor(1);
                         var inputBuff = stackalloc SecurityBuffer[1];
-
-                        inputBuff[0].size = _securityContext.LengthOfSupportedProtocols;
-                        inputBuff[0].tokenPointer = (void*)_securityContext.AlpnSupportedProtocols;
-                        inputBuff[0].type = SecurityBufferType.ApplicationProtocols;
+                        inputBuff[0] = _securityContext.AplnBuffer;
                         input.UnmanagedPointer = inputBuff;
                         pointerToDescriptor = &input;
                     }
                 }
-
+                //We call accept security context for a server (as it is initiated by the client) and for the client we call Initialize
                 long timestamp = 0;
                 SecurityStatus errorCode;
                 if (_securityContext.IsServer)
@@ -156,11 +150,12 @@ namespace Channels.Networking.TLS
                     if (errorCode == SecurityStatus.OK)
                     {
                         ContextStreamSizes ss;
-                        //We have a valid context so lets query it for info
+                        //We have a valid context so lets query it for the size of the header and trailer
                         InteropSspi.QueryContextAttributesW(ref _contextPointer, ContextAttribute.StreamSizes, out ss);
                         _headerSize = ss.header;
                         _trailerSize = ss.trailer;
-                        if (_securityContext.LengthOfSupportedProtocols > 0)
+                        //If we needed APLN this should now be set
+                        if (_securityContext.AplnRequired)
                         {
                             _negotiatedProtocol = ApplicationProtocols.FindNegotiatedProtocol(_contextPointer);
                         }
@@ -168,7 +163,6 @@ namespace Channels.Networking.TLS
                     }
                     return;
                 }
-
                 throw new InvalidOperationException($"An error occured trying to negoiate a session {errorCode}");
             }
             finally
