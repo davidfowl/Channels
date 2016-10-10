@@ -14,8 +14,6 @@ namespace Channels.Samples
     {
         public static void Run()
         {
-            byte[] jsonPath = Encoding.UTF8.GetBytes("/json");
-
             var ip = IPAddress.Any;
             int port = 5000;
             var thread = new UvThread();
@@ -23,7 +21,8 @@ namespace Channels.Samples
             listener.OnConnection(async connection =>
             {
                 var httpParser = new HttpRequestParser();
-                var formatter = connection.Output.GetFormatter(EncodingData.InvariantUtf8);
+                // var formatter = connection.Output.GetFormatter(EncodingData.InvariantUtf8);
+                // var writer = new StreamWriter(connection.GetStream(), new UTF8Encoding(false));
 
                 try
                 {
@@ -64,21 +63,30 @@ namespace Channels.Samples
                                     break;
                             }
 
-                            if (httpParser.Path.Buffer.StartsWith(jsonPath))
-                            {
-                                // Read the content length
-                                var length = httpParser.RequestHeaders.GetHeaderRaw("Content-Length").GetUInt32();
+                            // Writing directly to pooled buffers
+                            var output = connection.Output.Alloc();
+                            output.WriteUtf8String("HTTP/1.1 200 OK");
+                            output.WriteUtf8String("\r\nContent-Length: 13");
+                            output.WriteUtf8String("\r\nContent-Type: text/plain");
+                            output.WriteUtf8String("\r\n\r\n");
+                            output.WriteUtf8String("Hello, World!");
+                            await output.FlushAsync();
 
-                                // parse some JSON
-                            }
+                            // Stream writers
+                            //writer.Write("HTTP/1.1 200 OK");
+                            //writer.Write("\r\nContent-Length: 13");
+                            //writer.Write("\r\nContent-Type: text/plain");
+                            //writer.Write("\r\n\r\n");
+                            //writer.Write("Hello, World!");
+                            //await writer.FlushAsync();
 
-                            formatter.Append("HTTP/1.1 200 OK");
-                            formatter.Append("\r\nContent-Length: 13");
-                            formatter.Append("\r\nContent-Type: text/plain");
-                            formatter.Append("\r\n\r\n");
-                            formatter.Append("Hello, World!");
-
-                            await formatter.FlushAsync();
+                            // Formatters
+                            //formatter.Append("HTTP/1.1 200 OK");
+                            //formatter.Append("\r\nContent-Length: 13");
+                            //formatter.Append("\r\nContent-Type: text/plain");
+                            //formatter.Append("\r\n\r\n");
+                            //formatter.Append("Hello, World!");
+                            // await formatter.FlushAsync();
 
                         }
                         finally
