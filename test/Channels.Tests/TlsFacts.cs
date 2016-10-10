@@ -22,6 +22,8 @@ namespace Channels.Tests
         private static readonly string _shortTestString = "The quick brown fox jumped over the lazy dog.";
 
         [Fact]
+        [Internal.OSSkipCondition(Internal.OperatingSystems.Linux, SkipReason = "Windows only API")]
+        [Internal.OSSkipCondition(Internal.OperatingSystems.MacOSX, SkipReason = "Windows Only API")]
         public async Task EncryptDecryptChannelsAllThings()
         {
             using (X509Certificate cert = new X509Certificate(_certificatePath, _certificatePassword))
@@ -64,6 +66,8 @@ namespace Channels.Tests
         }
 
         [Fact]
+        [Internal.OSSkipCondition(Internal.OperatingSystems.Linux, SkipReason = "Windows only API")]
+        [Internal.OSSkipCondition(Internal.OperatingSystems.MacOSX, SkipReason = "Windows Only API")]
         public async Task ServerChannelStreamClient()
         {
             var ip = new IPEndPoint(IPAddress.Loopback, 5010);
@@ -164,6 +168,8 @@ namespace Channels.Tests
         }
 
         [Fact]
+        [Internal.OSSkipCondition(Internal.OperatingSystems.Linux, SkipReason = "Windows only API")]
+        [Internal.OSSkipCondition(Internal.OperatingSystems.MacOSX, SkipReason = "Windows Only API")]
         public async Task StreamServerChannelClient()
         {
             var ip = new IPEndPoint(IPAddress.Loopback, 5011);
