@@ -31,3 +31,5 @@ runtimes/
 .testPublish/
 launchSettings.json
 *.tmp
+BDN.Auto/
+BenchmarkDotNet.Artifacts/

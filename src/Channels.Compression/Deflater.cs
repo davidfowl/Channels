@@ -2,15 +2,15 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System;
 using System.Diagnostics;
 using System.Diagnostics.Contracts;
-using System.Runtime.InteropServices;
+using System.IO.Compression;
 using System.Security;
+using ZErrorCode = Channels.Compression.ZLibNative.ErrorCode;
+using ZFlushCode = Channels.Compression.ZLibNative.FlushCode;
 
-using ZErrorCode = System.IO.Compression.ZLibNative.ErrorCode;
-using ZFlushCode = System.IO.Compression.ZLibNative.FlushCode;
-
-namespace System.IO.Compression
+namespace Channels.Compression
 {
     /// <summary>
     /// Provides a wrapper around the ZLib compression API

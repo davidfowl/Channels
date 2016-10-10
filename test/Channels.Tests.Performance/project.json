@@ -1,0 +1,50 @@
+﻿{
+  "buildOptions": {
+    "warningsAsErrors": true,
+    "keyFile": "../../tools/Key.snk",
+    "allowUnsafe": true,
+    "emitEntryPoint": true,
+    "copyToOutput": "random.json.gz"
+  },
+
+  "publishOptions": {
+    "includeFiles": [ "random.json.gz" ]
+  },
+
+  "dependencies": {
+    "Channels": {
+      "target": "project"
+    },
+    "Channels.Text.Primitives": {
+      "target": "project"
+    },
+    "Channels.Networking.Sockets": {
+      "target": "project"
+    },
+    "Channels.Networking.Libuv": {
+      "target": "project"
+    },
+    "Channels.Networking.Windows.RIO": {
+      "target": "project"
+    },
+    "Channels.File": {
+      "target": "project"
+    },
+    "Channels.Compression": {
+      "target": "project"
+    },
+    "Newtonsoft.Json": "9.0.1",
+    "System.Text.Json": "0.1.0-*"
+  },
+  "frameworks": {
+    "net462": {
+      "imports": "dotnet",
+      "dependencies": {
+        "BenchmarkDotNet": "0.9.9",
+        "BenchmarkDotNet.Diagnostics.Windows": "0.9.9"
+      }
+    }
+  },
+
+  "contentExclude": [ "BenchmarkDotNet.Artifacts**" ]
+}
