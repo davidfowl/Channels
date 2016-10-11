@@ -2,11 +2,11 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
-using System.Diagnostics;
+using System;
 using System.Runtime.InteropServices;
 using System.Security;
 
-namespace System.IO.Compression
+namespace Channels.Compression
 {
     /// <summary>
     /// This class provides declaration for constants and PInvokes as well as some basic tools for exposing the

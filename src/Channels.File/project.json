@@ -1,0 +1,24 @@
+﻿{
+  "version": "0.1.0-*",
+
+  "buildOptions": {
+    "allowUnsafe": true,
+    "keyFile": "../../tools/Key.snk",
+    "xmlDoc": true
+  },
+
+  "dependencies": {
+    "Channels": {
+      "target": "project"
+    }
+  },
+
+
+  "frameworks": {
+    "netstandard1.3": {
+      "dependencies": {
+        "System.Threading.Overlapped": "4.0.1"
+      }
+    }
+  }
+}

@@ -1,7 +1,8 @@
 ﻿using System;
 using System.IO;
 using System.IO.Compression;
-using Channels.Samples.IO.Compression;
+using Channels.Compression;
+using Channels.File;
 
 namespace Channels.Samples
 {
@@ -9,7 +10,7 @@ namespace Channels.Samples
     {
         public static void Run()
         {
-            using (var channelFactory = new ChannelFactory())
+            using (var cf = new ChannelFactory())
             {
                 var filePath = Path.GetFullPath("Program.cs");
 
@@ -22,14 +23,12 @@ namespace Channels.Samples
                 //compressed.Seek(0, SeekOrigin.Begin);
                 // var input = channelFactory.MakeReadableChannel(compressed);
 
-                var fs = File.OpenRead(filePath);
-                var input = channelFactory.MakeReadableChannel(fs);
-                input = channelFactory.CreateDeflateCompressChannel(input, CompressionLevel.Optimal);
-
-                input = channelFactory.CreateDeflateDecompressChannel(input);
+                var input = cf.ReadFile(filePath)
+                              .DeflateCompress(cf, CompressionLevel.Optimal)
+                              .DeflateDecompress(cf);
 
                 // Wrap the console in a writable channel
-                var output = channelFactory.MakeWriteableChannel(Console.OpenStandardOutput());
+                var output = cf.MakeWriteableChannel(Console.OpenStandardOutput());
 
                 // Copy from the file channel to the console channel
                 input.CopyToAsync(output).GetAwaiter().GetResult();

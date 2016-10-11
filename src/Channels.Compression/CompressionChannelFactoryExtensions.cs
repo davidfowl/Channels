@@ -1,13 +1,41 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO.Compression;
-using System.Linq;
 using System.Threading.Tasks;
 
-namespace Channels.Samples.IO.Compression
+namespace Channels.Compression
 {
     public static class CompressionChannelFactoryExtensions
     {
+        public static IReadableChannel DeflateDecompress(this IReadableChannel channel, ChannelFactory factory)
+        {
+            var inflater = new ReadableDeflateChannel(ZLibNative.Deflate_DefaultWindowBits);
+            return factory.MakeReadableChannel(channel, inflater.Execute);
+        }
+
+        public static IReadableChannel DeflateCompress(this IReadableChannel channel, ChannelFactory factory, CompressionLevel compressionLevel)
+        {
+            var deflater = new WritableDeflateChannel(compressionLevel, ZLibNative.Deflate_DefaultWindowBits);
+            return factory.MakeReadableChannel(channel, deflater.Execute);
+        }
+
+        public static IReadableChannel GZipDecompress(this IReadableChannel channel, ChannelFactory factory)
+        {
+            var inflater = new ReadableDeflateChannel(ZLibNative.GZip_DefaultWindowBits);
+            return factory.MakeReadableChannel(channel, inflater.Execute);
+        }
+
+        public static IWritableChannel GZipCompress(this IWritableChannel channel, ChannelFactory factory, CompressionLevel compressionLevel)
+        {
+            var deflater = new WritableDeflateChannel(compressionLevel, ZLibNative.GZip_DefaultWindowBits);
+            return factory.MakeWriteableChannel(channel, deflater.Execute);
+        }
+
+        public static IReadableChannel GZipCompress(this IReadableChannel channel, ChannelFactory factory, CompressionLevel compressionLevel)
+        {
+            var deflater = new WritableDeflateChannel(compressionLevel, ZLibNative.GZip_DefaultWindowBits);
+            return factory.MakeReadableChannel(channel, deflater.Execute);
+        }
+
         public static IReadableChannel CreateDeflateDecompressChannel(this ChannelFactory factory, IReadableChannel channel)
         {
             var inflater = new ReadableDeflateChannel(ZLibNative.Deflate_DefaultWindowBits);
@@ -54,12 +82,18 @@ namespace Channels.Samples.IO.Compression
                     var result = await input.ReadAsync();
                     var inputBuffer = result.Buffer;
 
-                    if (inputBuffer.IsEmpty && result.IsCompleted)
+                    if (inputBuffer.IsEmpty)
                     {
-                        break;
+                        if (result.IsCompleted)
+                        {
+                            break;
+                        }
+
+                        input.Advance(inputBuffer.End);
+                        continue;
                     }
 
-                    var writerBuffer = output.Alloc(2048);
+                    var writerBuffer = output.Alloc();
                     var memory = inputBuffer.First;
 
                     unsafe
@@ -81,6 +115,7 @@ namespace Channels.Samples.IO.Compression
                         unsafe
                         {
                             void* outPointer;
+                            writerBuffer.Ensure();
                             if (writerBuffer.Memory.TryGetPointer(out outPointer))
                             {
                                 int written = _deflater.ReadDeflateOutput((IntPtr)outPointer, writerBuffer.Memory.Length);
@@ -106,12 +141,13 @@ namespace Channels.Samples.IO.Compression
                 do
                 {
                     // Need to do more stuff here
-                    var writerBuffer = output.Alloc(2048);
-                    var memory = writerBuffer.Memory;
+                    var writerBuffer = output.Alloc();
 
                     unsafe
                     {
                         void* pointer;
+                        writerBuffer.Ensure();
+                        var memory = writerBuffer.Memory;
                         if (memory.TryGetPointer(out pointer))
                         {
                             int compressedBytes;
@@ -132,12 +168,13 @@ namespace Channels.Samples.IO.Compression
                 do
                 {
                     // Need to do more stuff here
-                    var writerBuffer = output.Alloc(2048);
-                    var memory = writerBuffer.Memory;
+                    var writerBuffer = output.Alloc();
 
                     unsafe
                     {
                         void* pointer;
+                        writerBuffer.Ensure();
+                        var memory = writerBuffer.Memory;
                         if (memory.TryGetPointer(out pointer))
                         {
                             int compressedBytes;
@@ -174,12 +211,18 @@ namespace Channels.Samples.IO.Compression
                     var result = await input.ReadAsync();
                     var inputBuffer = result.Buffer;
 
-                    if (inputBuffer.IsEmpty && result.IsCompleted)
+                    if (inputBuffer.IsEmpty)
                     {
-                        break;
+                        if (result.IsCompleted)
+                        {
+                            break;
+                        }
+
+                        input.Advance(inputBuffer.End);
+                        continue;
                     }
 
-                    var writerBuffer = output.Alloc(2048);
+                    var writerBuffer = output.Alloc();
                     var memory = inputBuffer.First;
                     if (memory.Length > 0)
                     {
@@ -191,6 +234,7 @@ namespace Channels.Samples.IO.Compression
                                 _inflater.SetInput((IntPtr)pointer, memory.Length);
 
                                 void* writePointer;
+                                writerBuffer.Ensure();
                                 if (writerBuffer.Memory.TryGetPointer(out writePointer))
                                 {
                                     int written = _inflater.Inflate((IntPtr)writePointer, writerBuffer.Memory.Length);

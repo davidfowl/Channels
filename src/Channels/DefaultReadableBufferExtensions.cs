@@ -35,6 +35,24 @@ namespace Channels
             }
         }
 
+        public static async Task<ReadableBuffer> ReadToEndAsync(this IReadableChannel input)
+        {
+            while (true)
+            {
+                // Wait for more data
+                var result = await input.ReadAsync();
+
+                if (result.IsCompleted)
+                {
+                    // Read all the data, return it
+                    return result.Buffer;
+                }
+
+                // Don't advance the buffer so remains in buffer
+                input.Advance(result.Buffer.Start, result.Buffer.End);
+            }
+        }
+
         /// <summary>
         /// Reads a structure of type <typeparamref name="T"/> out of a buffer of bytes.
         /// </summary>

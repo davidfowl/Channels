@@ -23,6 +23,15 @@ namespace Channels
         }
 
         /// <summary>
+        /// Creates a base <see cref="ReadableChannel"/>.
+        /// </summary>
+        /// <param name="channel">The <see cref="Channel"/> the ReadableChannel communicates over.</param>
+        protected ReadableChannel(Channel channel)
+        {
+            _channel = channel;
+        }
+
+        /// <summary>
         /// Moves forward the channels read cursor to after the consumed data.
         /// </summary>
         /// <param name="consumed">Marks the extent of the data that has been succesfully proceesed.</param>

@@ -2,11 +2,12 @@
 // The .NET Foundation licenses this file to you under the MIT license.
 // See the LICENSE file in the project root for more information.
 
+using System;
+using System.IO;
 using System.Security;
+using ZErrorCode = Channels.Compression.ZLibNative.ErrorCode;
 
-using ZErrorCode = System.IO.Compression.ZLibNative.ErrorCode;
-
-namespace System.IO.Compression
+namespace Channels.Compression
 {
     /// <summary>
     /// This is the exception that is thrown when a ZLib returns an error code indicating an unrecoverable error.

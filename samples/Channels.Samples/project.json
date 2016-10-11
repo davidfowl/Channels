@@ -18,13 +18,18 @@
     "Channels.Networking.Windows.RIO": {
       "target": "project"
     },
+    "Channels.File": {
+      "target": "project"
+    },
+    "Channels.Compression": {
+      "target": "project"
+    },
     "Newtonsoft.Json": "9.0.1",
     "System.Buffers": "4.0.0",
     "System.Slices": "0.1.0-*",
     "System.Text.Primitives": "0.1.0-*",
     "System.Text.Formatting": "0.1.0-*",
     "System.Text.Utf8": "0.1.0-*",
-    "System.Threading.Overlapped": "4.0.1",
     "Microsoft.AspNetCore.Server.Kestrel": "1.0.0",
     "Microsoft.NETCore.App": {
       "type": "platform",

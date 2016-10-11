@@ -4,11 +4,15 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using Microsoft.Win32.SafeHandles;
 
-namespace Channels.Samples.IO
+namespace Channels.File
 {
     public class ReadableFileChannel : ReadableChannel
     {
         public ReadableFileChannel(MemoryPool pool) : base(pool)
+        {
+        }
+
+        public ReadableFileChannel(Channel channel) : base(channel)
         {
         }
 
