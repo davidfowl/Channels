@@ -72,7 +72,7 @@ namespace Channels.Text.Primitives
 
             uint value;
             var utf8Buffer = new Utf8String(textSpan);
-            if (!PrimitiveParser.TryParseUIn32(utf8Buffer, out value))
+            if (!PrimitiveParser.TryParseUInt32(utf8Buffer, out value))
             {
                 throw new InvalidOperationException();
             }
