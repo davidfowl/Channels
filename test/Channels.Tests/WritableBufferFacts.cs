@@ -250,7 +250,7 @@ namespace Channels.Tests
 
                 var output = channel.Alloc();
                 var readable = output.AsReadableBuffer();
-                output.Append(ref readable);
+                output.Append(readable);
                 Assert.Equal(0, output.AsReadableBuffer().Length);
 
                 await output.FlushAsync();
@@ -275,7 +275,7 @@ namespace Channels.Tests
                 var readable = output.AsReadableBuffer();
                 Assert.Equal(512 * 20, readable.Length);
 
-                output.Append(ref readable);
+                output.Append(readable);
                 Assert.Equal(512 * 20, readable.Length);
 
                 readable = output.AsReadableBuffer();

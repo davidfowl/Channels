@@ -22,64 +22,57 @@ namespace Channels.Samples
             {
                 var httpParser = new HttpRequestParser();
 
-                try
+                while (true)
                 {
-                    while (true)
+                    // Wait for data
+                    var result = await connection.Input.ReadAsync();
+                    var input = result.Buffer;
+
+                    try
                     {
-                        // Wait for data
-                        var result = await connection.Input.ReadAsync();
-                        var input = result.Buffer;
-
-                        try
+                        if (input.IsEmpty && result.IsCompleted)
                         {
-                            if (input.IsEmpty && result.IsCompleted)
-                            {
-                                // No more data
+                            // No more data
+                            break;
+                        }
+
+                        // Parse the input http request
+                        var parseResult = httpParser.ParseRequest(ref input);
+
+                        switch (parseResult)
+                        {
+                            case HttpRequestParser.ParseResult.Incomplete:
+                                if (result.IsCompleted)
+                                {
+                                    // Didn't get the whole request and the connection ended
+                                    throw new EndOfStreamException();
+                                }
+                                // Need more data
+                                continue;
+                            case HttpRequestParser.ParseResult.Complete:
                                 break;
-                            }
-
-                            // Parse the input http request
-                            var parseResult = httpParser.ParseRequest(ref input);
-
-                            switch (parseResult)
-                            {
-                                case HttpRequestParser.ParseResult.Incomplete:
-                                    if (result.IsCompleted)
-                                    {
-                                        // Didn't get the whole request and the connection ended
-                                        throw new EndOfStreamException();
-                                    }
-                                    // Need more data
-                                    continue;
-                                case HttpRequestParser.ParseResult.Complete:
-                                    break;
-                                case HttpRequestParser.ParseResult.BadRequest:
-                                    throw new Exception();
-                                default:
-                                    break;
-                            }
-
-                            // Writing directly to pooled buffers
-                            var output = connection.Output.Alloc();
-                            output.WriteUtf8String("HTTP/1.1 200 OK");
-                            output.WriteUtf8String("\r\nContent-Length: 13");
-                            output.WriteUtf8String("\r\nContent-Type: text/plain");
-                            output.WriteUtf8String("\r\n\r\n");
-                            output.WriteUtf8String("Hello, World!");
-                            await output.FlushAsync();
-
-                            httpParser.Reset();
+                            case HttpRequestParser.ParseResult.BadRequest:
+                                throw new Exception();
+                            default:
+                                break;
                         }
-                        finally
-                        {
-                            // Consume the input
-                            connection.Input.Advance(input.Start, input.End);
-                        }
+
+                        // Writing directly to pooled buffers
+                        var output = connection.Output.Alloc();
+                        output.WriteUtf8String("HTTP/1.1 200 OK");
+                        output.WriteUtf8String("\r\nContent-Length: 13");
+                        output.WriteUtf8String("\r\nContent-Type: text/plain");
+                        output.WriteUtf8String("\r\n\r\n");
+                        output.WriteUtf8String("Hello, World!");
+                        await output.FlushAsync();
+
+                        httpParser.Reset();
                     }
-                }
-                finally
-                {
-                    connection.Dispose();
+                    finally
+                    {
+                        // Consume the input
+                        connection.Input.Advance(input.Start, input.End);
+                    }
                 }
             });
 

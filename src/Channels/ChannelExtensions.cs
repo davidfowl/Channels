@@ -127,7 +127,7 @@ namespace Channels
 
                     var buffer = output.Alloc();
 
-                    buffer.Append(ref inputBuffer);
+                    buffer.Append(inputBuffer);
 
                     await buffer.FlushAsync();
                 }

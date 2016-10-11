@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading.Tasks;
 
 namespace Channels.Networking.Sockets
 {
@@ -14,7 +15,7 @@ namespace Channels.Networking.Sockets
         private Socket Socket => _socket;
         private ChannelFactory _channelFactory;
         private ChannelFactory ChannelFactory => _channelFactory;
-        private Action<SocketConnection> Callback { get; set; }
+        private Func<SocketConnection, Task> Callback { get; set; }
         static readonly EventHandler<SocketAsyncEventArgs> _asyncCompleted = OnAsyncCompleted;
 
         /// <summary>
@@ -97,7 +98,7 @@ namespace Channels.Networking.Sockets
         /// <summary>
         /// Specifies a callback to be invoked whenever a connection is accepted
         /// </summary>
-        public void OnConnection(Action<SocketConnection> callback)
+        public void OnConnection(Func<SocketConnection, Task> callback)
         {
             Callback = callback;
         }
@@ -124,11 +125,27 @@ namespace Channels.Networking.Sockets
             {
                 var conn = new SocketConnection(e.AcceptSocket, ChannelFactory);
                 e.AcceptSocket = null;
-                Callback?.Invoke(conn);
+                ExecuteConnection(conn);
             }
 
             // note that we don't want to call BeginAccept at the end of OnAccept, as that
             // will cause a stack-dive in the sync (backlog) case
+        }
+
+        private async void ExecuteConnection(SocketConnection conn)
+        {
+            try
+            {
+                await Callback?.Invoke(conn);
+            }
+            catch
+            {
+
+            }
+            finally
+            {
+                conn.Dispose();
+            }
         }
     }
 }

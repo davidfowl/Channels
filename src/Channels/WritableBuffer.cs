@@ -61,9 +61,9 @@ namespace Channels
         /// Appends the <see cref="ReadableBuffer"/> to the <see cref="WritableBuffer"/> in-place without copies.
         /// </summary>
         /// <param name="buffer">The <see cref="ReadableBuffer"/> to append</param>
-        public void Append(ref ReadableBuffer buffer)
+        public void Append(ReadableBuffer buffer)
         {
-            _channel.Append(ref buffer);
+            _channel.Append(buffer);
         }
 
         /// <summary>

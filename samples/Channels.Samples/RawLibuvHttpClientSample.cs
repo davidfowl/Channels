@@ -50,7 +50,7 @@ namespace Channels.Samples
 
                     var buffer = channel.Alloc();
 
-                    buffer.Append(ref inputBuffer);
+                    buffer.Append(inputBuffer);
 
                     await buffer.FlushAsync();
                 }

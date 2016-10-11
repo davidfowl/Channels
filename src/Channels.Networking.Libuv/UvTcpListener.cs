@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Net;
+using System.Threading.Tasks;
 using Channels.Networking.Libuv.Interop;
 
 namespace Channels.Networking.Libuv
@@ -14,7 +15,7 @@ namespace Channels.Networking.Libuv
         private readonly UvThread _thread;
 
         private UvTcpHandle _listenSocket;
-        private Action<UvTcpConnection> _callback;
+        private Func<UvTcpConnection, Task> _callback;
 
         public UvTcpListener(UvThread thread, IPEndPoint endpoint)
         {
@@ -22,7 +23,7 @@ namespace Channels.Networking.Libuv
             _endpoint = endpoint;
         }
 
-        public void OnConnection(Action<UvTcpConnection> callback)
+        public void OnConnection(Func<UvTcpConnection, Task> callback)
         {
             _callback = callback;
         }
@@ -65,11 +66,28 @@ namespace Channels.Networking.Libuv
                 acceptSocket.NoDelay(true);
                 listenSocket.Accept(acceptSocket);
                 var connection = new UvTcpConnection(listener._thread, acceptSocket);
-                listener._callback?.Invoke(connection);
+                ExecuteCallback(listener, connection);
             }
             catch (UvException)
             {
                 acceptSocket.Dispose();
+            }
+        }
+
+        private static async void ExecuteCallback(UvTcpListener listener, UvTcpConnection connection)
+        {
+            try
+            {
+                await listener._callback?.Invoke(connection);
+            }
+            catch
+            {
+                // Swallow exceptions
+            }
+            finally
+            {
+                // Dispose the connection on task completion
+                connection.Dispose();
             }
         }
     }

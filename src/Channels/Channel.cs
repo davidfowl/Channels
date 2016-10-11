@@ -172,12 +172,13 @@ namespace Channels
             return segment;
         }
 
-        internal void Append(ref ReadableBuffer buffer)
+        internal void Append(ReadableBuffer buffer)
         {
             if (buffer.IsEmpty)
             {
                 return; // nothing to do
             }
+
             EnsureAlloc();
 
             BufferSegment clonedEnd;

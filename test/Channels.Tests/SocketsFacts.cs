@@ -206,48 +206,37 @@ namespace Channels.Tests
 
         }
 
-        private static async void PongServer(IChannel channel)
+        private static async Task PongServer(IChannel channel)
         {
-            try
+            while (true)
             {
-                while (true)
-                {
-                    var result = await channel.Input.ReadAsync();
-                    var inputBuffer = result.Buffer;
+                var result = await channel.Input.ReadAsync();
+                var inputBuffer = result.Buffer;
 
-                    if (inputBuffer.IsEmpty && result.IsCompleted)
+                if (inputBuffer.IsEmpty && result.IsCompleted)
+                {
+                    channel.Input.Advance(inputBuffer.End);
+                    break;
+                }
+
+                if (inputBuffer.Length < 4)
+                {
+                    channel.Input.Advance(inputBuffer.Start, inputBuffer.End);
+                }
+                else
+                {
+                    bool isPing = inputBuffer.Equals(_ping);
+                    if (isPing)
                     {
-                        channel.Input.Advance(inputBuffer.End);
-                        break;
-                    }
-                    if (inputBuffer.Length < 4)
-                    {
-                        channel.Input.Advance(inputBuffer.Start, inputBuffer.End);
+                        await channel.Output.WriteAsync(_pong);
                     }
                     else
                     {
-                        bool isPing = inputBuffer.Equals(_ping);
-                        if (isPing)
-                        {
-                            await channel.Output.WriteAsync(_pong);
-                        }
-                        else
-                        {
-                            break;
-                        }
-                        channel.Input.Advance(inputBuffer.End);
+                        break;
                     }
+
+                    channel.Input.Advance(inputBuffer.End);
                 }
-                channel.Input.Complete();
-                channel.Output.Complete();
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex.Message);
-            }
-            finally
-            {
-                channel?.Dispose();
             }
         }
 
@@ -272,38 +261,25 @@ namespace Channels.Tests
                 return Encoding.UTF8.GetString(buffer, 0, offset);
             }
         }
-        private async void Echo(IChannel channel)
+
+        private async Task Echo(IChannel channel)
         {
-            try
+            while (true)
             {
-                while (true)
+                var result = await channel.Input.ReadAsync();
+                var request = result.Buffer;
+
+                if (request.IsEmpty && result.IsCompleted)
                 {
-                    var result = await channel.Input.ReadAsync();
-                    var request = result.Buffer;
-
-                    if (request.IsEmpty && result.IsCompleted)
-                    {
-                        channel.Input.Advance(request.End);
-                        break;
-                    }
-
-                    int len = request.Length;
-                    var response = channel.Output.Alloc();
-                    response.Append(ref request);
-                    await response.FlushAsync();
                     channel.Input.Advance(request.End);
+                    break;
                 }
-                channel.Input.Complete();
-                channel.Output.Complete();
-            }
-            catch (Exception ex)
-            {
-                channel.Input.Complete(ex);
-                channel.Output.Complete(ex);
-            }
-            finally
-            {
-                channel?.Dispose();
+
+                int len = request.Length;
+                var response = channel.Output.Alloc();
+                response.Append(request);
+                await response.FlushAsync();
+                channel.Input.Advance(request.End);
             }
         }
     }

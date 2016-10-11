@@ -130,7 +130,7 @@ namespace Channels.Tests
                 buffer.WriteLittleEndian(9);
 
                 // Append the data from the other channel
-                buffer.Append(ref c2Buffer);
+                buffer.Append(c2Buffer);
 
                 // Mark it as consumed
                 c2.Advance(c2Buffer.End);
