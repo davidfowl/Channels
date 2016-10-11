@@ -42,7 +42,14 @@ namespace Channels.Networking.Libuv
             Dispose(true);
             GC.SuppressFinalize(this);
         }
-        protected virtual void Dispose(bool disposing) { }
+        protected virtual void Dispose(bool disposing)
+        {
+            _output.CompleteWriter();
+            _output.CompleteReader();
+
+            _input.CompleteWriter();
+            _input.CompleteReader();
+        }
 
         public IWritableChannel Output => _output;
 

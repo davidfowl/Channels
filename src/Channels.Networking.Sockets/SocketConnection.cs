@@ -168,6 +168,12 @@ namespace Channels.Networking.Sockets
         {
             if (disposing)
             {
+                _output.CompleteWriter();
+                _output.CompleteReader();
+
+                _input.CompleteWriter();
+                _input.CompleteReader();
+
                 GC.SuppressFinalize(this);
                 _socket?.Dispose();
                 _socket = null;
