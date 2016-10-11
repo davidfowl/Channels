@@ -87,20 +87,7 @@ namespace Channels
                         return;
                     }
 
-                    foreach (var memory in inputBuffer)
-                    {
-                        ArraySegment<byte> buffer;
-
-                        if (!memory.TryGetArray(out buffer))
-                        {
-                            // Fall back to copies if this was native memory and we were unable to get
-                            //  something we could write
-                            buffer = new ArraySegment<byte>(memory.Span.ToArray());
-                        }
-
-                        await stream.WriteAsync(buffer.Array, buffer.Offset, buffer.Count);
-
-                    }
+                    await inputBuffer.CopyToAsync(stream);
                 }
                 finally
                 {
