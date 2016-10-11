@@ -314,5 +314,15 @@ namespace Channels.Tests
                 Assert.Equal("World", Encoding.ASCII.GetString(array));
             }
         }
+
+        [Fact]
+        public void AllocMoreThanPoolBlockSizeThrows()
+        {
+            using (var cf = new ChannelFactory())
+            {
+                var channel = cf.CreateChannel();
+                Assert.Throws<ArgumentOutOfRangeException>(() => channel.Alloc(8192));
+            }
+        }
     }
 }

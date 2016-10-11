@@ -14,9 +14,6 @@ namespace Channels
     /// </summary>
     public class Channel : IReadableChannel, IWritableChannel, IReadableBufferAwaiter
     {
-        // TODO: Make this configurable for channel creation
-        private const int _bufferSize = 4096;
-
         private static readonly Action _awaitableIsCompleted = () => { };
         private static readonly Action _awaitableIsNotCompleted = () => { };
 
@@ -110,11 +107,6 @@ namespace Channels
         {
             EnsureAlloc();
 
-            if (count > _bufferSize)
-            {
-                throw new ArgumentOutOfRangeException(nameof(count), $"Cannot allocate more than {_bufferSize} bytes in a single buffer");
-            }
-
             var segment = _writingHead;
             if (segment == null)
             {
@@ -127,7 +119,7 @@ namespace Channels
             // If inadequate bytes left or if the segment is readonly
             if (bytesLeftInBuffer == 0 || bytesLeftInBuffer < count || segment.ReadOnly)
             {
-                var nextBuffer = _pool.Lease(_bufferSize);
+                var nextBuffer = _pool.Lease(count);
                 var nextSegment = new BufferSegment(nextBuffer);
 
                 segment.Next = nextSegment;
@@ -155,7 +147,7 @@ namespace Channels
             if (segment == null)
             {
                 // No free tail space, allocate a new segment
-                segment = new BufferSegment(_pool.Lease(_bufferSize));
+                segment = new BufferSegment(_pool.Lease(count));
             }
 
             // Changing commit head shared with Reader

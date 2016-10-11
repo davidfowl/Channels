@@ -284,5 +284,16 @@ namespace Channels.Tests
                 await output.FlushAsync();
             }
         }
+
+        [Fact]
+        public void EnsureMoreThanPoolBlockSizeThrows()
+        {
+            using (var cf = new ChannelFactory())
+            {
+                var channel = cf.CreateChannel();
+                var buffer = channel.Alloc();
+                Assert.Throws<ArgumentOutOfRangeException>(() => buffer.Ensure(8192));
+            }
+        }
     }
 }
