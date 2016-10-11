@@ -79,7 +79,7 @@ namespace Channels.Networking.Windows.RIO
                 var result = await _output.ReadAsync();
                 var buffer = result.Buffer;
 
-                if (buffer.IsEmpty && _output.Reading.IsCompleted)
+                if (buffer.IsEmpty && result.IsCompleted)
                 {
                     break;
                 }

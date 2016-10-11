@@ -537,7 +537,7 @@ namespace Channels.Networking.Sockets
                     var buffer = result.Buffer;
                     try
                     {
-                        if (buffer.IsEmpty && _output.Reading.IsCompleted)
+                        if (buffer.IsEmpty && result.IsCompleted)
                         {
                             break;
                         }
