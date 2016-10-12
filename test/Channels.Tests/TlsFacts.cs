@@ -149,12 +149,14 @@ namespace Channels.Tests
             return false;
         }
 
-        private async Task Echo(IChannel channel)
+        private async Task Echo(ISecureChannel channel)
         {
+            await channel.HandShakeAsync();
             try
             {
                 while (true)
                 {
+
                     var result = await channel.Input.ReadAsync();
                     var request = result.Buffer;
 
