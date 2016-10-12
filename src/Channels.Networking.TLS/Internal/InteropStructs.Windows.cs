@@ -100,4 +100,11 @@ namespace Channels.Networking.TLS.Internal
         public byte ProtocolIdSize;
         public fixed byte ProtocolId[255];
     }
+
+    [StructLayout(LayoutKind.Sequential)]
+    internal unsafe struct SessionKey
+    {
+        uint SessionKeyLength;
+        public fixed byte Key[2048];
+    }
 }

@@ -40,6 +40,9 @@ namespace Channels.Networking.TLS.Internal
         [DllImport(Dll, ExactSpelling = true, SetLastError = true, CharSet = CharSet.Unicode)]
         internal static extern int QueryContextAttributesW(ref SSPIHandle phContext, [In] ContextAttribute contextFlag, [Out] out ContextApplicationProtocol protocolInfo);
 
+        [DllImport(Dll, ExactSpelling = true, SetLastError = true, CharSet = CharSet.Unicode)]
+        internal static extern int QueryContextAttributesW(ref SSPIHandle phContext, [In] ContextAttribute contextFlag, [Out] out SessionKey sessionKey);
+
         [DllImport(Dll, ExactSpelling = true, SetLastError = true)]
         internal unsafe static extern int InitializeSecurityContextW(ref SSPIHandle credentialHandle, [In] void* inContextPtr, [In] string targetName, [In] ContextFlags inFlags, [In] int reservedI, [In] Endianness endianness, SecurityBufferDescriptor* inputBuffer, [In] int reservedII, [In, Out] void* newContextPtr, SecurityBufferDescriptor* outputBuffer, [In, Out] ref ContextFlags attributes, out long timeStamp);
 

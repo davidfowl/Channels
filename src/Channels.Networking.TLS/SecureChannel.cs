@@ -55,7 +55,7 @@ namespace Channels.Networking.TLS
                         }
                         ReadableBuffer messageBuffer;
                         TlsFrameType frameType;
-                        while (SecureContextExtensions.CheckForFrameType(ref buffer, out messageBuffer, out frameType))
+                        while (SecureContextExtensions.TryGetFrameType(ref buffer, out messageBuffer, out frameType))
                         {
                             //We have app data or tokens at this point so slice out the message
                             //If we have app data, we will slice it out and process it

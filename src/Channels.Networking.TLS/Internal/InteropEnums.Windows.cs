@@ -117,6 +117,7 @@ namespace Channels.Networking.TLS.Internal
         KeyInfo = 0x05,
         Authority = 0x06,
         PackageInfo = 0x0A,
+        Session_Key = 0x09,
         UniqueBindings = 0x19,
         EndpointBindings = 0x1A,
         ClientSpecifiedSpn = 0x1B,

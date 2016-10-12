@@ -14,20 +14,20 @@ namespace Channels.Networking.TLS
         internal const ContextFlags RequiredFlags = ContextFlags.ReplayDetect | ContextFlags.SequenceDetect | ContextFlags.Confidentiality | ContextFlags.AllocateMemory;
         internal const ContextFlags ServerRequiredFlags = RequiredFlags | ContextFlags.AcceptStream;
         internal const int BlockSize = 1024 * 4 - 64; //Current fixed block size
+        internal const SslProtocols _supportedProtocols = SslProtocols.Tls;
         private const string SecurityPackage = "Microsoft Unified Security Protocol Provider";
-        public const int MaxStackAllocSize = 32 * 1024;
-
+        public const int MaxStackAllocSize = 16 * 1024;
+        
         private bool _initOkay = false;
         private int _maxTokenSize;
-        private bool _isServer;
         private X509Certificate _serverCertificate;
-        private SslProtocols _supportedProtocols = SslProtocols.Tls;
         private SSPIHandle _credsHandle;
-        private string _hostName;
-        private byte[] _alpnSupportedProtocols;
-        private GCHandle _alpnHandle;
-        private SecurityBuffer _alpnBuffer;
-        private ChannelFactory _channelFactory;
+        private readonly bool _isServer;
+        private readonly string _hostName;
+        private readonly byte[] _alpnSupportedProtocols;
+        private readonly GCHandle _alpnHandle;
+        private readonly SecurityBuffer _alpnBuffer;
+        private readonly ChannelFactory _channelFactory;
         
         /// <summary>
         /// Loads up SSPI and sets up the credentials handle in memory ready to authenticate TLS connections
@@ -49,7 +49,7 @@ namespace Channels.Networking.TLS
         /// <param name="isServer">Used to denote if you are going to be negotiating incoming or outgoing Tls connections</param>
         /// <param name="serverCert">This is the in memory representation of the certificate used for the PKI exchange and authentication</param>
         /// <param name="alpnSupportedProtocols">This is the protocols that are supported and that will be negotiated with on the otherside, if a protocol can't be negotiated then the handshake will fail</param>
-        public SecurityContext(ChannelFactory factory, string hostName, bool isServer, X509Certificate serverCert, ApplicationProtocols.ProtocolIds alpnSupportedProtocols)
+        public unsafe SecurityContext(ChannelFactory factory, string hostName, bool isServer, X509Certificate serverCert, ApplicationProtocols.ProtocolIds alpnSupportedProtocols)
         {
             if (hostName == null)
             {
@@ -60,6 +60,13 @@ namespace Channels.Networking.TLS
             _serverCertificate = serverCert;
             _isServer = isServer;
             CreateAuthentication(alpnSupportedProtocols);
+            if (alpnSupportedProtocols > 0)
+            {
+                //We need to get a buffer for the ALPN negotiation and pin it for sending to the lower API
+                _alpnSupportedProtocols = ApplicationProtocols.GetBufferForProtocolId(alpnSupportedProtocols);
+                _alpnHandle = GCHandle.Alloc(_alpnSupportedProtocols, GCHandleType.Pinned);
+                _alpnBuffer = new SecurityBuffer((void*)_alpnHandle.AddrOfPinnedObject(), _alpnSupportedProtocols.Length, SecurityBufferType.ApplicationProtocols);
+            }
         }
 
         internal SSPIHandle CredentialsHandle => _credsHandle;
@@ -72,13 +79,6 @@ namespace Channels.Networking.TLS
         {
             int numberOfPackages;
             SecPkgInfo* secPointer = null;
-            if (alpnSupportedProtocols > 0)
-            {
-                //We need to get a buffer for the ALPN negotiation and pin it for sending to the lower API
-                _alpnSupportedProtocols = ApplicationProtocols.GetBufferForProtocolId(alpnSupportedProtocols);
-                _alpnHandle = GCHandle.Alloc(_alpnSupportedProtocols, GCHandleType.Pinned);
-                _alpnBuffer = new SecurityBuffer((void*)_alpnHandle.AddrOfPinnedObject(), _alpnSupportedProtocols.Length, SecurityBufferType.ApplicationProtocols);
-            }
             try
             {
                 //Load the available security packages and look for the Unified pack from MS that supplies TLS support

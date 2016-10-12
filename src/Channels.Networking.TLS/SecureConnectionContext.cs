@@ -9,7 +9,7 @@ namespace Channels.Networking.TLS
 {
     internal unsafe class SecureConnectionContext : ISecureContext
     {
-        private SecurityContext _securityContext;
+        private readonly SecurityContext _securityContext;
         private SSPIHandle _contextPointer;
         private int _headerSize = 5; //5 is the minimum (1 for frame type, 2 for version, 2 for frame size)
         private int _trailerSize = 16;
@@ -27,7 +27,7 @@ namespace Channels.Networking.TLS
         public int HeaderSize { get { return _headerSize; } set { _headerSize = value; } }
         public int TrailerSize { get { return _trailerSize; } set { _trailerSize = value; } }
         public SSPIHandle ContextHandle => _contextPointer;
-        
+
         /// <summary>
         /// Without a payload from the client the server will just return straight away.
         /// </summary>
@@ -100,15 +100,13 @@ namespace Channels.Networking.TLS
                         else
                         {
                             //We have to allocate... sorry
-                            var tempBuffer = new byte[readBuffer.Length];
-                            var tmpSpan = new Span<byte>(tempBuffer);
-                            readBuffer.CopyTo(tmpSpan);
+                            var tempBuffer = readBuffer.ToArray();
                             handleForAllocation = GCHandle.Alloc(tempBuffer, GCHandleType.Pinned);
                             inputBuff[0].tokenPointer = (void*)handleForAllocation.AddrOfPinnedObject();
                         }
                     }
                     //If we have APLN extensions to send use the last buffer
-                    if(_securityContext.AplnRequired)
+                    if (_securityContext.AplnRequired)
                     {
                         inputBuff[1] = _securityContext.AplnBuffer;
                     }
@@ -132,11 +130,14 @@ namespace Channels.Networking.TLS
                 SecurityStatus errorCode;
                 if (_securityContext.IsServer)
                 {
-                    errorCode = (SecurityStatus)InteropSspi.AcceptSecurityContext(ref handle, contextptr, pointerToDescriptor, SecurityContext.ServerRequiredFlags, 0, newContextptr, &output, ref unusedAttributes, out timestamp);
+                    errorCode = (SecurityStatus)InteropSspi.AcceptSecurityContext(credentialHandle: ref handle, inContextPtr: contextptr, inputBuffer: pointerToDescriptor, inFlags: SecurityContext.ServerRequiredFlags, endianness: Endianness.Native
+                        , newContextPtr: newContextptr, outputBuffer: &output, attributes: ref unusedAttributes, timeStamp: out timestamp);
                 }
                 else
                 {
-                    errorCode = (SecurityStatus)InteropSspi.InitializeSecurityContextW(ref handle, contextptr, _securityContext.HostName, SecurityContext.RequiredFlags | ContextFlags.InitManualCredValidation, 0, Endianness.Native, pointerToDescriptor, 0, newContextptr, &output, ref unusedAttributes, out timestamp);
+                    errorCode = (SecurityStatus)InteropSspi.InitializeSecurityContextW(credentialHandle: ref handle, inContextPtr: contextptr, targetName: _securityContext.HostName
+                        , inFlags: SecurityContext.RequiredFlags | ContextFlags.InitManualCredValidation, reservedI: 0, endianness: Endianness.Native, inputBuffer: pointerToDescriptor
+                        , reservedII: 0, newContextPtr: newContextptr, outputBuffer: &output, attributes: ref unusedAttributes, timeStamp: out timestamp);
                 }
 
                 _contextPointer = localhandle;

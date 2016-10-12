@@ -91,7 +91,6 @@ namespace Channels.Networking.TLS
                         encryptedData.CopyTo(tmpBuffer);
                         handle = GCHandle.Alloc(encryptedData, GCHandleType.Pinned);
                         pointer = (void*)handle.AddrOfPinnedObject();
-                        throw new OverflowException($"We need to create a buffer on the stack of size {encryptedData.Length} but the max is {SecurityContext.MaxStackAllocSize}");
                     }
                 }
                 int offset = 0;
@@ -151,7 +150,7 @@ namespace Channels.Networking.TLS
         /// <param name="buffer">The input buffer, it will be returned with the frame sliced out if there is a complete frame found</param>
         /// <param name="messageBuffer">If a frame is found this contains that frame</param>
         /// <returns>The status of the check for frame</returns>
-        internal static bool CheckForFrameType(ref ReadableBuffer buffer, out ReadableBuffer messageBuffer, out TlsFrameType frameType)
+        internal static bool TryGetFrameType(ref ReadableBuffer buffer, out ReadableBuffer messageBuffer, out TlsFrameType frameType)
         {
             frameType = TlsFrameType.Incomplete;
             //Need at least 5 bytes to be useful
