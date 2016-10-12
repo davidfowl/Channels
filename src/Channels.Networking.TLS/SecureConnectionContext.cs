@@ -27,6 +27,7 @@ namespace Channels.Networking.TLS
         public int HeaderSize { get { return _headerSize; } set { _headerSize = value; } }
         public int TrailerSize { get { return _trailerSize; } set { _trailerSize = value; } }
         public SSPIHandle ContextHandle => _contextPointer;
+        public bool IsServer => _securityContext.IsServer;
 
         /// <summary>
         /// Without a payload from the client the server will just return straight away.

@@ -169,10 +169,9 @@ namespace Channels.Networking.TLS
             }
         }
 
-        public SecureChannel CreateSecureChannel(IChannel channel)
+        public ISecureChannel CreateSecureChannel(IChannel channel)
         {
-            var chan = new SecureChannel(channel, _channelFactory);
-            chan.StartReading(new SecureConnectionContext(this));
+            var chan = new SecureChannel<SecureConnectionContext>(channel, _channelFactory, new SecureConnectionContext(this));
             return chan;
         }
 

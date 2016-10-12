@@ -6,47 +6,103 @@ using Channels.Networking.TLS.Internal;
 
 namespace Channels.Networking.TLS
 {
-    public class SecureChannel : IChannel
+    public class SecureChannel<T> : ISecureChannel where T :ISecureContext
     {
         private IChannel _lowerChannel;
         private Channel _outputChannel;
         private Channel _inputChannel;
-        private ISecureContext _contextToDispose;
-        private TaskCompletionSource<ApplicationProtocols.ProtocolIds> _handShakeCompleted = new TaskCompletionSource<ApplicationProtocols.ProtocolIds>();
+        private readonly T _contextToDispose;
+        private TaskCompletionSource<ApplicationProtocols.ProtocolIds> _handShakeCompleted;
         
-        public SecureChannel(IChannel inChannel, ChannelFactory channelFactory)
+        internal SecureChannel(IChannel inChannel, ChannelFactory channelFactory, T secureContext)
         {
+            _contextToDispose = secureContext;
             _lowerChannel = inChannel;
             _inputChannel = channelFactory.CreateChannel();
             _outputChannel = channelFactory.CreateChannel();
+            StartWriting();
         }
 
         public IReadableChannel Input => _outputChannel;
         public IWritableChannel Output => _inputChannel;
 
-        public Task<ApplicationProtocols.ProtocolIds> HandShakeAsync() => _handShakeCompleted.Task;
-
-        internal async void StartReading<T>(T securityContext) where T : ISecureContext
+        public Task<ApplicationProtocols.ProtocolIds> HandShakeAsync()
         {
-            _contextToDispose = securityContext;
-            try
+            return _handShakeCompleted?.Task ?? DoHandShake();
+        }
+
+        private async Task<ApplicationProtocols.ProtocolIds> DoHandShake()
+        {
+            if(!_contextToDispose.IsServer)
             {
                 //If it is a client we need to start by sending a client hello straight away
                 var output = _lowerChannel.Output.Alloc();
-                securityContext.ProcessContextMessage(output);
-                if (output.BytesWritten == 0)
-                {
-                    output.Commit();
-                }
-                else
-                {
-                    await output.FlushAsync();
-                }
+                _contextToDispose.ProcessContextMessage(output);
+                await output.FlushAsync();
+            }
+            try
+            {
                 while (true)
                 {
                     var result = await _lowerChannel.Input.ReadAsync();
                     var buffer = result.Buffer;
+                    try
+                    {
+                        if (buffer.IsEmpty && result.IsCompleted)
+                        {
+                            new InvalidOperationException("Connection closed before the handshake completed");
+                        }
+                        ReadableBuffer messageBuffer;
+                        TlsFrameType frameType;
+                        while (SecureContextExtensions.TryGetFrameType(ref buffer, out messageBuffer, out frameType))
+                        {
+                            if (frameType != TlsFrameType.Handshake && frameType != TlsFrameType.ChangeCipherSpec)
+                            {
+                                throw new InvalidOperationException("Received a token that was invalid during the handshake");
+                            }
+                            var output = _lowerChannel.Output.Alloc();
+                            _contextToDispose.ProcessContextMessage(messageBuffer, output);
+                            if (output.BytesWritten == 0)
+                            {
+                                output.Commit();
+                            }
+                            else
+                            {
+                                await output.FlushAsync();
+                            }
+                            if (_contextToDispose.ReadyToSend)
+                            {
+                                StartReading();
+                                _handShakeCompleted = new TaskCompletionSource<ApplicationProtocols.ProtocolIds>();
+                                _handShakeCompleted.SetResult(_contextToDispose.NegotiatedProtocol);
+                                return await _handShakeCompleted.Task;
+                            }
+                        }
+                    }
+                    finally
+                    {
+                        _lowerChannel.Input.Advance(buffer.Start, buffer.End);
+                    }
+                }
+            }
+            catch(Exception ex)
+            {
+                Dispose();
+                _handShakeCompleted = new TaskCompletionSource<ApplicationProtocols.ProtocolIds>();
+                _handShakeCompleted.SetException(ex);
+                return await _handShakeCompleted.Task;
+            }
 
+        }
+
+        private async void StartReading()
+        {
+            try
+            {
+                while (true)
+                {
+                    var result = await _lowerChannel.Input.ReadAsync();
+                    var buffer = result.Buffer;
                     try
                     {
                         if (buffer.IsEmpty && result.IsCompleted)
@@ -62,35 +118,12 @@ namespace Channels.Networking.TLS
                             if (frameType == TlsFrameType.AppData)
                             {
                                 var decryptedData = _outputChannel.Alloc();
-                                securityContext.Decrypt(messageBuffer, decryptedData);
+                                _contextToDispose.Decrypt(messageBuffer, decryptedData);
                                 await decryptedData.FlushAsync();
                             }
                             else
                             {
-                                try
-                                {
-                                    //Must be a token or a change cipher message
-                                    output = _lowerChannel.Output.Alloc();
-                                    securityContext.ProcessContextMessage(messageBuffer, output);
-                                    if (output.BytesWritten == 0)
-                                    {
-                                        output.Commit();
-                                    }
-                                    else
-                                    {
-                                        await output.FlushAsync();
-                                    }
-                                    if (securityContext.ReadyToSend)
-                                    {
-                                        StartWriting(securityContext);
-                                        _handShakeCompleted.SetResult(securityContext.NegotiatedProtocol);
-                                    }
-                                }
-                                catch(Exception ex)
-                                {
-                                    _handShakeCompleted.SetException(ex);
-                                    throw;
-                                }
+                                throw new InvalidOperationException("Invalid frame type during the connection was sent");
                             }
                         }
                     }
@@ -113,14 +146,15 @@ namespace Channels.Networking.TLS
             }
         }
         
-        private async void StartWriting<T>(T securityContext) where T : ISecureContext
+        private async void StartWriting()
         {
-            var maxBlockSize = (SecurityContext.BlockSize - securityContext.HeaderSize - securityContext.TrailerSize);
+            var maxBlockSize = (SecurityContext.BlockSize - _contextToDispose.HeaderSize - _contextToDispose.TrailerSize);
             try
             {
                 while (true)
                 {
                     var result = await _inputChannel.ReadAsync();
+                    await HandShakeAsync();
                     var buffer = result.Buffer;
                     if (buffer.IsEmpty && result.IsCompleted)
                     {
@@ -142,7 +176,7 @@ namespace Channels.Networking.TLS
                                 buffer = buffer.Slice(maxBlockSize);
                             }
                             var outputBuffer = _lowerChannel.Output.Alloc();
-                            securityContext.Encrypt(messageBuffer, outputBuffer);
+                            _contextToDispose.Encrypt(messageBuffer, outputBuffer);
                             await outputBuffer.FlushAsync();
                         }
                     }

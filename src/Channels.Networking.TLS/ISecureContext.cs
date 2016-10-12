@@ -3,7 +3,7 @@ using Channels.Networking.TLS.Internal;
 
 namespace Channels.Networking.TLS
 {
-    internal interface ISecureContext : IDisposable
+    public interface ISecureContext : IDisposable
     {
         int TrailerSize { get; set; }
         int HeaderSize { get; set; }
@@ -12,5 +12,6 @@ namespace Channels.Networking.TLS
         ApplicationProtocols.ProtocolIds NegotiatedProtocol { get; }
         void ProcessContextMessage(ReadableBuffer readBuffer, WritableBuffer writeBuffer);
         void ProcessContextMessage(WritableBuffer writeBuffer);
+        bool IsServer { get;}
     }
 }
