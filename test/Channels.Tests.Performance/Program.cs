@@ -32,6 +32,10 @@ namespace Channels.Tests.Performance
             {
                 BenchmarkRunner.Run<ChannelsStreamsBenchmark>();
             }
+            if (type.HasFlag(BenchmarkType.MemoryPool))
+            {
+                BenchmarkRunner.Run<MemoryPoolBenchmark>();
+            }
         }
     }
 
@@ -39,6 +43,7 @@ namespace Channels.Tests.Performance
     public enum BenchmarkType : uint
     {
         Streams = 1,
+        MemoryPool = 2,
         // add new ones in powers of two - e.g. 2,4,8,16...
 
         All = uint.MaxValue

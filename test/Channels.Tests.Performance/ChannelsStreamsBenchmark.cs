@@ -17,32 +17,32 @@ namespace Channels.Tests.Performance
     {
         public const int InnerLoopCount = 50;
 
-        public static MemoryPool Pool;
-        public static ChannelFactory ChannelFactory;
+        public MemoryPool Pool;
+        public ChannelFactory ChannelFactory;
 
         [Setup]
-        public static void Setup()
+        public void Setup()
         {
-            if (Pool == null)
-            {
-                Pool = new MemoryPool();
-                Pool.Lease(1024).Dispose();
-            }
+            Pool = new MemoryPool();
+            Pool.Lease(1024).Dispose();
 
-            if (ChannelFactory == null)
-            {
-                ChannelFactory = new ChannelFactory(Pool);
-            }
+            ChannelFactory = new ChannelFactory(Pool);
+        }
 
+        [Cleanup]
+        public void Cleanup()
+        {
+            ChannelFactory.Dispose();
+            Pool.Dispose();
         }
 
         [Benchmark(OperationsPerInvoke = InnerLoopCount)]
-        public static void Channels()
+        public void Channels()
         {
             ChannelsAsync().Wait();
         }
 
-        private static async Task ChannelsAsync()
+        private async Task ChannelsAsync()
         {
             var cf = ChannelFactory;
             for (var i = 0; i < InnerLoopCount; i++)
@@ -107,13 +107,13 @@ namespace Channels.Tests.Performance
         }
 
         [Benchmark(Baseline = true, OperationsPerInvoke = InnerLoopCount)]
-        public static void Streams()
+        public void Streams()
         {
             StreamsAsync().Wait();
         }
 
 
-        public static async Task StreamsAsync()
+        public async Task StreamsAsync()
         {
             for (var i = 0; i < InnerLoopCount; i++)
             {
