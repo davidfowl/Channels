@@ -2,7 +2,6 @@ using System;
 using System.Buffers;
 using System.Diagnostics;
 using System.Text;
-using System.Threading;
 
 namespace Channels
 {
@@ -16,7 +15,7 @@ namespace Channels
         private readonly int _length;
 
         public override Memory<byte> Data { get; }
-
+ 
         /// <summary>
         /// This object cannot be instantiated outside of the static Create method
         /// </summary>

@@ -10,6 +10,7 @@ namespace Channels
     /// </summary>
     public class MemoryPool : IBufferPool
     {
+
         /// <summary>
         /// The gap between blocks' starting address. 4096 is chosen because most operating systems are 4k pages in size and alignment.
         /// </summary>
@@ -43,12 +44,8 @@ namespace Channels
         /// 4096 * 32 gives you a slabLength of 128k contiguous bytes allocated per slab
         /// </summary>
         private const int _slabLength = _blockStride * _blockCount;
-
-        /// <summary>
-        /// Thread-safe collection of blocks which are currently in the pool. A slab will pre-allocate all of the block tracking objects
-        /// and add them to this collection. When memory is requested it is taken from here first, and when it is returned it is re-added.
-        /// </summary>
-        private readonly ConcurrentQueue<MemoryPoolBlock> _blocks = new ConcurrentQueue<MemoryPoolBlock>();
+        
+        private readonly Poolable.ConcurrentPool<MemoryPoolBlock>_blocks = new Poolable.ConcurrentPool<MemoryPoolBlock>();
 
         /// <summary>
         /// Thread-safe collection of slabs which have been allocated by this pool. As long as a slab is in this collection and slab.IsActive, 
@@ -137,6 +134,7 @@ namespace Channels
             var poolAllocationLength = _slabLength - _blockStride;
 
             var offset = firstOffset;
+
             for (;
                 offset + _blockLength < poolAllocationLength;
                 offset += _blockStride)
@@ -146,6 +144,9 @@ namespace Channels
                     _blockLength,
                     this,
                     slab);
+
+                _blocks.RegisterForPooling(block);
+
 #if DEBUG
                 block.IsLeased = true;
 #endif
@@ -158,6 +159,8 @@ namespace Channels
                     _blockLength,
                     this,
                     slab);
+
+            _blocks.RegisterForPooling(newBlock);
 
             return newBlock;
         }
@@ -223,12 +226,17 @@ namespace Channels
         }
 
         // N/A: override a finalizer only if Dispose(bool disposing) above has code to free unmanaged resources.
+
         // ~MemoryPool2() {
+
         //   // Do not change this code. Put cleanup code in Dispose(bool disposing) above.
+
         //   Dispose(false);
+
         // }
 
         // This code added to correctly implement the disposable pattern.
+
         public void Dispose()
         {
             // Do not change this code. Put cleanup code in Dispose(bool disposing) above.
