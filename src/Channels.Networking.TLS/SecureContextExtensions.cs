@@ -99,12 +99,14 @@ namespace Channels.Networking.TLS
                 var secStatus = DecryptMessage(pointer, ref offset, ref count, context.ContextHandle);
                 if (encryptedData.IsSingleSpan)
                 {
+                    //The data was always in a single continous buffer so we can just append the decrypted data to the output
                     encryptedData = encryptedData.Slice(offset, count);
                     decryptedData.Append(encryptedData);
                 }
                 else
                 {
-                    decryptedData.Ensure(encryptedData.Length);
+                    //The data was multispan so we had to copy it out into either a stack pointer or an allocated and pinned array
+                    //so now we need to copy it out to the output
                     decryptedData.Write(new Span<byte>(pointer, encryptedData.Length));
                 }
                 return secStatus;
