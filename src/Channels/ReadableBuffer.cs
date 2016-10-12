@@ -355,7 +355,7 @@ namespace Channels
         /// </summary>
         public MemoryEnumerator GetEnumerator()
         {
-            return new MemoryEnumerator(ref this);
+            return new MemoryEnumerator(ref _start, ref _end);
         }
 
         /// <summary>
@@ -466,7 +466,6 @@ namespace Channels
             }
             throw new InvalidOperationException();
         }
-
 
         /// <summary>
         /// Create a <see cref="ReadableBuffer"/> over an array.
