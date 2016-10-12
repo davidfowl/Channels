@@ -122,7 +122,7 @@ namespace Channels.Networking.TLS
                 {
                     var result = await _inputChannel.ReadAsync();
                     var buffer = result.Buffer;
-                    if (buffer.IsEmpty && _inputChannel.Reading.IsCompleted)
+                    if (buffer.IsEmpty && result.IsCompleted)
                     {
                         break;
                     }

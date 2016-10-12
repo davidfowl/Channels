@@ -149,7 +149,7 @@ namespace Channels.Tests
             return false;
         }
 
-        private async void Echo(IChannel channel)
+        private async Task Echo(IChannel channel)
         {
             try
             {
@@ -166,7 +166,7 @@ namespace Channels.Tests
 
                     int len = request.Length;
                     var response = channel.Output.Alloc();
-                    response.Append(ref request);
+                    response.Append(request);
                     await response.FlushAsync();
                     channel.Input.Advance(request.End);
                 }

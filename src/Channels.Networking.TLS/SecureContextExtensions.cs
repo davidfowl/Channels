@@ -28,7 +28,7 @@ namespace Channels.Networking.TLS
             securityBuff[0] = new SecurityBuffer(outBufferPointer, context.HeaderSize, SecurityBufferType.Header);
             securityBuff[1] = new SecurityBuffer((byte*)outBufferPointer + context.HeaderSize, unencrypted.Length, SecurityBufferType.Data);
             securityBuff[2] = new SecurityBuffer((byte*)securityBuff[1].tokenPointer + unencrypted.Length, context.TrailerSize, SecurityBufferType.Trailer);
-            
+
             sdcInOut.UnmanagedPointer = securityBuff;
 
             var handle = context.ContextHandle;
@@ -100,7 +100,7 @@ namespace Channels.Networking.TLS
                 if (encryptedData.IsSingleSpan)
                 {
                     encryptedData = encryptedData.Slice(offset, count);
-                    decryptedData.Append(ref encryptedData);
+                    decryptedData.Append(encryptedData);
                 }
                 else
                 {
