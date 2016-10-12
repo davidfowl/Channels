@@ -13,7 +13,7 @@ namespace Channels
         /// <summary>
         /// The gap between blocks' starting address. 4096 is chosen because most operating systems are 4k pages in size and alignment.
         /// </summary>
-        private const int _blockStride = 4096;
+        protected const int _blockStride = 4096;
 
         /// <summary>
         /// The last 64 bytes of a block are unused to prevent CPU from pre-fetching the next 64 byte into it's memory cache. 
@@ -65,7 +65,7 @@ namespace Channels
 
         private Action<MemoryPoolSlab> _slabDeallocationCallback;
 
-        public IBuffer Lease(int size)
+        public virtual IBuffer Lease(int size)
         {
             if (size > _blockStride)
             {
@@ -90,14 +90,14 @@ namespace Channels
         /// </summary>
         /// <returns>The block that is reserved for the called. It must be passed to Return when it is no longer being used.</returns>
 #if DEBUG
-        private MemoryPoolBlock Lease(
+        protected MemoryPoolBlock Lease(
             [CallerMemberName] string memberName = "",
             [CallerFilePath] string sourceFilePath = "",
             [CallerLineNumber] int sourceLineNumber = 0)
         {
             Debug.Assert(!_disposedValue, "Block being leased from disposed pool!");
 #else
-        public MemoryPoolBlock Lease()
+        public virtual MemoryPoolBlock Lease()
         {
 #endif
             MemoryPoolBlock block;
@@ -170,7 +170,7 @@ namespace Channels
         /// leaving "dead zones" in the slab due to lost block tracking objects.
         /// </summary>
         /// <param name="block">The block to return. It must have been acquired by calling Lease on the same memory pool instance.</param>
-        public void Return(MemoryPoolBlock block)
+        public virtual void Return(MemoryPoolBlock block)
         {
 #if DEBUG
             Debug.Assert(block.Pool == this, "Returned block was not leased from this pool");
@@ -188,7 +188,7 @@ namespace Channels
             }
         }
 
-        protected void Dispose(bool disposing)
+        protected virtual void Dispose(bool disposing)
         {
             if (!_disposedValue)
             {
