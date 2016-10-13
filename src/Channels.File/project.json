@@ -10,15 +10,13 @@
   "dependencies": {
     "Channels": {
       "target": "project"
-    }
+    },
+    "System.Threading.Overlapped": "4.0.1"
   },
 
 
   "frameworks": {
-    "netstandard1.3": {
-      "dependencies": {
-        "System.Threading.Overlapped": "4.0.1"
-      }
-    }
+    "netstandard1.3": { },
+    "net46": {}
   }
 }
