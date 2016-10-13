@@ -102,14 +102,19 @@ namespace Channels.Tests.Performance
 
         private static unsafe void ParseJson(ReadableBuffer buffer)
         {
-            var length = buffer.Length;
+            Utf8String json;
+            if (buffer.IsSingleSpan) {
+                json = new Utf8String(buffer.First.Span);
+            }
+            else {
+                var length = buffer.Length;
+                byte* b = stackalloc byte[length];
+                buffer.CopyTo(new Span<byte>(b, length));
+                json = new Utf8String(new ReadOnlySpan<byte>(b, length));
+            }
+            //Console.WriteLine(json.Length);
 
-            byte* b = stackalloc byte[length];
-            buffer.CopyTo(new Span<byte>(b, length));
-            var utf8Str = new Utf8String(new ReadOnlySpan<byte>(b, length));
-            //Console.WriteLine(utf8Str.Length);
-
-            var reader = new JsonReader(utf8Str);
+            var reader = new JsonReader(json);
 
             while (reader.Read())
             {
