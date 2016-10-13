@@ -37,6 +37,38 @@ namespace Channels.Text.Primitives
             return buffer.Slice(start);
         }
 
+        /// <summary>
+        /// Trim whitespace starting from the specified <see cref="ReadableBuffer"/>.
+        /// </summary>
+        /// <param name="buffer">The <see cref="ReadableBuffer"/> to trim</param>
+        /// <returns>A new <see cref="ReadableBuffer"/> with the starting whitespace trimmed.</returns>
+        public static ReadableBuffer TrimEnd(this ReadableBuffer buffer)
+        {
+            var end = -1;
+            var i = 0;
+            foreach (var memory in buffer)
+            {
+                var span = memory.Span;
+                for (int j = 0; j < span.Length; j++)
+                {
+                    i++;
+                    if (IsWhitespaceChar(span[j]))
+                    {
+                        if (end == -1)
+                        {
+                            end = i;
+                        }
+                    }
+                    else
+                    {
+                        end = -1;
+                    }
+                }
+            }
+
+            return end != -1 ? buffer.Slice(0, end - 1) : buffer;
+        }
+
         private static bool IsWhitespaceChar(int ch)
         {
             return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r';

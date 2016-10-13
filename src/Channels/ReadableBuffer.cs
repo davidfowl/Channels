@@ -355,7 +355,7 @@ namespace Channels
         /// </summary>
         public MemoryEnumerator GetEnumerator()
         {
-            return new MemoryEnumerator(ref _start, ref _end);
+            return new MemoryEnumerator(_start, _end);
         }
 
         /// <summary>
@@ -465,6 +465,19 @@ namespace Channels
                 return offset + 7;
             }
             throw new InvalidOperationException();
+        }
+
+        /// <summary>
+        /// Create a <see cref="ReadableBuffer"/> over an array.
+        /// </summary>
+        public static ReadableBuffer Create(byte[] data)
+        {
+            if (data == null)
+            {
+                throw new ArgumentNullException(nameof(data));
+            }
+
+            return Create(data, 0, data.Length);
         }
 
         /// <summary>

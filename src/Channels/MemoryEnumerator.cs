@@ -1,7 +1,5 @@
 ﻿using System;
 using System.Buffers;
-using System.Collections;
-using System.Collections.Generic;
 
 namespace Channels
 {
@@ -19,7 +17,7 @@ namespace Channels
         /// <summary>
         /// 
         /// </summary>
-        public MemoryEnumerator(ref ReadCursor start, ref ReadCursor end)
+        public MemoryEnumerator(ReadCursor start, ReadCursor end)
         {
             _startIndex = start.Index;
             _segment = start.Segment;

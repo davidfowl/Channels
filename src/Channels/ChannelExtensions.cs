@@ -68,6 +68,11 @@ namespace Channels
             return new ValueTask<int>(input.ReadAsyncAwaited(destination));
         }
 
+        public static async Task<ReadableBuffer> ReadBufferAsync(this IReadableChannel input)
+        {
+            return (await input.ReadAsync()).Buffer;
+        }
+
         public static Task CopyToAsync(this IReadableChannel input, Stream stream)
         {
             return input.CopyToAsync(stream, 4096, CancellationToken.None);
