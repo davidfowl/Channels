@@ -71,8 +71,7 @@ namespace Channels.Networking.TLS
                                 await output.FlushAsync();
                             }
                             if (_contextToDispose.ReadyToSend)
-                            {
-                                StartReading();
+                            {                   
                                 _handShakeCompleted = new TaskCompletionSource<ApplicationProtocols.ProtocolIds>();
                                 _handShakeCompleted.SetResult(_contextToDispose.NegotiatedProtocol);
                                 return await _handShakeCompleted.Task;
@@ -91,6 +90,10 @@ namespace Channels.Networking.TLS
                 _handShakeCompleted = new TaskCompletionSource<ApplicationProtocols.ProtocolIds>();
                 _handShakeCompleted.SetException(ex);
                 return await _handShakeCompleted.Task;
+            }
+            finally
+            {
+                StartReading();
             }
 
         }
