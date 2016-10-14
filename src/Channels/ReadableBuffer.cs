@@ -305,7 +305,7 @@ namespace Channels
         {
             if (Length > destination.Length)
             {
-                throw new ArgumentOutOfRangeException(nameof(destination));
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.destination);
             }
 
             foreach (var memory in this)
@@ -487,17 +487,17 @@ namespace Channels
         {
             if (data == null)
             {
-                throw new ArgumentNullException(nameof(data));
+                ThrowHelper.ThrowArgumentNullException(ExceptionArgument.data);
             }
 
             if (offset < 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(offset));
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.offset);
             }
 
             if(length  < 0 || (offset + length) > data.Length)
             {
-                throw new ArgumentOutOfRangeException(nameof(length));
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.length);
             }
 
             var buffer = new OwnedBuffer(data);
