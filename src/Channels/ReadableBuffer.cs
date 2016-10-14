@@ -96,8 +96,7 @@ namespace Channels
             byte* byteArray = (byte*)&twoBytes;
             byteArray[0] = b1;
             byteArray[1] = b2;
-            var span = new Span<byte>(byteArray, 2);
-            return TrySliceTo(span, out slice, out cursor);
+            return TrySliceTo(new Span<byte>(byteArray, 2), out slice, out cursor);
         }
 
         /// <summary>
@@ -110,13 +109,14 @@ namespace Channels
         /// <returns>True if the byte sequence was found, false if not found</returns>
         public bool TrySliceTo(Span<byte> span, out ReadableBuffer slice, out ReadCursor cursor)
         {
+            var result = false;
             var buffer = this;
-            while (!buffer.IsEmpty)
+            do
             {
                 // Find the first byte
                 if (!buffer.TrySliceTo(span[0], out slice, out cursor))
                 {
-                    return false;
+                    break;
                 }
 
                 // Move the buffer to where you fonud the first byte then search for the next byte
@@ -125,17 +125,16 @@ namespace Channels
                 if (buffer.StartsWith(span))
                 {
                     slice = Slice(_start, cursor);
-                    return true;
+                    result = true;
+                    break;
                 }
 
                 // REVIEW: We need to check the performance of Slice in a loop like this
                 // Not a match so skip(1) 
                 buffer = buffer.Slice(1);
-            }
+            } while (!buffer.IsEmpty);
 
-            slice = default(ReadableBuffer);
-            cursor = default(ReadCursor);
-            return false;
+            return result;
         }
 
         /// <summary>
@@ -148,69 +147,65 @@ namespace Channels
         /// <returns>True if the byte sequence was found, false if not found</returns>
         public bool TrySliceTo(byte b1, out ReadableBuffer slice, out ReadCursor cursor)
         {
-            if (IsEmpty)
-            {
-                slice = default(ReadableBuffer);
-                cursor = default(ReadCursor);
-                return false;
-            }
-
-            var byte0Vector = CommonVectors.GetVector(b1);
-
-            var seek = 0;
-
-            foreach (var span in this)
-            {
-                var currentSpan = span.Span;
-                var found = false;
-
-                if (Vector.IsHardwareAccelerated)
-                {
-                    while (currentSpan.Length >= VectorWidth)
-                    {
-                        var data = currentSpan.Read<Vector<byte>>();
-                        var byte0Equals = Vector.Equals(data, byte0Vector);
-
-                        if (byte0Equals.Equals(Vector<byte>.Zero))
-                        {
-                            currentSpan = currentSpan.Slice(VectorWidth);
-                            seek += VectorWidth;
-                        }
-                        else
-                        {
-                            var index = FindFirstEqualByte(ref byte0Equals);
-                            seek += index;
-                            found = true;
-                            break;
-                        }
-                    }
-                }
-
-                if (!found)
-                {
-                    // Slow search
-                    for (int i = 0; i < currentSpan.Length; i++)
-                    {
-                        if (currentSpan[i] == b1)
-                        {
-                            found = true;
-                            break;
-                        }
-                        seek++;
-                    }
-                }
-
-                if (found)
-                {
-                    cursor = _start.Seek(seek);
-                    slice = Slice(_start, cursor);
-                    return true;
-                }
-            }
-
             slice = default(ReadableBuffer);
             cursor = default(ReadCursor);
-            return false;
+            var found = false;
+            if (!IsEmpty)
+            {
+                var byte0Vector = CommonCache.GetVector(b1);
+
+                var seek = 0;
+
+                foreach (var span in this)
+                {
+                    var currentSpan = span.Span;
+
+                    if (Vector.IsHardwareAccelerated)
+                    {
+                        while (currentSpan.Length >= VectorWidth)
+                        {
+                            var data = currentSpan.Read<Vector<byte>>();
+                            var byte0Equals = Vector.Equals(data, byte0Vector);
+
+                            if (byte0Equals.Equals(Vector<byte>.Zero))
+                            {
+                                currentSpan = currentSpan.Slice(VectorWidth);
+                                seek += VectorWidth;
+                            }
+                            else
+                            {
+                                var index = FindFirstEqualByte(ref byte0Equals);
+                                seek += index;
+                                found = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    if (!found)
+                    {
+                        // Slow search
+                        for (var i = 0; i < currentSpan.Length; i++)
+                        {
+                            if (currentSpan[i] == b1)
+                            {
+                                found = true;
+                                break;
+                            }
+                            seek++;
+                        }
+                    }
+
+                    if (found)
+                    {
+                        cursor = _start.Seek(seek);
+                        slice = Slice(_start, cursor);
+                        break;
+                    }
+                }
+            }
+
+            return found;
         }
 
         /// <summary>
