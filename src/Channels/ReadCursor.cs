@@ -117,20 +117,23 @@ namespace Channels
             var wasLastSegment = _segment.Next == null;
             var following = _segment.End - _index;
 
-            if (following >= bytes)
-            {
-                bytesSeeked = bytes;
-                return new ReadCursor(Segment, _index + bytes);
-            }
-
+            int count;
             var segment = _segment;
             var index = _index;
-            while (true)
+
+            do
             {
-                if (wasLastSegment)
+                if (following >= bytes)
+                {
+                    bytesSeeked = bytes;
+                    count = index + bytes;
+                    break;
+                }
+                else if (wasLastSegment)
                 {
                     bytesSeeked = following;
-                    return new ReadCursor(segment, index + following);
+                    count = index + following;
+                    break;
                 }
                 else
                 {
@@ -142,12 +145,9 @@ namespace Channels
                 wasLastSegment = segment.Next == null;
                 following = segment.End - index;
 
-                if (following >= bytes)
-                {
-                    bytesSeeked = bytes;
-                    return new ReadCursor(segment, index + bytes);
-                }
-            }
+            } while (true);
+
+            return new ReadCursor(segment, count);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
