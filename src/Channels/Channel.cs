@@ -17,7 +17,8 @@ namespace Channels
         private static readonly Action _awaitableIsCompleted = () => { };
         private static readonly Action _awaitableIsNotCompleted = () => { };
 
-        private static Task _completedTask = Task.FromResult(0);
+        // Accessing CommonCache.CompletedTask also initalizes _vectorCache outside of a hot path 
+        private static Task _completedTask = CommonCache.CompletedTask;
 
         private readonly IBufferPool _pool;
 
