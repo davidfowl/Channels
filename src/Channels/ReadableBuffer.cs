@@ -91,10 +91,12 @@ namespace Channels
         /// <returns>True if the byte sequence was found, false if not found</returns>
         public unsafe bool TrySliceTo(byte b1, byte b2, out ReadableBuffer slice, out ReadCursor cursor)
         {
-            byte* twoBytes = stackalloc byte[2];
-            twoBytes[0] = b1;
-            twoBytes[1] = b2;
-            var span = new Span<byte>(twoBytes, 2);
+            // use address of ushort rather than stackalloc as the inliner won't inline functions with stackalloc
+            ushort twoBytes;
+            byte* byteArray = (byte*)&twoBytes;
+            byteArray[0] = b1;
+            byteArray[1] = b2;
+            var span = new Span<byte>(byteArray, 2);
             return TrySliceTo(span, out slice, out cursor);
         }
 
