@@ -37,7 +37,7 @@
     "System.Text.Json": "0.1.0-*"
   },
   "frameworks": {
-    "net462": {
+    "net46": {
       "imports": "dotnet",
       "dependencies": {
         "BenchmarkDotNet": "0.9.9",
