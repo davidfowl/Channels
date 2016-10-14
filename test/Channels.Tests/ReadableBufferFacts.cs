@@ -144,6 +144,32 @@ namespace Channels.Tests
         }
 
         [Theory]
+        [InlineData("hello ", "hello")]
+        [InlineData("hello    ", "hello")]
+        [InlineData("hello \r\n", "hello")]
+        [InlineData("he  llo\r", "he  llo")]
+        [InlineData(" hell o\t", " hell o")]
+        public async Task TrimEndTrimsWhitespaceAtEnd(string input, string expected)
+        {
+            using (var cf = new ChannelFactory())
+            {
+                var channel = cf.CreateChannel();
+
+                var writeBuffer = channel.Alloc();
+                var bytes = Encoding.ASCII.GetBytes(input);
+                writeBuffer.Write(bytes);
+                await writeBuffer.FlushAsync();
+
+                var result = await channel.ReadAsync();
+                var buffer = result.Buffer;
+                var trimmed = buffer.TrimEnd();
+                var outputBytes = trimmed.ToArray();
+
+                Assert.Equal(expected, Encoding.ASCII.GetString(outputBytes));
+            }
+        }
+
+        [Theory]
         [InlineData("foo\rbar\r\n", "\r\n", "foo\rbar")]
         [InlineData("foo\rbar\r\n", "\rbar", "foo")]
         [InlineData("/pathpath/", "path/", "/path")]

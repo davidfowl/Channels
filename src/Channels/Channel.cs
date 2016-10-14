@@ -41,7 +41,9 @@ namespace Channels
         private readonly TaskCompletionSource<object> _readingTcs = new TaskCompletionSource<object>();
         private readonly TaskCompletionSource<object> _writingTcs = new TaskCompletionSource<object>();
         private readonly TaskCompletionSource<object> _startingReadingTcs = new TaskCompletionSource<object>();
-
+#if DEBUG
+        private string _consumingLocation;
+#endif
         /// <summary>
         /// Initializes the <see cref="Channel"/> with the specifed <see cref="IBufferPool"/>.
         /// </summary>
@@ -326,9 +328,15 @@ namespace Channels
             // CompareExchange not required as its setting to current value if test fails
             if (Interlocked.Exchange(ref _consumingState, State.Active) != State.NotActive)
             {
-                throw new InvalidOperationException("Already consuming.");
+                var message = "Already consuming.";
+#if DEBUG
+                message += " From: " + _consumingLocation;
+#endif
+                throw new InvalidOperationException(message);
             }
-
+#if DEBUG
+            _consumingLocation = Environment.StackTrace;
+#endif
             ReadCursor readEnd;
             // Reading commit head shared with writer
             lock (_sync)
@@ -376,6 +384,9 @@ namespace Channels
                 returnSegment.Dispose();
             }
 
+#if DEBUG
+            _consumingLocation = null;
+#endif
             // CompareExchange not required as its setting to current value if test fails
             if (Interlocked.Exchange(ref _consumingState, State.NotActive) != State.Active)
             {
