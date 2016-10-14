@@ -67,9 +67,9 @@ namespace Channels
 
         public IBuffer Lease(int size)
         {
-            if (size > _blockStride)
+            if (size > _blockLength)
             {
-                throw new ArgumentOutOfRangeException(nameof(size), $"Cannot allocate more than {_blockStride} bytes in a single buffer");
+                ThrowHelper.ThrowArgumentOutOfRangeException_BufferRequestTooLarge(_blockLength);
             }
 
             return Lease();

@@ -28,7 +28,7 @@ namespace Channels
         {
             if (!stream.CanRead)
             {
-                throw new InvalidOperationException();
+                ThrowHelper.ThrowNotSupportedException();
             }
 
             var channel = new Channel(_pool);
@@ -52,7 +52,7 @@ namespace Channels
         {
             if (!stream.CanWrite)
             {
-                throw new InvalidOperationException();
+                ThrowHelper.ThrowNotSupportedException();
             }
 
             var channel = new Channel(_pool);
