@@ -98,7 +98,7 @@ namespace Channels.Networking.Sockets
         /// <summary>
         /// Specifies a callback to be invoked whenever a connection is accepted
         /// </summary>
-        public void OnConnection(Func<SocketConnection, Task> callback)
+        public void OnConnection(Func<IChannel, Task> callback)
         {
             Callback = callback;
         }

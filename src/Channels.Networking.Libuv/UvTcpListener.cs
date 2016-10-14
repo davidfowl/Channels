@@ -23,7 +23,13 @@ namespace Channels.Networking.Libuv
             _endpoint = endpoint;
         }
 
-        public void OnConnection(Func<UvTcpConnection, Task> callback)
+        /// <summary>
+        /// callback function when a connection happens, IChannel
+        /// is used so the callback need not know about the connection
+        /// concrete implementation.
+        /// </summary>
+        /// <param name="callback"></param>
+        public void OnConnection(Func<IChannel, Task> callback)
         {
             _callback = callback;
         }
