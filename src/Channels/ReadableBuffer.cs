@@ -91,11 +91,12 @@ namespace Channels
         /// <returns>True if the byte sequence was found, false if not found</returns>
         public unsafe bool TrySliceTo(byte b1, byte b2, out ReadableBuffer slice, out ReadCursor cursor)
         {
-            byte* twoBytes = stackalloc byte[2];
-            twoBytes[0] = b1;
-            twoBytes[1] = b2;
-            var span = new Span<byte>(twoBytes, 2);
-            return TrySliceTo(span, out slice, out cursor);
+            // use address of ushort rather than stackalloc as the inliner won't inline functions with stackalloc
+            ushort twoBytes;
+            byte* byteArray = (byte*)&twoBytes;
+            byteArray[0] = b1;
+            byteArray[1] = b2;
+            return TrySliceTo(new Span<byte>(byteArray, 2), out slice, out cursor);
         }
 
         /// <summary>
@@ -108,13 +109,14 @@ namespace Channels
         /// <returns>True if the byte sequence was found, false if not found</returns>
         public bool TrySliceTo(Span<byte> span, out ReadableBuffer slice, out ReadCursor cursor)
         {
+            var result = false;
             var buffer = this;
-            while (!buffer.IsEmpty)
+            do
             {
                 // Find the first byte
                 if (!buffer.TrySliceTo(span[0], out slice, out cursor))
                 {
-                    return false;
+                    break;
                 }
 
                 // Move the buffer to where you fonud the first byte then search for the next byte
@@ -123,17 +125,16 @@ namespace Channels
                 if (buffer.StartsWith(span))
                 {
                     slice = Slice(_start, cursor);
-                    return true;
+                    result = true;
+                    break;
                 }
 
                 // REVIEW: We need to check the performance of Slice in a loop like this
                 // Not a match so skip(1) 
                 buffer = buffer.Slice(1);
-            }
+            } while (!buffer.IsEmpty);
 
-            slice = default(ReadableBuffer);
-            cursor = default(ReadCursor);
-            return false;
+            return result;
         }
 
         /// <summary>
