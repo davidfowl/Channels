@@ -26,7 +26,8 @@ namespace Channels
         {
             get
             {
-                throw new NotSupportedException();
+                ThrowHelper.ThrowNotSupportedException();
+                return 0;
             }
         }
 
@@ -34,31 +35,35 @@ namespace Channels
         {
             get
             {
-                throw new NotSupportedException();
+                ThrowHelper.ThrowNotSupportedException();
+                return 0;
             }
             set
             {
-                throw new NotSupportedException();
+                ThrowHelper.ThrowNotSupportedException();
             }
         }
 
         public override long Seek(long offset, SeekOrigin origin)
         {
-            throw new NotSupportedException();
+            ThrowHelper.ThrowNotSupportedException();
+            return 0;
         }
 
         public override void SetLength(long value)
         {
-            throw new NotSupportedException();
+            ThrowHelper.ThrowNotSupportedException();
         }
         public override int Read(byte[] buffer, int offset, int count)
         {
-            throw new NotSupportedException();
+            ThrowHelper.ThrowNotSupportedException();
+            return 0;
         }
 
         public override Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
         {
-            throw new NotSupportedException();
+            ThrowHelper.ThrowNotSupportedException();
+            return null;
         }
 
         public override void Write(byte[] buffer, int offset, int count)
@@ -87,23 +92,27 @@ namespace Channels
 
         private ValueTask<int> ReadAsync(ArraySegment<byte> buffer)
         {
-            throw new NotSupportedException();
+            ThrowHelper.ThrowNotSupportedException();
+            return default(ValueTask<int>);
         }
 
 #if NET451
         public override IAsyncResult BeginRead(byte[] buffer, int offset, int count, AsyncCallback callback, object state)
         {
-            throw new NotSupportedException();
+            ThrowHelper.ThrowNotSupportedException();
+            return null;
         }
 
         public override int EndRead(IAsyncResult asyncResult)
         {
-            throw new NotSupportedException();
+            ThrowHelper.ThrowNotSupportedException();
+            return 0;
         }
 
         private Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken, object state)
         {
-            throw new NotSupportedException();
+            ThrowHelper.ThrowNotSupportedException();
+            return null;
         }
 
         public override IAsyncResult BeginWrite(byte[] buffer, int offset, int count, AsyncCallback callback, object state)
@@ -146,7 +155,8 @@ namespace Channels
 #endif
         public override Task CopyToAsync(Stream destination, int bufferSize, CancellationToken cancellationToken)
         {
-            throw new NotSupportedException();
+            ThrowHelper.ThrowNotSupportedException();
+            return null;
         }
 
         protected override void Dispose(bool disposing)

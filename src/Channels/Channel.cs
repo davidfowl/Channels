@@ -90,12 +90,12 @@ namespace Channels
             // CompareExchange not required as its setting to current value if test fails
             if (Interlocked.Exchange(ref _producingState, State.Active) != State.NotActive)
             {
-                throw new InvalidOperationException("Already producing.");
+                ThrowHelper.ThrowInvalidOperationException(ExceptionResource.AlreadyProducing);
             }
 
             if (minimumSize < 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(minimumSize));
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.minimumSize);
             }
             else if (minimumSize > 0)
             {
@@ -217,7 +217,7 @@ namespace Channels
         {
             if (_producingState == State.NotActive)
             {
-                throw new InvalidOperationException("No ongoing producing operation. Make sure Alloc() was called.");
+                ThrowHelper.ThrowInvalidOperationException(ExceptionResource.NotProducingNoAlloc);
             }
         }
 
@@ -226,7 +226,7 @@ namespace Channels
             // CompareExchange not required as its setting to current value if test fails
             if (Interlocked.Exchange(ref _producingState, State.NotActive) != State.Active)
             {
-                throw new InvalidOperationException("No ongoing producing operation to complete.");
+                ThrowHelper.ThrowInvalidOperationException(ExceptionResource.NotProducingToComplete);
             }
 
             if (_writingHead == null)
@@ -273,7 +273,7 @@ namespace Channels
             }
             else if (bytesWritten < 0)
             {
-                throw new ArgumentOutOfRangeException(nameof(bytesWritten));
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.bytesWritten);
             } // and if zero, just do nothing; don't need to validate tail etc
         }
 
@@ -328,11 +328,13 @@ namespace Channels
             // CompareExchange not required as its setting to current value if test fails
             if (Interlocked.Exchange(ref _consumingState, State.Active) != State.NotActive)
             {
-                var message = "Already consuming.";
 #if DEBUG
+                var message = "Already consuming.";
                 message += " From: " + _consumingLocation;
-#endif
                 throw new InvalidOperationException(message);
+#else
+                ThrowHelper.ThrowInvalidOperationException(ExceptionResource.AlreadyConsuming);
+#endif
             }
 #if DEBUG
             _consumingLocation = Environment.StackTrace;
@@ -390,7 +392,7 @@ namespace Channels
             // CompareExchange not required as its setting to current value if test fails
             if (Interlocked.Exchange(ref _consumingState, State.NotActive) != State.Active)
             {
-                throw new InvalidOperationException("No ongoing consuming operation to complete.");
+                ThrowHelper.ThrowInvalidOperationException(ExceptionResource.NotConsumingToComplete);
             }
         }
 
@@ -487,7 +489,7 @@ namespace Channels
             }
             else
             {
-                _readingTcs.SetException(new InvalidOperationException("Concurrent reads are not supported."));
+                _readingTcs.SetException(ThrowHelper.GetInvalidOperationException(ExceptionResource.NoConcurrentReads));
 
                 Interlocked.Exchange(
                     ref _awaitableState,
@@ -502,7 +504,7 @@ namespace Channels
         {
             if (!IsCompleted)
             {
-                throw new InvalidOperationException("can't GetResult unless completed");
+                ThrowHelper.ThrowInvalidOperationException(ExceptionResource.GetResultNotCompleted);
             }
 
             var readingIsCompleted = Reading.IsCompleted;

@@ -27,7 +27,8 @@ namespace Channels
         {
             get
             {
-                throw new NotSupportedException();
+                ThrowHelper.ThrowNotSupportedException();
+                return 0;
             }
         }
 
@@ -35,22 +36,24 @@ namespace Channels
         {
             get
             {
-                throw new NotSupportedException();
+                ThrowHelper.ThrowNotSupportedException();
+                return 0;
             }
             set
             {
-                throw new NotSupportedException();
+                ThrowHelper.ThrowNotSupportedException();
             }
         }
 
         public override long Seek(long offset, SeekOrigin origin)
         {
-            throw new NotSupportedException();
+            ThrowHelper.ThrowNotSupportedException();
+            return 0;
         }
 
         public override void SetLength(long value)
         {
-            throw new NotSupportedException();
+            ThrowHelper.ThrowNotSupportedException();
         }
         public override int Read(byte[] buffer, int offset, int count)
         {

@@ -83,7 +83,7 @@ namespace Channels
         /// </summary>
         public void Reset()
         {
-            throw new NotSupportedException();
+            ThrowHelper.ThrowNotSupportedException();
         }
     }
 }
