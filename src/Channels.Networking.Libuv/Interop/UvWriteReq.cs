@@ -16,11 +16,13 @@ namespace Channels.Networking.Libuv.Interop
 
         private IntPtr _bufs;
 
-        private Action<UvWriteReq, int, Exception, object> _callback;
+        private Action<UvWriteReq, int, object> _callback;
         private object _state;
         private const int BUFFER_COUNT = 4;
 
         private List<GCHandle> _pins = new List<GCHandle>(BUFFER_COUNT + 1);
+
+        private LibuvAwaitable<UvWriteReq> _awaitable = new LibuvAwaitable<UvWriteReq>();
 
         public UvWriteReq() : base()
         {
@@ -37,10 +39,19 @@ namespace Channels.Networking.Libuv.Interop
             _bufs = handle + requestSize;
         }
 
-        public unsafe void Write(
+        public unsafe LibuvAwaitable<UvWriteReq> Write(
+            UvStreamHandle handle,
+            ref ReadableBuffer buffer)
+        {
+            Write(handle, ref buffer, LibuvAwaitable<UvWriteReq>.Callback, _awaitable);
+            return _awaitable;
+        }
+
+
+        private unsafe void Write(
             UvStreamHandle handle,
             ref ReadableBuffer buffer,
-            Action<UvWriteReq, int, Exception, object> callback,
+            Action<UvWriteReq, int, object> callback,
             object state)
         {
             try
@@ -135,13 +146,7 @@ namespace Channels.Networking.Libuv.Interop
             var state = req._state;
             req._state = null;
 
-            Exception error = null;
-            if (status < 0)
-            {
-                req.Libuv.Check(status, out error);
-            }
-
-            callback(req, status, error, state);
+            callback(req, status, state);
         }
     }
 }
