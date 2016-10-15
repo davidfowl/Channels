@@ -1,28 +1,17 @@
 ﻿using System.Numerics;
+using System.Runtime.CompilerServices;
 
 namespace Channels
 {
     // Move to text library?
     internal class CommonVectors
     {
-        private static Vector<byte>[] _vectorCache = new Vector<byte>[0x7F];
-
-        static CommonVectors()
-        {
-            for (byte i = 0; i < 0x7f; i++)
-            {
-                _vectorCache[i] = new Vector<byte>(i);
-            }
-        }
-
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static Vector<byte> GetVector(byte vectorByte)
         {
-            if (vectorByte < _vectorCache.Length)
-            {
-                return _vectorCache[vectorByte];
-            }
-
-            return new Vector<byte>(vectorByte);
+            // Vector<byte> .ctor is a bit fussy to get working; however this always seems to work
+            // https://github.com/dotnet/coreclr/issues/7459#issuecomment-253965670
+            return Vector.AsVectorByte(new Vector<ulong>(vectorByte * 0x0001000100010001ul));
         }
     }
 }
