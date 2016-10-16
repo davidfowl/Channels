@@ -6,14 +6,14 @@ using Channels.Networking.TLS.Internal;
 
 namespace Channels.Networking.TLS
 {
-    public class SecureChannel<T> : ISecureChannel where T :ISecureContext
+    public class SecureChannel<T> : ISecureChannel where T : ISecureContext
     {
         private IChannel _lowerChannel;
         private Channel _outputChannel;
         private Channel _inputChannel;
         private readonly T _contextToDispose;
         private TaskCompletionSource<ApplicationProtocols.ProtocolIds> _handShakeCompleted;
-        
+
         internal SecureChannel(IChannel inChannel, ChannelFactory channelFactory, T secureContext)
         {
             _contextToDispose = secureContext;
@@ -33,11 +33,11 @@ namespace Channels.Networking.TLS
 
         private async Task<ApplicationProtocols.ProtocolIds> DoHandShake()
         {
-            if(!_contextToDispose.IsServer)
+            if (!_contextToDispose.IsServer)
             {
                 //If it is a client we need to start by sending a client hello straight away
                 var output = _lowerChannel.Output.Alloc();
-                _contextToDispose.ProcessContextMessage(output);
+                _contextToDispose.ProcessContextMessage(ref output);
                 await output.FlushAsync();
             }
             try
@@ -54,14 +54,14 @@ namespace Channels.Networking.TLS
                         }
                         ReadableBuffer messageBuffer;
                         TlsFrameType frameType;
-                        while (SecureContextExtensions.TryGetFrameType(ref buffer, out messageBuffer, out frameType))
+                        while (TryGetFrameType(ref buffer, out messageBuffer, out frameType))
                         {
                             if (frameType != TlsFrameType.Handshake && frameType != TlsFrameType.ChangeCipherSpec)
                             {
                                 throw new InvalidOperationException("Received a token that was invalid during the handshake");
                             }
                             var output = _lowerChannel.Output.Alloc();
-                            _contextToDispose.ProcessContextMessage(messageBuffer, output);
+                            _contextToDispose.ProcessContextMessage(messageBuffer, ref output);
                             if (output.BytesWritten == 0)
                             {
                                 output.Commit();
@@ -71,7 +71,7 @@ namespace Channels.Networking.TLS
                                 await output.FlushAsync();
                             }
                             if (_contextToDispose.ReadyToSend)
-                            {                   
+                            {
                                 _handShakeCompleted = new TaskCompletionSource<ApplicationProtocols.ProtocolIds>();
                                 _handShakeCompleted.SetResult(_contextToDispose.NegotiatedProtocol);
                                 return await _handShakeCompleted.Task;
@@ -84,7 +84,7 @@ namespace Channels.Networking.TLS
                     }
                 }
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 Dispose();
                 _handShakeCompleted = new TaskCompletionSource<ApplicationProtocols.ProtocolIds>();
@@ -114,14 +114,14 @@ namespace Channels.Networking.TLS
                         }
                         ReadableBuffer messageBuffer;
                         TlsFrameType frameType;
-                        while (SecureContextExtensions.TryGetFrameType(ref buffer, out messageBuffer, out frameType))
+                        while (TryGetFrameType(ref buffer, out messageBuffer, out frameType))
                         {
                             //We have app data or tokens at this point so slice out the message
                             //If we have app data, we will slice it out and process it
                             if (frameType == TlsFrameType.AppData)
                             {
                                 var decryptedData = _outputChannel.Alloc();
-                                _contextToDispose.Decrypt(messageBuffer, decryptedData);
+                                _contextToDispose.Decrypt(messageBuffer, ref decryptedData);
                                 await decryptedData.FlushAsync();
                             }
                             else
@@ -148,7 +148,7 @@ namespace Channels.Networking.TLS
                 _inputChannel.CompleteWriter();
             }
         }
-        
+
         private async void StartWriting()
         {
             var maxBlockSize = (SecurityContext.BlockSize - _contextToDispose.HeaderSize - _contextToDispose.TrailerSize);
@@ -179,7 +179,7 @@ namespace Channels.Networking.TLS
                                 buffer = buffer.Slice(maxBlockSize);
                             }
                             var outputBuffer = _lowerChannel.Output.Alloc();
-                            _contextToDispose.Encrypt(messageBuffer, outputBuffer);
+                            _contextToDispose.Encrypt(messageBuffer, ref outputBuffer);
                             await outputBuffer.FlushAsync();
                         }
                     }
@@ -200,6 +200,49 @@ namespace Channels.Networking.TLS
                 _inputChannel.CompleteReader();
                 _inputChannel.CompleteWriter();
             }
+        }
+
+        /// <summary>
+        /// Checks to see if we have enough data for a frame and if the basic frame header is valid.
+        /// </summary>
+        /// <param name="buffer">The input buffer, it will be returned with the frame sliced out if there is a complete frame found</param>
+        /// <param name="messageBuffer">If a frame is found this contains that frame</param>
+        /// <returns>The status of the check for frame</returns>
+        internal static bool TryGetFrameType(ref ReadableBuffer buffer, out ReadableBuffer messageBuffer, out TlsFrameType frameType)
+        {
+            frameType = TlsFrameType.Incomplete;
+            //Need at least 5 bytes to be useful
+            if (buffer.Length < 5)
+            {
+                messageBuffer = default(ReadableBuffer);
+                return false;
+            }
+            frameType = (TlsFrameType)buffer.ReadBigEndian<byte>();
+
+            //Check it's a valid frametype for what we are expecting
+            if (frameType != TlsFrameType.AppData && frameType != TlsFrameType.Alert
+                && frameType != TlsFrameType.ChangeCipherSpec && frameType != TlsFrameType.Handshake)
+            {
+                throw new FormatException($"The tls frame type was invalid value was {frameType}");
+            }
+            //now we get the version
+            var version = buffer.Slice(1).ReadBigEndian<ushort>();
+
+            if (version < 0x300 || version >= 0x500)
+            {
+                messageBuffer = default(ReadableBuffer);
+                throw new FormatException($"The tls frame type was invalid due to the version value was {frameType}");
+            }
+            var length = buffer.Slice(3).ReadBigEndian<ushort>();
+            // If we have a full frame slice it out and move the original buffer forward
+            if (buffer.Length >= (length + 5))
+            {
+                messageBuffer = buffer.Slice(0, length + 5);
+                buffer = buffer.Slice(messageBuffer.End);
+                return true;
+            }
+            messageBuffer = default(ReadableBuffer);
+            return false;
         }
 
         public void Dispose()

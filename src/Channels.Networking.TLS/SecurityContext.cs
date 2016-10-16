@@ -5,11 +5,11 @@ using System.Runtime.InteropServices;
 using System.Security.Authentication;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading.Tasks;
-using Channels.Networking.TLS.Internal;
+using Channels.Networking.TLS.Internal.Sspi;
 
 namespace Channels.Networking.TLS
 {
-    public class SecurityContext: IDisposable
+    public class SecurityContext : IDisposable
     {
         internal const ContextFlags RequiredFlags = ContextFlags.ReplayDetect | ContextFlags.SequenceDetect | ContextFlags.Confidentiality | ContextFlags.AllocateMemory;
         internal const ContextFlags ServerRequiredFlags = RequiredFlags | ContextFlags.AcceptStream;
@@ -17,7 +17,7 @@ namespace Channels.Networking.TLS
         internal const SslProtocols _supportedProtocols = SslProtocols.Tls;
         private const string SecurityPackage = "Microsoft Unified Security Protocol Provider";
         public const int MaxStackAllocSize = 16 * 1024;
-        
+
         private bool _initOkay = false;
         private int _maxTokenSize;
         private X509Certificate _serverCertificate;
@@ -28,7 +28,7 @@ namespace Channels.Networking.TLS
         private readonly GCHandle _alpnHandle;
         private readonly SecurityBuffer _alpnBuffer;
         private readonly ChannelFactory _channelFactory;
-        
+
         /// <summary>
         /// Loads up SSPI and sets up the credentials handle in memory ready to authenticate TLS connections
         /// </summary>
@@ -82,7 +82,7 @@ namespace Channels.Networking.TLS
             try
             {
                 //Load the available security packages and look for the Unified pack from MS that supplies TLS support
-                if (InteropSspi.EnumerateSecurityPackagesW(out numberOfPackages, out secPointer) != 0)
+                if (Interop.EnumerateSecurityPackagesW(out numberOfPackages, out secPointer) != 0)
                 {
                     throw new InvalidOperationException("Unable to enumerate security packages");
                 }
@@ -107,7 +107,7 @@ namespace Channels.Networking.TLS
             {
                 if (secPointer != null)
                 {
-                    InteropSspi.FreeContextBuffer((IntPtr)secPointer);
+                    Interop.FreeContextBuffer((IntPtr)secPointer);
                 }
             }
         }
@@ -147,7 +147,7 @@ namespace Channels.Networking.TLS
             IntPtr certPointer;
             if (_isServer)
             {
-                creds.grbitEnabledProtocols = InteropSspi.ServerProtocolMask;
+                creds.grbitEnabledProtocols = Interop.ServerProtocolMask;
                 certPointer = _serverCertificate.Handle;
                 //pointer to the pointer
                 IntPtr certPointerPointer = new IntPtr(&certPointer);
@@ -156,11 +156,11 @@ namespace Channels.Networking.TLS
             }
             else
             {
-                creds.grbitEnabledProtocols = InteropSspi.ClientProtocolMask;
+                creds.grbitEnabledProtocols = Interop.ClientProtocolMask;
             }
 
             long timestamp = 0;
-            SecurityStatus code = (SecurityStatus)InteropSspi.AcquireCredentialsHandleW(null, SecurityPackage, (int)direction
+            SecurityStatus code = Interop.AcquireCredentialsHandleW(null, SecurityPackage, (int)direction
                 , null, ref creds, null, null, ref _credsHandle, out timestamp);
 
             if (code != SecurityStatus.OK)
@@ -179,7 +179,7 @@ namespace Channels.Networking.TLS
         {
             if (_credsHandle.IsValid)
             {
-                InteropSspi.FreeCredentialsHandle(ref _credsHandle);
+                Interop.FreeCredentialsHandle(ref _credsHandle);
                 _credsHandle = new SSPIHandle();
             }
             if (_alpnHandle.IsAllocated)

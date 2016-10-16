@@ -41,7 +41,49 @@ namespace Channels.Tests
                 }
             }
         }
-        
+
+        [Fact]
+        public async Task TestOpenSSL()
+        {
+            using (X509Certificate cert = new X509Certificate(_certificatePath, _certificatePassword))
+            using (ChannelFactory factory = new ChannelFactory())
+            {
+                using (var serverContext = new OpenSslSecurityContext(factory, "test", true, _certificatePath, _certificatePassword))
+                using (var clientContext = new SecurityContext(factory, "CARoot", false, null))
+                {
+                    var ip = new IPEndPoint(IPAddress.Loopback, 5022);
+                    using (var server = new SocketListener(factory))
+                    {
+                        server.OnConnection((c) => Echo(serverContext.CreateSecureChannel(c)));
+                        server.Start(ip);
+                        using (var client = clientContext.CreateSecureChannel(await SocketConnection.ConnectAsync(ip, factory)))
+                        {
+                            var outputBuffer = client.Output.Alloc();
+                            outputBuffer.WriteUtf8String(_shortTestString);
+                            await outputBuffer.FlushAsync();
+
+                            //Now check we get the same thing back
+                            string resultString;
+                            while (true)
+                            {
+                                var result = await client.Input.ReadAsync();
+                                if (result.Buffer.Length >= _shortTestString.Length)
+                                {
+                                    resultString = result.Buffer.GetUtf8String();
+                                    client.Input.Advance(result.Buffer.End);
+                                    break;
+                                }
+                                client.Input.Advance(result.Buffer.Start, result.Buffer.End);
+                            }
+
+                            Assert.Equal(_shortTestString, resultString);
+                        }
+                        server.Stop();
+                    }
+                }
+            }
+        }
+
         [WindowsOnlyFact]
         public async Task EncryptDecryptChannelsAllThings()
         {

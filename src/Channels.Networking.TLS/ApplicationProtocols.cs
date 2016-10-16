@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Linq;
 using System.Text;
-using Channels.Networking.TLS.Internal;
+using Channels.Networking.TLS.Internal.Sspi;
 
 namespace Channels.Networking.TLS
 {
@@ -47,7 +47,7 @@ namespace Channels.Networking.TLS
             ALPN,
         }
 
-        internal enum ApplicationProtocolNegotiationStatus: uint
+        internal enum ApplicationProtocolNegotiationStatus : uint
         {
             None = 0,
             Success,
@@ -57,7 +57,7 @@ namespace Channels.Networking.TLS
         internal static unsafe ProtocolIds FindNegotiatedProtocol(SSPIHandle context)
         {
             ContextApplicationProtocol protoInfo;
-            InteropSspi.QueryContextAttributesW(ref context, ContextAttribute.ApplicationProtocol, out protoInfo);
+            Interop.QueryContextAttributesW(ref context, ContextAttribute.ApplicationProtocol, out protoInfo);
 
             if (protoInfo.ProtoNegoStatus != ApplicationProtocolNegotiationStatus.Success)
             {

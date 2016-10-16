@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 
-namespace Channels.Networking.TLS.Internal
+namespace Channels.Networking.TLS.Internal.Sspi
 {
     [StructLayout(LayoutKind.Sequential)]
     internal struct SecPkgInfo

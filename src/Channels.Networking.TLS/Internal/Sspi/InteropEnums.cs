@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Channels.Networking.TLS.Internal
+namespace Channels.Networking.TLS.Internal.Sspi
 {
     [Flags]
     internal enum ContextFlags

@@ -1,5 +1,5 @@
 ﻿
-namespace Channels.Networking.TLS.Internal
+namespace Channels.Networking.TLS.Internal.Sspi
 {
     internal enum SecurityStatus
     {

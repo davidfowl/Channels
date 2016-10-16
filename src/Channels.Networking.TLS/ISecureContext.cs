@@ -7,11 +7,12 @@ namespace Channels.Networking.TLS
     {
         int TrailerSize { get; set; }
         int HeaderSize { get; set; }
-        SSPIHandle ContextHandle { get; }
         bool ReadyToSend { get; }
         ApplicationProtocols.ProtocolIds NegotiatedProtocol { get; }
-        void ProcessContextMessage(ReadableBuffer readBuffer, WritableBuffer writeBuffer);
-        void ProcessContextMessage(WritableBuffer writeBuffer);
-        bool IsServer { get;}
+        void ProcessContextMessage(ReadableBuffer readBuffer, ref WritableBuffer writeBuffer);
+        void ProcessContextMessage(ref WritableBuffer writeBuffer);
+        void Decrypt(ReadableBuffer encryptedData, ref WritableBuffer decryptedData);
+        void Encrypt(ReadableBuffer unencrypted, ref WritableBuffer encryptedData);
+        bool IsServer { get; }
     }
 }

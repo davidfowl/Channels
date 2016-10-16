@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 
-namespace Channels.Networking.TLS.Internal
+namespace Channels.Networking.TLS.Internal.Sspi
 {
-    internal unsafe static class InteropSspi
+    internal unsafe static class Interop
     {
         internal const string Dll = "sspicli.dll";
 
@@ -14,7 +14,7 @@ namespace Channels.Networking.TLS.Internal
         internal static extern int FreeContextBuffer([In] IntPtr contextBuffer);
 
         [DllImport(Dll, ExactSpelling = true, CharSet = CharSet.Unicode, SetLastError = true)]
-        internal unsafe static extern int AcquireCredentialsHandleW([In] string principal, [In] string moduleName, [In] int usage, [In] void* logonID, [In] ref SecureCredential authdata, [In] void* keyCallback, [In] void* keyArgument, ref SSPIHandle handlePtr, [Out] out long timeStamp);
+        internal unsafe static extern SecurityStatus AcquireCredentialsHandleW([In] string principal, [In] string moduleName, [In] int usage, [In] void* logonID, [In] ref SecureCredential authdata, [In] void* keyCallback, [In] void* keyArgument, ref SSPIHandle handlePtr, [Out] out long timeStamp);
 
         [DllImport(Dll, ExactSpelling = true, SetLastError = true)]
         internal static extern int DeleteSecurityContext(ref SSPIHandle handlePtr);
@@ -23,13 +23,13 @@ namespace Channels.Networking.TLS.Internal
         internal static extern int FreeCredentialsHandle(ref SSPIHandle handlePtr);
 
         [DllImport(Dll, ExactSpelling = true, SetLastError = true)]
-        internal unsafe static extern int AcceptSecurityContext(ref SSPIHandle credentialHandle, [In] void* inContextPtr, SecurityBufferDescriptor* inputBuffer, [In] ContextFlags inFlags, [In] Endianness endianness, [In, Out] void* newContextPtr, SecurityBufferDescriptor* outputBuffer, [In, Out] ref ContextFlags attributes, out long timeStamp);
+        internal unsafe static extern SecurityStatus AcceptSecurityContext(ref SSPIHandle credentialHandle, [In] void* inContextPtr, SecurityBufferDescriptor* inputBuffer, [In] ContextFlags inFlags, [In] Endianness endianness, [In, Out] void* newContextPtr, SecurityBufferDescriptor* outputBuffer, [In, Out] ref ContextFlags attributes, out long timeStamp);
 
         [DllImport(Dll, ExactSpelling = true, SetLastError = true)]
-        internal static unsafe extern int DecryptMessage([In] ref SSPIHandle contextHandle, [In, Out] SecurityBufferDescriptor inputOutput, [In] uint sequenceNumber, uint* qualityOfProtection);
+        internal static unsafe extern SecurityStatus DecryptMessage([In] ref SSPIHandle contextHandle, [In, Out] SecurityBufferDescriptor inputOutput, [In] uint sequenceNumber, uint* qualityOfProtection);
 
         [DllImport(Dll, ExactSpelling = true, SetLastError = true)]
-        internal static extern int EncryptMessage(ref SSPIHandle contextHandle, [In] uint qualityOfProtection, [In, Out] SecurityBufferDescriptor inputOutput, [In] uint sequenceNumber);
+        internal static extern SecurityStatus EncryptMessage(ref SSPIHandle contextHandle, [In] uint qualityOfProtection, [In, Out] SecurityBufferDescriptor inputOutput, [In] uint sequenceNumber);
 
         [DllImport(Dll, ExactSpelling = true, SetLastError = true, CharSet = CharSet.Unicode)]
         internal static extern int QueryContextAttributesW(ref SSPIHandle phContext, [In] ContextAttribute contextFlag, [Out] out ContextStreamSizes sizes);
@@ -44,7 +44,7 @@ namespace Channels.Networking.TLS.Internal
         internal static extern int QueryContextAttributesW(ref SSPIHandle phContext, [In] ContextAttribute contextFlag, [Out] out SessionKey sessionKey);
 
         [DllImport(Dll, ExactSpelling = true, SetLastError = true)]
-        internal unsafe static extern int InitializeSecurityContextW(ref SSPIHandle credentialHandle, [In] void* inContextPtr, [In] string targetName, [In] ContextFlags inFlags, [In] int reservedI, [In] Endianness endianness, SecurityBufferDescriptor* inputBuffer, [In] int reservedII, [In, Out] void* newContextPtr, SecurityBufferDescriptor* outputBuffer, [In, Out] ref ContextFlags attributes, out long timeStamp);
+        internal unsafe static extern SecurityStatus InitializeSecurityContextW(ref SSPIHandle credentialHandle, [In] void* inContextPtr, [In] string targetName, [In] ContextFlags inFlags, [In] int reservedI, [In] Endianness endianness, SecurityBufferDescriptor* inputBuffer, [In] int reservedII, [In, Out] void* newContextPtr, SecurityBufferDescriptor* outputBuffer, [In, Out] ref ContextFlags attributes, out long timeStamp);
 
         internal const int SP_PROT_TLS1_0_SERVER = 0x00000040;
         internal const int SP_PROT_TLS1_0_CLIENT = 0x00000080;
