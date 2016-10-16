@@ -14,7 +14,13 @@ namespace Channels
     /// </summary>
     public struct ReadableBuffer
     {
-        private static readonly ulong _powerOfTwoToHighByte = PowerOfTwoToHighByte();
+        private const ulong powerOfTwoToHighByte = 0xE0ul       |
+                                                   0xC0ul <<  8 |
+                                                   0xA0ul << 16 |
+                                                   0x80ul << 24 |
+                                                   0x60ul << 32 |
+                                                   0x40ul << 40 |
+                                                   0x20ul << 48;
 
         private const ulong byteBroadcastToUlong = ~0UL / byte.MaxValue;
         private const ulong filterByteHighBitsInUlong = (byteBroadcastToUlong >> 1) | (byteBroadcastToUlong << (sizeof(ulong) * 8 - 1));
@@ -468,7 +474,7 @@ namespace Channels
             // Flag least significant power of two bit
             var powerOfTwoFlag = (ulong)(byteEquals & -byteEquals);
             // Shift all powers of two into the high byte and extract
-            return (int)((powerOfTwoFlag * _powerOfTwoToHighByte) >> 61);
+            return (int)((powerOfTwoFlag * powerOfTwoToHighByte) >> 61);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -519,11 +525,6 @@ namespace Channels
             var buffer = new OwnedBuffer(data);
             var segment = new BufferSegment(buffer, offset, offset + length);
             return new ReadableBuffer(new ReadCursor(segment, offset), new ReadCursor(segment, offset + length));
-        }
-
-        private static ulong PowerOfTwoToHighByte()
-        {
-            return BitConverter.IsLittleEndian ? 0x20406080A0C0E0ul : 0xE0C0A080604020ul;
         }
     }
 }

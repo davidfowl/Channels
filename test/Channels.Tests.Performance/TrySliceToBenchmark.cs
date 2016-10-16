@@ -8,7 +8,13 @@ namespace Channels.Tests.Performance
     [Config(typeof(NoMemoryConfig))]
     public class TrySliceToBenchmark
     {
-        private static readonly ulong _powerOfTwoToHighByte = PowerOfTwoToHighByte();
+        private const ulong _powerOfTwoToHighByte = 0xE0ul       |
+                                                    0xC0ul <<  8 |
+                                                    0xA0ul << 16 |
+                                                    0x80ul << 24 |
+                                                    0x60ul << 32 |
+                                                    0x40ul << 40 |
+                                                    0x20ul << 48;
 
         private const ulong byteBroadcastToUlong = ~0UL / byte.MaxValue;
         private const ulong filterByteHighBitsInUlong = (byteBroadcastToUlong >> 1) | (byteBroadcastToUlong << (sizeof(ulong) * 8 - 1));
@@ -24,8 +30,6 @@ namespace Channels.Tests.Performance
             Array = new byte[Size];
 
             Array[Size - 1] = (byte) '\r';
-
-            var forceStaticToReadOnly = PowerOfTwoToHighByte();
         }
 
         [Benchmark(Baseline = true)]
@@ -327,11 +331,6 @@ namespace Channels.Tests.Performance
                     ~(value) &
                     filterByteHighBitsInUlong
                 ) >> 7);
-        }
-
-        private static ulong PowerOfTwoToHighByte()
-        {
-            return BitConverter.IsLittleEndian ? 0x20406080A0C0E0ul : 0xE0C0A080604020ul;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
