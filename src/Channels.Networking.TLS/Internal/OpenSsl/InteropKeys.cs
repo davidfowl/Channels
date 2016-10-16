@@ -30,7 +30,7 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
 
             public void Free()
             {
-                if(Handle != IntPtr.Zero)
+                if (Handle != IntPtr.Zero)
                 {
                     PKCS12_free(Handle);
                     Handle = IntPtr.Zero;

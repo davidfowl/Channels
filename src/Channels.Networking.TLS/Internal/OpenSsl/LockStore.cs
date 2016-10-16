@@ -21,14 +21,14 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
             }
             Callback = HandleLock;
         }
-        
+
         private static unsafe void HandleLock(InteropCrypto.LockState lockState, int lockId, byte* file, int lineNumber)
         {
             if ((lockState & InteropCrypto.LockState.CRYPTO_UNLOCK) > 0)
             {
                 _locks[lockId].Release();
             }
-            else if((lockState & InteropCrypto.LockState.CRYPTO_LOCK) > 0)
+            else if ((lockState & InteropCrypto.LockState.CRYPTO_LOCK) > 0)
             {
                 _locks[lockId].Wait();
             }

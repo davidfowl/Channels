@@ -8,8 +8,6 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
 {
     internal unsafe static class InteropBio
     {
-        
-
         [DllImport(InteropCrypto.CryptoDll, CallingConvention = CallingConvention.Cdecl)]
         private extern static BioHandle BIO_new_file(string filename, string mode);
         public static BioHandle BIO_new_file_write(string fileName) => BIO_new_file(fileName, "w");
@@ -34,7 +32,7 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
             public IntPtr Handle;
             public void FreeBio()
             {
-                if(Handle != IntPtr.Zero)
+                if (Handle != IntPtr.Zero)
                 {
                     BIO_free(Handle);
                     Handle = IntPtr.Zero;

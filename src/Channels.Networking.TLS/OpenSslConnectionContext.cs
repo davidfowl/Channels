@@ -43,7 +43,7 @@ namespace Channels.Networking.TLS
         //Not implemented yet!!
         public ApplicationProtocols.ProtocolIds NegotiatedProtocol => _negotiatedProtocol;
         public bool ReadyToSend => _readyToSend;
-                
+
         public unsafe void Decrypt(ReadableBuffer encryptedData, ref WritableBuffer decryptedData)
         {
             while (encryptedData.Length > 0)
@@ -102,12 +102,12 @@ namespace Channels.Networking.TLS
             {
                 //handshake is complete, do a final write out of data and mark as done
                 WriteToChannel(ref writeBuffer, _writeBio);
-                if(_securityContext.AplnBufferLength > 0)
+                if (_securityContext.AplnBufferLength > 0)
                 {
                     byte* protoPointer;
                     int len;
                     Interop.SSL_get0_alpn_selected(_ssl, out protoPointer, out len);
-                    _negotiatedProtocol = ApplicationProtocols.GetNegotiatedProtocol(protoPointer,(byte) len);
+                    _negotiatedProtocol = ApplicationProtocols.GetNegotiatedProtocol(protoPointer, (byte)len);
                 }
                 _readyToSend = true;
                 return;
@@ -153,7 +153,7 @@ namespace Channels.Networking.TLS
         {
             _readBio.FreeBio();
             _writeBio.FreeBio();
-            if(_ssl != IntPtr.Zero)
+            if (_ssl != IntPtr.Zero)
             {
                 Interop.SSL_free(_ssl);
             }

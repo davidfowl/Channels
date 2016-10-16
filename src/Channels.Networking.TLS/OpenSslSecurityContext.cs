@@ -140,12 +140,12 @@ namespace Channels.Networking.TLS
 
         public void Dispose()
         {
-            if(_alpnHandle.IsAllocated)
+            if (_alpnHandle.IsAllocated)
             {
                 _alpnHandle.Free();
             }
             _certifcateInformation.Free();
-            if(_sslContext != IntPtr.Zero)
+            if (_sslContext != IntPtr.Zero)
             {
                 Interop.SSL_CTX_free(_sslContext);
             }

@@ -32,7 +32,7 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
             CRYPTO_LOCK = 0x01,
             CRYPTO_WRITE = 0x08,
         }
-        
+
         public static void CheckForErrorOrThrow(int returnCode)
         {
             if (returnCode != 1)
