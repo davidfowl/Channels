@@ -14,13 +14,13 @@ namespace Channels
     /// </summary>
     public struct ReadableBuffer
     {
-        private const ulong powerOfTwoToHighByte = 0xE0ul       |
-                                                   0xC0ul <<  8 |
-                                                   0xA0ul << 16 |
-                                                   0x80ul << 24 |
-                                                   0x60ul << 32 |
-                                                   0x40ul << 40 |
-                                                   0x20ul << 48;
+        private const ulong xorPowerOfTwoToHighByte = (0x07ul       |
+                                                       0x06ul <<  8 |
+                                                       0x05ul << 16 |
+                                                       0x04ul << 24 |
+                                                       0x03ul << 32 |
+                                                       0x02ul << 40 |
+                                                       0x01ul << 48 ) + 1;
 
         private const ulong byteBroadcastToUlong = ~0UL / byte.MaxValue;
         private const ulong filterByteHighBitsInUlong = (byteBroadcastToUlong >> 1) | (byteBroadcastToUlong << (sizeof(ulong) * 8 - 1));
@@ -472,9 +472,9 @@ namespace Channels
         internal static int LocateFirstFoundByte(long byteEquals)
         {
             // Flag least significant power of two bit
-            var powerOfTwoFlag = (ulong)(byteEquals & -byteEquals);
+            var powerOfTwoFlag = (ulong)(byteEquals ^ (byteEquals - 1));
             // Shift all powers of two into the high byte and extract
-            return (int)((powerOfTwoFlag * powerOfTwoToHighByte) >> 61);
+            return (int)((powerOfTwoFlag * xorPowerOfTwoToHighByte) >> 57);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
