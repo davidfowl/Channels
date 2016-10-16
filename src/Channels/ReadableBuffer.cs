@@ -164,8 +164,6 @@ namespace Channels
                 return false;
             }
 
-            var byte0Vector = CommonVectors.GetVector(b1);
-
             var seek = 0;
 
             foreach (var span in this)
@@ -180,7 +178,7 @@ namespace Channels
                     {
                         var data = currentSpan.Read<Vector<byte>>();
 
-                        var byte0Equals = Vector.Equals(data, byte0Vector);
+                        var byte0Equals = Vector.Equals(data, CommonVectors.GetVector(b1));
                         if (byte0Equals.Equals(Vector<byte>.Zero))
                         {
                             currentSpan = currentSpan.Slice(Vector<byte>.Count);

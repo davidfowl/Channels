@@ -152,14 +152,12 @@ namespace Channels.Tests.Performance
             var found = false;
             var seek = 0;
 
-            var byte0Vector = GetVector(b1);
-
             // Search by Vector length (16/32/64 bytes)
             while (span.Length >= Vector<byte>.Count)
             {
                 var data = span.Read<Vector<byte>>();
 
-                var byte0Equals = Vector.Equals(data, byte0Vector);
+                var byte0Equals = Vector.Equals(data, GetVector(b1));
                 if (byte0Equals.Equals(Vector<byte>.Zero))
                 {
                     span = span.Slice(Vector<byte>.Count);
@@ -217,14 +215,12 @@ namespace Channels.Tests.Performance
             var found = false;
             var seek = 0;
 
-            var byte0Vector = GetVector(b1);
-
             // Search by Vector length (16/32/64 bytes)
             while (span.Length >= Vector<byte>.Count)
             {
                 var data = span.Read<Vector<byte>>();
 
-                var byte0Equals = Vector.Equals(data, byte0Vector);
+                var byte0Equals = Vector.Equals(data, GetVector(b1));
                 if (byte0Equals.Equals(Vector<byte>.Zero))
                 {
                     span = span.Slice(Vector<byte>.Count);
