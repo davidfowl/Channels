@@ -8,41 +8,22 @@ namespace Channels.Networking.TLS
 {
     public class OpenSslConnectionContext : ISecureContext
     {
+        private const Interop.ContextOptions _contextOptions = Interop.ContextOptions.SSL_OP_NO_SSLv2 | Interop.ContextOptions.SSL_OP_NO_SSLv3;
+
         private readonly OpenSslSecurityContext _securityContext;
         private int _headerSize = 5; //5 is the minimum (1 for frame type, 2 for version, 2 for frame size)
         private int _trailerSize = 16;
         private int _maxDataSize = 16354;
         private bool _readyToSend;
-        private IntPtr _sslContext;
         private IntPtr _ssl;
         private InteropBio.BioHandle _readBio;
         private InteropBio.BioHandle _writeBio;
+        private ApplicationProtocols.ProtocolIds _negotiatedProtocol;
 
-        public OpenSslConnectionContext(OpenSslSecurityContext securityContext)
+        public OpenSslConnectionContext(OpenSslSecurityContext securityContext, IntPtr ssl)
         {
+            _ssl = ssl;
             _securityContext = securityContext;
-            if (_securityContext.IsServer)
-            {
-                _sslContext = Interop.NewServerContext();
-            }
-            else
-            {
-                _sslContext = Interop.NewClientContext();
-            }
-            Interop.SSL_CTX_set_verify(_sslContext, Interop.VerifyMode.SSL_VERIFY_NONE, IntPtr.Zero);
-            var certInfo = _securityContext.CertificateInformation;
-            if (certInfo.Handle != IntPtr.Zero)
-            {
-                if (certInfo.CertificateHandle != IntPtr.Zero)
-                {
-                    InteropCrypto.CheckForErrorOrThrow(Interop.SSL_CTX_use_certificate(_sslContext, certInfo.CertificateHandle));
-                }
-                if (certInfo.PrivateKeyHandle != IntPtr.Zero)
-                {
-                    InteropCrypto.CheckForErrorOrThrow(Interop.SSL_CTX_use_PrivateKey(_sslContext, certInfo.PrivateKeyHandle));
-                }
-            }
-            _ssl = Interop.SSL_new(_sslContext);
             _writeBio = InteropBio.BIO_new(InteropBio.BIO_s_mem());
             _readBio = InteropBio.BIO_new(InteropBio.BIO_s_mem());
             Interop.SSL_set_bio(_ssl, _readBio, _writeBio);
@@ -60,9 +41,9 @@ namespace Channels.Networking.TLS
         public int HeaderSize { get { return _headerSize; } set { _headerSize = value; } }
         public int TrailerSize { get { return _trailerSize; } set { _trailerSize = value; } }
         //Not implemented yet!!
-        public ApplicationProtocols.ProtocolIds NegotiatedProtocol => 0;
+        public ApplicationProtocols.ProtocolIds NegotiatedProtocol => _negotiatedProtocol;
         public bool ReadyToSend => _readyToSend;
-
+                
         public unsafe void Decrypt(ReadableBuffer encryptedData, ref WritableBuffer decryptedData)
         {
             while (encryptedData.Length > 0)
@@ -90,7 +71,7 @@ namespace Channels.Networking.TLS
 
         public unsafe void Encrypt(ReadableBuffer unencrypted, ref WritableBuffer encryptedData)
         {
-            while(unencrypted.Length > 0)
+            while (unencrypted.Length > 0)
             {
                 void* ptr;
                 unencrypted.First.TryGetPointer(out ptr);
@@ -108,7 +89,7 @@ namespace Channels.Networking.TLS
 
         public unsafe void ProcessContextMessage(ReadableBuffer readBuffer, ref WritableBuffer writeBuffer)
         {
-            while(readBuffer.Length > 0)
+            while (readBuffer.Length > 0)
             {
                 void* ptr;
                 readBuffer.First.TryGetPointer(out ptr);
@@ -117,26 +98,33 @@ namespace Channels.Networking.TLS
             }
 
             var result = Interop.SSL_do_handshake(_ssl);
-            if(result == 1)
+            if (result == 1)
             {
                 //handshake is complete, do a final write out of data and mark as done
                 WriteToChannel(ref writeBuffer, _writeBio);
+                if(_securityContext.AplnBufferLength > 0)
+                {
+                    byte* protoPointer;
+                    int len;
+                    Interop.SSL_get0_alpn_selected(_ssl, out protoPointer, out len);
+                    _negotiatedProtocol = ApplicationProtocols.GetNegotiatedProtocol(protoPointer,(byte) len);
+                }
                 _readyToSend = true;
                 return;
             }
             //We didn't get an "okay" message so lets check to see what the actual error was
             var errorCode = Interop.SSL_get_error(_ssl, result);
-            if(errorCode == Interop.SslErrorCodes.SSL_NOTHING)
+            if (errorCode == Interop.SslErrorCodes.SSL_NOTHING)
             {
                 return;
             }
-            if(errorCode == Interop.SslErrorCodes.SSL_WRITING)
+            if (errorCode == Interop.SslErrorCodes.SSL_WRITING)
             {
                 //We have data to write out then return
                 WriteToChannel(ref writeBuffer, _writeBio);
                 return;
             }
-            if(errorCode == Interop.SslErrorCodes.SSL_READING)
+            if (errorCode == Interop.SslErrorCodes.SSL_READING)
             {
                 //We need to read more data so just return to wait for it
                 return;
@@ -165,9 +153,9 @@ namespace Channels.Networking.TLS
         {
             _readBio.FreeBio();
             _writeBio.FreeBio();
-            if(_sslContext != IntPtr.Zero)
+            if(_ssl != IntPtr.Zero)
             {
-                //todo kill context
+                Interop.SSL_free(_ssl);
             }
         }
     }

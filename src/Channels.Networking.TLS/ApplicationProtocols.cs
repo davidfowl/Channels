@@ -66,7 +66,7 @@ namespace Channels.Networking.TLS
             return GetNegotiatedProtocol(protoInfo.ProtocolId, protoInfo.ProtocolIdSize);
         }
 
-        public unsafe static byte[] GetBufferForProtocolId(ProtocolIds supportedProtocols)
+        public unsafe static byte[] GetBufferForProtocolId(ProtocolIds supportedProtocols, bool withALPNHeader)
         {
             short listLength = 0;
             for (int i = 0; i < _numberOfProtocols.Length; i++)
@@ -76,17 +76,35 @@ namespace Channels.Networking.TLS
                     listLength += (short)(_allProtocols[i].Length + 1);
                 }
             }
-            //Now we know the total length of the list lets create our array of protocols and header
-            var returnValue = new byte[listLength + _HeaderLength];
-            var spa = new Span<byte>(returnValue);
-            int length = _HeaderLength + listLength - _ContentOffset;
-            spa.Write(length);
-            spa = spa.Slice(4);
-            spa.Write(ApplicaitonProtocolNegotiationExtension.ALPN);
-            spa = spa.Slice(4);
-            spa.Write(listLength);
-            spa = spa.Slice(2);
+            byte[] returnValue;
+            if (withALPNHeader)
+            {
+                //Now we know the total length of the list lets create our array of protocols and header
+                returnValue = new byte[listLength + _HeaderLength];
+                var spa = new Span<byte>(returnValue);
+                int length = _HeaderLength + listLength - _ContentOffset;
+                spa.Write(length);
+                spa = spa.Slice(4);
+                spa.Write(ApplicaitonProtocolNegotiationExtension.ALPN);
+                spa = spa.Slice(4);
+                spa.Write(listLength);
+                spa = spa.Slice(2);
+                spa = ProtocolList(supportedProtocols, spa);
+            }
+            else
+            {
+                //No header just make an array of the correct size
+                returnValue = new byte[listLength];
+                var spa = new Span<byte>(returnValue);
+                ProtocolList(supportedProtocols, spa);
+            }
+            return returnValue;
+        }
 
+        //public static unsafe ProtocolIds ProtocolList()
+
+        private static unsafe Span<byte> ProtocolList(ProtocolIds supportedProtocols, Span<byte> spa)
+        {
             for (int i = 0; i < _numberOfProtocols.Length; i++)
             {
                 if (((int)_numberOfProtocols.GetValue(i) & (int)supportedProtocols) > 0)
@@ -98,7 +116,8 @@ namespace Channels.Networking.TLS
                     spa = spa.Slice(value.Length);
                 }
             }
-            return returnValue;
+
+            return spa;
         }
 
         internal static unsafe ProtocolIds GetNegotiatedProtocol(byte* protocolId, byte protocolIdSize)

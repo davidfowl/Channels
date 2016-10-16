@@ -43,7 +43,47 @@ namespace Channels.Tests
         }
 
         [Fact]
-        public async Task TestOpenSSL()
+        public async Task OpenSslAsServerAplnMatchingProtocol()
+        {
+            var ip = new IPEndPoint(IPAddress.Loopback, 5026);
+            using (X509Certificate cert = new X509Certificate(_certificatePath, _certificatePassword))
+            using (ChannelFactory factory = new ChannelFactory())
+            using (var serverContext = new OpenSslSecurityContext(factory, "test", true, _certificatePath, _certificatePassword, ApplicationProtocols.ProtocolIds.Http11 | ApplicationProtocols.ProtocolIds.Http2overTLS))
+            using (var clientContext = new SecurityContext(factory, "CARoot", false, cert, ApplicationProtocols.ProtocolIds.Http2overTLS))
+            using (var server = new SocketListener(factory))
+            {
+                server.OnConnection((c) => Echo(serverContext.CreateSecureChannel(c)));
+                server.Start(ip);
+                using (var client = clientContext.CreateSecureChannel(await SocketConnection.ConnectAsync(ip, factory)))
+                {
+                    var proto = await client.HandShakeAsync();
+                    Assert.Equal(ApplicationProtocols.ProtocolIds.Http2overTLS, proto);
+                }
+            }
+        }
+
+        [Fact]
+        public async Task OpenSslAsClientAplnMatchingProtocol()
+        {
+            var ip = new IPEndPoint(IPAddress.Loopback, 5026);
+            using (X509Certificate cert = new X509Certificate(_certificatePath, _certificatePassword))
+            using (ChannelFactory factory = new ChannelFactory())
+            using (var clientContext = new OpenSslSecurityContext(factory, "test", false, _certificatePath, _certificatePassword, ApplicationProtocols.ProtocolIds.Http11 | ApplicationProtocols.ProtocolIds.Http2overTLS))
+            using (var serverContext = new SecurityContext(factory, "CARoot", true, cert, ApplicationProtocols.ProtocolIds.Http2overTLS))
+            using (var server = new SocketListener(factory))
+            {
+                server.OnConnection((c) => Echo(serverContext.CreateSecureChannel(c)));
+                server.Start(ip);
+                using (var client = clientContext.CreateSecureChannel(await SocketConnection.ConnectAsync(ip, factory)))
+                {
+                    var proto = await client.HandShakeAsync();
+                    Assert.Equal(ApplicationProtocols.ProtocolIds.Http2overTLS, proto);
+                }
+            }
+        }
+
+        [Fact]
+        public async Task OpenSslAndSSPIChannelAllTheThings()
         {
             using (X509Certificate cert = new X509Certificate(_certificatePath, _certificatePassword))
             using (ChannelFactory factory = new ChannelFactory())

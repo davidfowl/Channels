@@ -59,11 +59,11 @@ namespace Channels.Networking.TLS
             _channelFactory = factory;
             _serverCertificate = serverCert;
             _isServer = isServer;
-            CreateAuthentication(alpnSupportedProtocols);
+            CreateAuthentication();
             if (alpnSupportedProtocols > 0)
             {
                 //We need to get a buffer for the ALPN negotiation and pin it for sending to the lower API
-                _alpnSupportedProtocols = ApplicationProtocols.GetBufferForProtocolId(alpnSupportedProtocols);
+                _alpnSupportedProtocols = ApplicationProtocols.GetBufferForProtocolId(alpnSupportedProtocols, true);
                 _alpnHandle = GCHandle.Alloc(_alpnSupportedProtocols, GCHandleType.Pinned);
                 _alpnBuffer = new SecurityBuffer((void*)_alpnHandle.AddrOfPinnedObject(), _alpnSupportedProtocols.Length, SecurityBufferType.ApplicationProtocols);
             }
@@ -75,7 +75,7 @@ namespace Channels.Networking.TLS
         internal string HostName => _hostName;
         public bool IsServer => _isServer;
 
-        private unsafe void CreateAuthentication(ApplicationProtocols.ProtocolIds alpnSupportedProtocols)
+        private unsafe void CreateAuthentication()
         {
             int numberOfPackages;
             SecPkgInfo* secPointer = null;

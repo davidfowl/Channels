@@ -14,6 +14,8 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
         public extern static void OPENSSL_add_all_algorithms_noconf();
         [DllImport(CryptoDll, CallingConvention = CallingConvention.Cdecl)]
         public extern static void ERR_load_crypto_strings();
+        [DllImport(CryptoDll, CallingConvention = CallingConvention.Cdecl)]
+        public extern static void CRYPTO_free(void* pointer);
 
         [DllImport(CryptoDll, CallingConvention = CallingConvention.Cdecl)]
         public extern static int CRYPTO_num_locks();
