@@ -39,7 +39,7 @@ namespace Channels.Networking.Libuv.Interop
             _bufs = handle + requestSize;
         }
 
-        public unsafe LibuvAwaitable<UvWriteReq> Write(
+        public unsafe LibuvAwaitable<UvWriteReq> WriteAsync(
             UvStreamHandle handle,
             ref ReadableBuffer buffer)
         {

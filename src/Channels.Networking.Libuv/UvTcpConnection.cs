@@ -118,7 +118,7 @@ namespace Channels.Networking.Libuv
                 // Preserve this buffer for disposal after the write completes
                 using (buffer.Preserve())
                 {
-                    await writeReq.Write(_handle, ref buffer);
+                    await writeReq.WriteAsync(_handle, ref buffer);
                 }
             }
             finally
