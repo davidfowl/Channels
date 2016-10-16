@@ -115,7 +115,7 @@ namespace Channels.Networking.TLS
             {
                 _sslContext = Interop.NewClientContext();
             }
-            //Interop.SSL_CTX_set_options(_sslContext, _contextOptions);
+            Interop.SSL_CTX_set_options(_sslContext, Interop.ContextOptions.SSL_OP_NO_SSLv2 | Interop.ContextOptions.SSL_OP_NO_SSLv3);
             Interop.SSL_CTX_set_verify(_sslContext, Interop.VerifyMode.SSL_VERIFY_NONE, IntPtr.Zero);
 
             if (_certifcateInformation.Handle != IntPtr.Zero)

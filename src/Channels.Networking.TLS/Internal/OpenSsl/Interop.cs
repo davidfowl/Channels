@@ -60,12 +60,14 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
         private static readonly IntPtr ClientMethod = Interop.SSLv23_client_method();
         public static IntPtr NewServerContext() => SSL_CTX_new(ServerMethod);
         public static IntPtr NewClientContext() => SSL_CTX_new(ClientMethod);
-        
+
         [DllImport(SslDll, CallingConvention = CallingConvention.Cdecl)]
-        public extern static int SSL_CTX_set_options(IntPtr ctx, ContextOptions options);
+        private extern static int SSL_CTX_ctrl(IntPtr ctx, int ctrlType, long options, IntPtr other);
+        const int SSL_CTRL_OPTIONS = 32;
+        public static int SSL_CTX_set_options(IntPtr ctx, ContextOptions options) => SSL_CTX_ctrl(ctx, SSL_CTRL_OPTIONS, (long)options, IntPtr.Zero);
 
         [Flags]
-        public enum ContextOptions : uint
+        public enum ContextOptions : long
         {
             SSL_OP_TLS_ROLLBACK_BUG = 0x00800000,
             SSL_OP_NO_SSLv2 = 0x01000000,
