@@ -153,9 +153,10 @@ namespace Channels.Samples.Http
         {
             using (var ns = new NetworkStream(socket))
             {
-                var channel = channelFactory.MakeChannel(ns);
-
-                await ProcessClient(application, channel);
+                using (var channel = channelFactory.MakeChannel(ns))
+                {
+                    await ProcessClient(application, channel);
+                }
             }
         }
 
@@ -164,9 +165,6 @@ namespace Channels.Samples.Http
             var connection = new HttpConnection<TContext>(application, channel.Input, channel.Output);
 
             await connection.ProcessAllRequests();
-
-            channel.Output.Complete();
-            channel.Input.Complete();
         }
     }
 }

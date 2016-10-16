@@ -17,7 +17,8 @@ namespace Channels
 
         public void Dispose()
         {
-            // What do we dipose here? We don't own the stream
+            Input.Complete();
+            Output.Complete();
         }
     }
 }
