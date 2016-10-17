@@ -4,7 +4,7 @@ using System.Diagnostics;
 
 namespace Channels
 {
-    public abstract class ReferenceCountedBuffer : IBuffer
+    public abstract class ReferenceCountedBuffer : Poolable, IBuffer
     {
         private object _lockObj = new object();
         private int _referenceCount = 1;

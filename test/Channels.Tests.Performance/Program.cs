@@ -32,6 +32,10 @@ namespace Channels.Tests.Performance
             {
                 BenchmarkRunner.Run<ChannelsStreamsBenchmark>();
             }
+            if (type.HasFlag(BenchmarkType.ConcurrentPool))
+            {
+                BenchmarkRunner.Run<ConcurrentPoolBenchmark>();
+            }
         }
     }
 
@@ -40,6 +44,7 @@ namespace Channels.Tests.Performance
     {
         Streams = 1,
         // add new ones in powers of two - e.g. 2,4,8,16...
+        ConcurrentPool = 2,
 
         All = uint.MaxValue
     }
