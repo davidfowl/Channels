@@ -66,7 +66,7 @@ namespace Channels.Samples
             return response;
         }
 
-        private static async Task ProduceResponse(ConnectionState state, UvTcpConnection connection, HttpResponseMessage response)
+        private static async Task ProduceResponse(ConnectionState state, IChannel connection, HttpResponseMessage response)
         {
             // TODO: pipelining support!
             while (true)
@@ -266,7 +266,7 @@ namespace Channels.Samples
             return state;
         }
 
-        private async Task<UvTcpConnection> ConnectAsync(HttpRequestMessage request)
+        private async Task<IChannel> ConnectAsync(HttpRequestMessage request)
         {
             var addresses = await Dns.GetHostAddressesAsync(request.RequestUri.Host);
             var port = request.RequestUri.Port;
@@ -290,7 +290,7 @@ namespace Channels.Samples
 
         private class ConnectionState
         {
-            public Task<UvTcpConnection> ConnectionTask { get; set; }
+            public Task<IChannel> ConnectionTask { get; set; }
 
             public int PreviousContentLength { get; set; }
 
