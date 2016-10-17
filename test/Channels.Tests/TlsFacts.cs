@@ -123,11 +123,6 @@ namespace Channels.Tests
                         client.Input.Advance(result.Buffer.Start, result.Buffer.End);
                     }
                     Assert.Equal(_shortTestString, resultString);
-                    try
-                    {
-                        client.Dispose();
-                    }
-                    catch { }
                     server.Stop();
                 }
             }
