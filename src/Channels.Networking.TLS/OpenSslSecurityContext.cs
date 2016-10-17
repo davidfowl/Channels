@@ -37,7 +37,7 @@ namespace Channels.Networking.TLS
             InteropCrypto.Init();
             InteropCrypto.OPENSSL_add_all_algorithms_noconf();
             InteropCrypto.CheckForErrorOrThrow(Interop.SSL_library_init());
-
+            
             _channelFactory = channelFactory;
             _isServer = isServer;
             _alpnSupportedProtocols = alpnSupportedProtocols;

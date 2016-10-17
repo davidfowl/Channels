@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using Channels.Networking.TLS.Internal.OpenSsl;
 
@@ -24,8 +25,9 @@ namespace Channels.Networking.TLS
         {
             _ssl = ssl;
             _securityContext = securityContext;
-            _writeBio = InteropBio.BIO_new(InteropBio.BIO_s_mem());
-            _readBio = InteropBio.BIO_new(InteropBio.BIO_s_mem());
+            _writeBio = InteropBio.BIO_new(ChannelBio.custom());
+            _readBio = InteropBio.BIO_new(ChannelBio.custom());
+            //_readBio = InteropBio.BIO_new(InteropBio.BIO_s_mem());
             Interop.SSL_set_bio(_ssl, _readBio, _writeBio);
             if (IsServer)
             {
@@ -46,13 +48,7 @@ namespace Channels.Networking.TLS
 
         public unsafe void Decrypt(ReadableBuffer encryptedData, ref WritableBuffer decryptedData)
         {
-            while (encryptedData.Length > 0)
-            {
-                void* ptr;
-                encryptedData.First.TryGetPointer(out ptr);
-                var bytesRead = InteropBio.BIO_write(_readBio, ptr, encryptedData.First.Length);
-                encryptedData = encryptedData.Slice(bytesRead);
-            }
+            ChannelBio.SetReadBufferPointer(_readBio, ref encryptedData);
 
             var result = 1;
             while (result > 0)
@@ -71,6 +67,7 @@ namespace Channels.Networking.TLS
 
         public unsafe void Encrypt(ReadableBuffer unencrypted, ref WritableBuffer encryptedData)
         {
+            ChannelBio.SetWriteBufferPointer(_writeBio, ref encryptedData);
             while (unencrypted.Length > 0)
             {
                 void* ptr;
@@ -78,8 +75,6 @@ namespace Channels.Networking.TLS
                 var bytesRead = Interop.SSL_write(_ssl, ptr, unencrypted.First.Length);
                 unencrypted = unencrypted.Slice(bytesRead);
             }
-            //Read off the encrypted data to the writeable buffer
-            WriteToChannel(ref encryptedData, _writeBio);
         }
 
         public void ProcessContextMessage(ref WritableBuffer writeBuffer)
@@ -89,19 +84,14 @@ namespace Channels.Networking.TLS
 
         public unsafe void ProcessContextMessage(ReadableBuffer readBuffer, ref WritableBuffer writeBuffer)
         {
-            while (readBuffer.Length > 0)
-            {
-                void* ptr;
-                readBuffer.First.TryGetPointer(out ptr);
-                var bytesRead = InteropBio.BIO_write(_readBio, ptr, readBuffer.First.Length);
-                readBuffer = readBuffer.Slice(bytesRead);
-            }
+            ChannelBio.SetReadBufferPointer(_readBio, ref readBuffer);
+            ChannelBio.SetWriteBufferPointer(_writeBio, ref writeBuffer);
 
             var result = Interop.SSL_do_handshake(_ssl);
             if (result == 1)
             {
                 //handshake is complete, do a final write out of data and mark as done
-                WriteToChannel(ref writeBuffer, _writeBio);
+                //WriteToChannel(ref writeBuffer, _writeBio);
                 if (_securityContext.AplnBufferLength > 0)
                 {
                     byte* protoPointer;
@@ -121,7 +111,7 @@ namespace Channels.Networking.TLS
             if (errorCode == Interop.SslErrorCodes.SSL_WRITING)
             {
                 //We have data to write out then return
-                WriteToChannel(ref writeBuffer, _writeBio);
+                //WriteToChannel(ref writeBuffer, _writeBio);
                 return;
             }
             if (errorCode == Interop.SslErrorCodes.SSL_READING)
