@@ -116,6 +116,7 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
             {
                 case BioControl.BIO_CTRL_FLUSH:
                 case BioControl.BIO_CTRL_POP:
+                case BioControl.BIO_CTRL_PUSH:
                     return 1;
             }
             return 0;

@@ -138,14 +138,18 @@ namespace Channels.Networking.TLS
             }
             finally
             {
-                //Close down the lower channel
-                _lowerChannel.Input.Complete();
-                _lowerChannel.Output.Complete();
-                //Tell the upper consumer that we aren't sending any more data
-                _outputChannel.CompleteWriter();
-                _outputChannel.CompleteReader();
-                _inputChannel.CompleteReader();
-                _inputChannel.CompleteWriter();
+                try
+                {
+                    //Close down the lower channel
+                    _lowerChannel.Input.Complete();
+                    _lowerChannel.Output.Complete();
+                    //Tell the upper consumer that we aren't sending any more data
+                    _outputChannel.CompleteWriter();
+                    _outputChannel.CompleteReader();
+                    _inputChannel.CompleteReader();
+                    _inputChannel.CompleteWriter();
+                }
+                catch {  /*nom nom */ }
             }
         }
 
@@ -191,14 +195,18 @@ namespace Channels.Networking.TLS
             }
             finally
             {
-                ///Close down the lower channel
-                _lowerChannel.Input.Complete();
-                _lowerChannel.Output.Complete();
-                //Tell the upper consumer that we aren't sending any more data
-                _outputChannel.CompleteWriter();
-                _outputChannel.CompleteReader();
-                _inputChannel.CompleteReader();
-                _inputChannel.CompleteWriter();
+                try
+                {
+                    //Close down the lower channel
+                    _lowerChannel.Input.Complete();
+                    _lowerChannel.Output.Complete();
+                    //Tell the upper consumer that we aren't sending any more data
+                    _outputChannel.CompleteWriter();
+                    _outputChannel.CompleteReader();
+                    _inputChannel.CompleteReader();
+                    _inputChannel.CompleteWriter();
+                }
+                catch {  /*nom nom */ }
             }
         }
 
@@ -249,7 +257,6 @@ namespace Channels.Networking.TLS
         {
             _lowerChannel.Dispose();
             _contextToDispose?.Dispose();
-
         }
     }
 }
