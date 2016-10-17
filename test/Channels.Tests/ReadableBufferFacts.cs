@@ -50,7 +50,7 @@ namespace Channels.Tests
                 var channel = cf.CreateChannel();
 
                 // populate with dummy data
-                const int DataSize = 10000;
+                const int DataSize = 10240 + 32 + 16 + 8 + 7; // make sure not vector length multiple
                 byte[] data = new byte[DataSize];
                 var rand = new Random(12345);
                 rand.NextBytes(data);
