@@ -10,7 +10,13 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
     internal static unsafe class ChannelBio
     {
         const int MaxBlockSize = 1024 * 4 - 64;
-
+        static readonly bio_method_st _methodStruct;
+        static readonly IntPtr _methodPtr;
+        static readonly Create _create;
+        static readonly Write _write;
+        static readonly Read _read;
+        static readonly Control _control;
+        
         static ChannelBio()
         {
             _create = CreateBio;
@@ -30,6 +36,20 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
             _methodPtr = Marshal.AllocHGlobal(sizeToAlloc);
             Marshal.StructureToPtr(_methodStruct, _methodPtr, false);
         }
+
+        public static IntPtr custom() => _methodPtr;
+
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        private delegate int Create(ref bio_st bio);
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        private delegate int Write(ref bio_st bio, void* buf, int num);
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        private delegate int Read(ref bio_st bio, void* buf, int size);
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        private delegate long Control(ref bio_st bio, BioControl cmd, long num, void* ptr);
+
+        [DllImport(InteropCrypto.CryptoDll, CallingConvention = CallingConvention.Cdecl)]
+        private extern static void BIO_set_flags(ref bio_st bio, BioFlags flags);
 
         static int CreateBio(ref bio_st bio)
         {
@@ -100,29 +120,7 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
             }
             return 0;
         }
-
-        static readonly bio_method_st _methodStruct;
-        static readonly IntPtr _methodPtr;
-        static readonly GCHandle _methodStructHandle;
-        static readonly Create _create;
-        static readonly Write _write;
-        static readonly Read _read;
-        static readonly Control _control;
-
-        public static IntPtr custom() => _methodPtr;
-
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        private delegate int Create(ref bio_st bio);
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        private delegate int Write(ref bio_st bio, void* buf, int num);
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        private delegate int Read(ref bio_st bio, void* buf, int size);
-        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-        private delegate long Control(ref bio_st bio, BioControl cmd, long num, void* ptr);
-
-        [DllImport(InteropCrypto.CryptoDll, CallingConvention = CallingConvention.Cdecl)]
-        private extern static void BIO_set_flags(ref bio_st bio, BioFlags flags);
-
+        
         [StructLayout(LayoutKind.Sequential)]
         private struct bio_method_st
         {
