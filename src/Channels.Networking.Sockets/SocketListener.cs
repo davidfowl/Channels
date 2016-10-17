@@ -8,7 +8,7 @@ namespace Channels.Networking.Sockets
     /// <summary>
     /// Allows a managed socket to be used as a server, listening on a designated address and accepting connections from clients
     /// </summary>
-    public class SocketListener : IDisposable
+    public class SocketListener : ICallbackOnConnection, IDisposable
     {
         private readonly bool _ownsChannelFactory;
         private Socket _socket;
