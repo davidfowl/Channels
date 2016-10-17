@@ -95,6 +95,7 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
             switch (cmd)
             {
                 case BioControl.BIO_CTRL_FLUSH:
+                case BioControl.BIO_CTRL_POP:
                     return 1;
             }
             return 0;
