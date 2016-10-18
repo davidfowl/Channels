@@ -33,9 +33,11 @@ namespace Channels.Tests
             {
                 var loopback = new LoopbackChannel(factory);
                 Echo(serverContext.CreateSecureChannel(loopback.ServerChannel));
-                var client = clientContext.CreateSecureChannel(loopback.ClientChannel);
-                var proto = await client.HandShakeAsync();
-                Assert.Equal(ApplicationProtocols.ProtocolIds.Http2overTLS, proto);
+                using (var client = clientContext.CreateSecureChannel(loopback.ClientChannel))
+                {
+                    var proto = await client.HandShakeAsync();
+                    Assert.Equal(ApplicationProtocols.ProtocolIds.Http2overTLS, proto);
+                }
             }
         }
 
@@ -49,9 +51,11 @@ namespace Channels.Tests
             {
                 var loopback = new LoopbackChannel(factory);
                 Echo(serverContext.CreateSecureChannel(loopback.ServerChannel));
-                var client = clientContext.CreateSecureChannel(loopback.ClientChannel);
-                var proto = await client.HandShakeAsync();
-                Assert.Equal(ApplicationProtocols.ProtocolIds.Http2overTLS, proto);
+                using (var client = clientContext.CreateSecureChannel(loopback.ClientChannel))
+                {
+                    var proto = await client.HandShakeAsync();
+                    Assert.Equal(ApplicationProtocols.ProtocolIds.Http2overTLS, proto);
+                }
             }
         }
 
@@ -103,17 +107,16 @@ namespace Channels.Tests
             }
         }
 
-        [WindowsOnlyFact]
-        public async Task EncryptDecryptChannelsAllThings()
+        [Fact]
+        public async Task OpenSslChannelAllTheThings()
         {
             using (X509Certificate cert = new X509Certificate(_certificatePath, _certificatePassword))
             using (ChannelFactory factory = new ChannelFactory())
-            using (var serverContext = new SecurityContext(factory, "CARoot", true, cert))
-            using (var clientContext = new SecurityContext(factory, "CARoot", false, null))
+            using (var serverContext = new OpenSslSecurityContext(factory, "test", true, _certificatePath, _certificatePassword))
+            using (var clientContext = new OpenSslSecurityContext(factory, "test", false, _certificatePath, _certificatePassword))
             {
                 var loopback = new LoopbackChannel(factory);
                 Echo(serverContext.CreateSecureChannel(loopback.ServerChannel));
-
                 var client = clientContext.CreateSecureChannel(loopback.ClientChannel);
                 var outputBuffer = client.Output.Alloc();
                 outputBuffer.WriteUtf8String(_shortTestString);
@@ -137,6 +140,41 @@ namespace Channels.Tests
         }
 
         [WindowsOnlyFact]
+        public async Task SSPIEncryptDecryptChannelsAllThings()
+        {
+            using (X509Certificate cert = new X509Certificate(_certificatePath, _certificatePassword))
+            using (ChannelFactory factory = new ChannelFactory())
+            using (var serverContext = new SecurityContext(factory, "CARoot", true, cert))
+            using (var clientContext = new SecurityContext(factory, "CARoot", false, null))
+            {
+                var loopback = new LoopbackChannel(factory);
+                Echo(serverContext.CreateSecureChannel(loopback.ServerChannel));
+
+                using (var client = clientContext.CreateSecureChannel(loopback.ClientChannel))
+                {
+                    var outputBuffer = client.Output.Alloc();
+                    outputBuffer.WriteUtf8String(_shortTestString);
+                    await outputBuffer.FlushAsync();
+
+                    //Now check we get the same thing back
+                    string resultString;
+                    while (true)
+                    {
+                        var result = await client.Input.ReadAsync();
+                        if (result.Buffer.Length >= _shortTestString.Length)
+                        {
+                            resultString = result.Buffer.GetUtf8String();
+                            client.Input.Advance(result.Buffer.End);
+                            break;
+                        }
+                        client.Input.Advance(result.Buffer.Start, result.Buffer.End);
+                    }
+                    Assert.Equal(_shortTestString, resultString);
+                }
+            }
+        }
+
+        [WindowsOnlyFact(Skip = "Anything with tcp is broken for now")]
         public async Task ServerChannelStreamClient()
         {
             var ip = new IPEndPoint(IPAddress.Loopback, 5023);
