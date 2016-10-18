@@ -14,7 +14,7 @@ using Channels.Tests.Internal;
 using Channels.Text.Primitives;
 using Microsoft.Extensions.PlatformAbstractions;
 using Xunit;
-
+#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
 namespace Channels.Tests
 {
     public class TlsFacts
@@ -26,68 +26,48 @@ namespace Channels.Tests
         [WindowsOnlyFact]
         public async Task AplnMatchingProtocol()
         {
-            var ip = new IPEndPoint(IPAddress.Loopback, 5026);
             using (X509Certificate cert = new X509Certificate(_certificatePath, _certificatePassword))
             using (ChannelFactory factory = new ChannelFactory())
             using (var serverContext = new SecurityContext(factory, "CARoot", true, cert, ApplicationProtocols.ProtocolIds.Http11 | ApplicationProtocols.ProtocolIds.Http2overTLS))
             using (var clientContext = new SecurityContext(factory, "CARoot", false, null, ApplicationProtocols.ProtocolIds.Http2overTLS))
             {
-                var server = new UvTcpListener(new UvThread(), ip);
-                server.OnConnection((c) => Echo(serverContext.CreateSecureChannel(c)));
-                server.Start();
-
-                var client = clientContext.CreateSecureChannel(await SocketConnection.ConnectAsync(ip, factory));
+                var loopback = new LoopbackChannel(factory);
+                Echo(serverContext.CreateSecureChannel(loopback.ServerChannel));
+                var client = clientContext.CreateSecureChannel(loopback.ClientChannel);
                 var proto = await client.HandShakeAsync();
                 Assert.Equal(ApplicationProtocols.ProtocolIds.Http2overTLS, proto);
-                try
-                {
-                    client.Dispose();
-                }
-                catch { }
-                server.Stop();
             }
         }
 
         [Fact]
         public async Task OpenSslAsServerAplnMatchingProtocol()
         {
-            var ip = new IPEndPoint(IPAddress.Loopback, 5026);
             using (X509Certificate cert = new X509Certificate(_certificatePath, _certificatePassword))
             using (ChannelFactory factory = new ChannelFactory())
             using (var serverContext = new OpenSslSecurityContext(factory, "test", true, _certificatePath, _certificatePassword, ApplicationProtocols.ProtocolIds.Http11 | ApplicationProtocols.ProtocolIds.Http2overTLS))
             using (var clientContext = new SecurityContext(factory, "CARoot", false, cert, ApplicationProtocols.ProtocolIds.Http2overTLS))
             {
-                var server = new UvTcpListener(new UvThread(), ip);
-                server.OnConnection((c) => Echo(serverContext.CreateSecureChannel(c)));
-                server.Start();
-                var client = clientContext.CreateSecureChannel(await SocketConnection.ConnectAsync(ip, factory));
+                var loopback = new LoopbackChannel(factory);
+                Echo(serverContext.CreateSecureChannel(loopback.ServerChannel));
+                var client = clientContext.CreateSecureChannel(loopback.ClientChannel);
                 var proto = await client.HandShakeAsync();
                 Assert.Equal(ApplicationProtocols.ProtocolIds.Http2overTLS, proto);
-                try
-                {
-                    client.Dispose();
-                }
-                catch { }
-                server.Stop();
             }
         }
 
         [Fact]
         public async Task OpenSslAsClientAplnMatchingProtocol()
         {
-            var ip = new IPEndPoint(IPAddress.Loopback, 5026);
             using (X509Certificate cert = new X509Certificate(_certificatePath, _certificatePassword))
             using (ChannelFactory factory = new ChannelFactory())
             using (var clientContext = new OpenSslSecurityContext(factory, "test", false, _certificatePath, _certificatePassword, ApplicationProtocols.ProtocolIds.Http11 | ApplicationProtocols.ProtocolIds.Http2overTLS))
             using (var serverContext = new SecurityContext(factory, "CARoot", true, cert, ApplicationProtocols.ProtocolIds.Http2overTLS))
             {
-                var server = new UvTcpListener(new UvThread(), ip);
-                server.OnConnection((c) => Echo(serverContext.CreateSecureChannel(c)));
-                server.Start();
-                var client = clientContext.CreateSecureChannel(await SocketConnection.ConnectAsync(ip, factory));
+                var loopback = new LoopbackChannel(factory);
+                Echo(serverContext.CreateSecureChannel(loopback.ServerChannel));
+                var client = clientContext.CreateSecureChannel(loopback.ClientChannel);
                 var proto = await client.HandShakeAsync();
                 Assert.Equal(ApplicationProtocols.ProtocolIds.Http2overTLS, proto);
-                server.Stop();
             }
         }
 
@@ -96,35 +76,30 @@ namespace Channels.Tests
         {
             using (X509Certificate cert = new X509Certificate(_certificatePath, _certificatePassword))
             using (ChannelFactory factory = new ChannelFactory())
+            using (var serverContext = new OpenSslSecurityContext(factory, "test", true, _certificatePath, _certificatePassword))
+            using (var clientContext = new SecurityContext(factory, "CARoot", false, null))
             {
-                using (var serverContext = new OpenSslSecurityContext(factory, "test", true, _certificatePath, _certificatePassword))
-                using (var clientContext = new SecurityContext(factory, "CARoot", false, null))
-                {
-                    var ip = new IPEndPoint(IPAddress.Loopback, 5022);
-                    var server = new UvTcpListener(new UvThread(), ip);
-                    server.OnConnection((c) => Echo(serverContext.CreateSecureChannel(c)));
-                    server.Start();
-                    var client = clientContext.CreateSecureChannel(await SocketConnection.ConnectAsync(ip, factory));
-                    var outputBuffer = client.Output.Alloc();
-                    outputBuffer.WriteUtf8String(_shortTestString);
-                    await outputBuffer.FlushAsync();
+                var loopback = new LoopbackChannel(factory);
+                Echo(serverContext.CreateSecureChannel(loopback.ServerChannel));
+                var client = clientContext.CreateSecureChannel(loopback.ClientChannel);
+                var outputBuffer = client.Output.Alloc();
+                outputBuffer.WriteUtf8String(_shortTestString);
+                await outputBuffer.FlushAsync();
 
-                    //Now check we get the same thing back
-                    string resultString;
-                    while (true)
+                //Now check we get the same thing back
+                string resultString;
+                while (true)
+                {
+                    var result = await client.Input.ReadAsync();
+                    if (result.Buffer.Length >= _shortTestString.Length)
                     {
-                        var result = await client.Input.ReadAsync();
-                        if (result.Buffer.Length >= _shortTestString.Length)
-                        {
-                            resultString = result.Buffer.GetUtf8String();
-                            client.Input.Advance(result.Buffer.End);
-                            break;
-                        }
-                        client.Input.Advance(result.Buffer.Start, result.Buffer.End);
+                        resultString = result.Buffer.GetUtf8String();
+                        client.Input.Advance(result.Buffer.End);
+                        break;
                     }
-                    Assert.Equal(_shortTestString, resultString);
-                    server.Stop();
+                    client.Input.Advance(result.Buffer.Start, result.Buffer.End);
                 }
+                Assert.Equal(_shortTestString, resultString);
             }
         }
 
@@ -133,41 +108,31 @@ namespace Channels.Tests
         {
             using (X509Certificate cert = new X509Certificate(_certificatePath, _certificatePassword))
             using (ChannelFactory factory = new ChannelFactory())
+            using (var serverContext = new SecurityContext(factory, "CARoot", true, cert))
+            using (var clientContext = new SecurityContext(factory, "CARoot", false, null))
             {
-                using (var serverContext = new SecurityContext(factory, "CARoot", true, cert))
-                using (var clientContext = new SecurityContext(factory, "CARoot", false, null))
+                var loopback = new LoopbackChannel(factory);
+                Echo(serverContext.CreateSecureChannel(loopback.ServerChannel));
+
+                var client = clientContext.CreateSecureChannel(loopback.ClientChannel);
+                var outputBuffer = client.Output.Alloc();
+                outputBuffer.WriteUtf8String(_shortTestString);
+                await outputBuffer.FlushAsync();
+
+                //Now check we get the same thing back
+                string resultString;
+                while (true)
                 {
-                    var ip = new IPEndPoint(IPAddress.Loopback, 5022);
-                    var server = new UvTcpListener(new UvThread(), ip);
-
-                    server.OnConnection((c) => Echo(serverContext.CreateSecureChannel(c)));
-                    server.Start();
-                    var client = clientContext.CreateSecureChannel(await SocketConnection.ConnectAsync(ip, factory));
-                    var outputBuffer = client.Output.Alloc();
-                    outputBuffer.WriteUtf8String(_shortTestString);
-                    await outputBuffer.FlushAsync();
-
-                    //Now check we get the same thing back
-                    string resultString;
-                    while (true)
+                    var result = await client.Input.ReadAsync();
+                    if (result.Buffer.Length >= _shortTestString.Length)
                     {
-                        var result = await client.Input.ReadAsync();
-                        if (result.Buffer.Length >= _shortTestString.Length)
-                        {
-                            resultString = result.Buffer.GetUtf8String();
-                            client.Input.Advance(result.Buffer.End);
-                            break;
-                        }
-                        client.Input.Advance(result.Buffer.Start, result.Buffer.End);
+                        resultString = result.Buffer.GetUtf8String();
+                        client.Input.Advance(result.Buffer.End);
+                        break;
                     }
-                    Assert.Equal(_shortTestString, resultString);
-                    try
-                    {
-                        client.Dispose();
-                    }
-                    catch { }
-                    server.Stop();
+                    client.Input.Advance(result.Buffer.Start, result.Buffer.End);
                 }
+                Assert.Equal(_shortTestString, resultString);
             }
         }
 
@@ -314,3 +279,4 @@ namespace Channels.Tests
         }
     }
 }
+#pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
