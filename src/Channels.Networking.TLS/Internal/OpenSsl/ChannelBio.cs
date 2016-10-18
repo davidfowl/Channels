@@ -61,7 +61,7 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
 
         static int WriteBio(ref bio_st bio, void* buff, int numberOfBytes)
         {
-            var buffer = Unsafe.Read<WritableBuffer>(bio.ptr);
+            var buffer = Unsafe.Read<WritableBuffer>(bio.next_bio);
             int numberOfBytesRemaing = numberOfBytes;
             while (numberOfBytesRemaing > 0)
             {
@@ -71,7 +71,7 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
                 buffer.Advance(sizeToWrite);
                 numberOfBytesRemaing -= sizeToWrite;
             }
-            Unsafe.Write(bio.ptr, buffer);
+            Unsafe.Write(bio.next_bio, buffer);
             return numberOfBytes;
         }
 
@@ -107,7 +107,7 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
         {
             var b = (bio_st*)bio.Handle;
             b[0].num = buffer.Memory.Length;
-            b[0].ptr = Unsafe.AsPointer(ref buffer);
+            b[0].next_bio = Unsafe.AsPointer(ref buffer);
         }
 
         private static long ControlBio(ref bio_st bio, BioControl cmd, long num, void* ptr)
