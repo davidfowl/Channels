@@ -45,6 +45,18 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
             public extern static int CRYPTO_num_locks();
         }
 
+        public static int CRYPTO_num_locks()
+        {
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                return WindowsLib.CRYPTO_num_locks();
+            }
+            else
+            {
+                return UnixLib.CRYPTO_num_locks();
+            }
+        }
+
         public static void CRYPTO_set_locking_callback(locking_function lockingFunction)
         {
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
