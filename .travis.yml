@@ -30,8 +30,8 @@ before_install:
       brew link --force openssl;
       export DOTNET_SDK_URL="https://go.microsoft.com/fwlink/?LinkID=809128";
     else
-      sudo apt-get update -q
-      sudo apt-get install --reinstall openssl1.0.2
+      sudo apt-get update -q;
+      sudo apt-get install --reinstall openssl1.0.2;
       export DOTNET_SDK_URL="https://go.microsoft.com/fwlink/?LinkID=809129";
     fi
 
