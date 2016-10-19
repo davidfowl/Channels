@@ -16,6 +16,7 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
         static readonly Write _write;
         static readonly Read _read;
         static readonly Control _control;
+        static readonly Free _free;
 
         static ChannelBio()
         {
@@ -23,6 +24,7 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
             _write = WriteBio;
             _read = ReadBio;
             _control = ControlBio;
+            _free = FreeBio;
 
             _methodStruct = new bio_method_st()
             {
@@ -30,8 +32,10 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
                 breadDelegate = _read,
                 bwriteDelegate = _write,
                 ctrlDelegate = _control,
-                type = BIO_TYPE_MEM
-            };
+                type = BIO_TYPE_MEM,
+                destroy = _free,
+                name = (void*)Marshal.StringToCoTaskMemAnsi("ChannelBio")
+        };
             var sizeToAlloc = Marshal.SizeOf(_methodStruct);
             _methodPtr = Marshal.AllocHGlobal(sizeToAlloc);
             Marshal.StructureToPtr(_methodStruct, _methodPtr, false);
@@ -47,6 +51,8 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
         private delegate int Read(ref bio_st bio, void* buf, int size);
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         private delegate long Control(ref bio_st bio, BioControl cmd, long num, void* ptr);
+        [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
+        private delegate int Free(ref bio_st data);
 
         private static class WindowsLib
         {
@@ -61,7 +67,7 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
             [DllImport(CryptoDll, CallingConvention = CallingConvention.Cdecl)]
             public extern static void BIO_set_flags(ref bio_st bio, BioFlags flags);
         }
-
+        
         private static void BIO_set_flags(ref bio_st bio, BioFlags flags)
         {
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
@@ -74,7 +80,15 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
             }
         }
 
-        static int CreateBio(ref bio_st bio)
+        private static int FreeBio(ref bio_st bio)
+        {
+            bio.init = -1;
+            bio.next_bio = null;
+            bio.ptr = null;
+            return 1;
+        }
+
+        private static int CreateBio(ref bio_st bio)
         {
             bio.shutdown = 1;
             bio.init = 1;
@@ -82,7 +96,7 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
             return 1;
         }
 
-        static int WriteBio(ref bio_st bio, void* buff, int numberOfBytes)
+        private static int WriteBio(ref bio_st bio, void* buff, int numberOfBytes)
         {
             var buffer = Unsafe.Read<WritableBuffer>(bio.next_bio);
             int numberOfBytesRemaing = numberOfBytes;
@@ -98,7 +112,7 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
             return numberOfBytes;
         }
 
-        static int ReadBio(ref bio_st bio, void* buff, int numberOfBytes)
+        private static int ReadBio(ref bio_st bio, void* buff, int numberOfBytes)
         {
             var buffer = Unsafe.Read<ReadableBuffer>(bio.ptr);
             if (buffer.Length == 0)
@@ -158,7 +172,7 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
             public void* bgestsDelegate; //int (*bgets) (BIO*, char*, int);
             public Control ctrlDelegate; //long (*ctrl) (BIO*, int, long, void*);
             public Create create; //int (*create) (BIO*);
-            public void* destroy; //int (*destroy) (BIO*);
+            public Free destroy; //int (*destroy) (BIO*);
             public void* callback_ctrl; //long (*callback_ctrl) (BIO*, int, bio_info_cb*);
         }
         [StructLayout(LayoutKind.Sequential)]
