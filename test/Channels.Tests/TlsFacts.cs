@@ -41,7 +41,7 @@ namespace Channels.Tests
             }
         }
 
-        [Fact]
+        [WindowsOnlyFact]
         public async Task OpenSslAsServerAplnMatchingProtocol()
         {
             using (X509Certificate cert = new X509Certificate(_certificatePath, _certificatePassword))
@@ -59,7 +59,7 @@ namespace Channels.Tests
             }
         }
 
-        [Fact]
+        [WindowsOnlyFact]
         public async Task OpenSslAsClientAplnMatchingProtocol()
         {
             using (X509Certificate cert = new X509Certificate(_certificatePath, _certificatePassword))
