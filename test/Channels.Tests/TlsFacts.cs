@@ -75,7 +75,7 @@ namespace Channels.Tests
             }
         }
 
-        [Fact]
+        [WindowsOnlyFact]
         public async Task OpenSslAndSSPIChannelAllTheThings()
         {
             using (X509Certificate cert = new X509Certificate(_certificatePath, _certificatePassword))
