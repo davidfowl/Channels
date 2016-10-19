@@ -23,7 +23,7 @@ namespace Channels.Tests
         private static readonly string _certificatePassword = "Test123t";
         private static readonly string _shortTestString = "The quick brown fox jumped over the lazy dog.";
 
-        [WindowsOnlyFact]
+        [WindowsOnlyFact(Skip = "ALPN Broken")]
         public async Task AplnMatchingProtocol()
         {
             using (X509Certificate cert = new X509Certificate(_certificatePath, _certificatePassword))
@@ -41,7 +41,7 @@ namespace Channels.Tests
             }
         }
 
-        [WindowsOnlyFact]
+        [WindowsOnlyFact(Skip = "ALPN Broken")]
         public async Task OpenSslAsServerAplnMatchingProtocol()
         {
             using (X509Certificate cert = new X509Certificate(_certificatePath, _certificatePassword))
@@ -59,7 +59,7 @@ namespace Channels.Tests
             }
         }
 
-        [WindowsOnlyFact]
+        [WindowsOnlyFact(Skip = "ALPN Broken")]
         public async Task OpenSslAsClientAplnMatchingProtocol()
         {
             using (X509Certificate cert = new X509Certificate(_certificatePath, _certificatePassword))
