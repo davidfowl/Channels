@@ -121,24 +121,7 @@ namespace Channels.Networking.TLS
             }
             throw new InvalidOperationException($"There was an error during the handshake, error code was {errorCode}");
         }
-
-        private unsafe void WriteToChannel(ref WritableBuffer buffer, InteropBio.BioHandle bio)
-        {
-            void* memPtr;
-            buffer.Ensure(1024);
-            buffer.Memory.TryGetPointer(out memPtr);
-            var result = InteropBio.BIO_read(bio, memPtr, buffer.Memory.Length);
-
-            while (result > 0)
-            {
-                buffer.Advance(result);
-                buffer.Ensure(1024);
-
-                buffer.Memory.TryGetPointer(out memPtr);
-                result = InteropBio.BIO_read(bio, memPtr, buffer.Memory.Length);
-            }
-        }
-
+        
         public void Dispose()
         {
             _readBio.FreeBio();

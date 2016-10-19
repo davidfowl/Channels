@@ -8,23 +8,44 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
 {
     internal unsafe static class InteropBio
     {
-        [DllImport(InteropCrypto.CryptoDll, CallingConvention = CallingConvention.Cdecl)]
-        private extern static BioHandle BIO_new_file(string filename, string mode);
-        public static BioHandle BIO_new_file_write(string fileName) => BIO_new_file(fileName, "w");
-        public static BioHandle BIO_new_file_read(string fileName) => BIO_new_file(fileName, "r");
+        private static readonly bool IsWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
 
-        [DllImport(InteropCrypto.CryptoDll, CallingConvention = CallingConvention.Cdecl)]
-        public extern static int BIO_write(BioHandle b, void* buf, int len);
-        [DllImport(InteropCrypto.CryptoDll, CallingConvention = CallingConvention.Cdecl)]
-        public extern static int BIO_read(BioHandle b, void* buf, int len);
+        private static class UnixLib
+        {
+            public const string CryptoDll = "libcrypto.so";
+            [DllImport(CryptoDll, CallingConvention = CallingConvention.Cdecl)]
+            public extern static BioHandle BIO_new_file(string filename, string mode);
+            [DllImport(CryptoDll, CallingConvention = CallingConvention.Cdecl)]
+            public extern static BioHandle BIO_new(IntPtr type);
+            [DllImport(CryptoDll, CallingConvention = CallingConvention.Cdecl)]
+            public extern static void BIO_free(IntPtr bio);
+        }
 
-        [DllImport(InteropCrypto.CryptoDll, CallingConvention = CallingConvention.Cdecl)]
-        public extern static BioHandle BIO_new(IntPtr type);
-        [DllImport(InteropCrypto.CryptoDll, CallingConvention = CallingConvention.Cdecl)]
-        public extern static void BIO_free(IntPtr bio);
+        private static class WindowsLib
+        {
+            public const string CryptoDll = "libeay32.dll";
+            [DllImport(CryptoDll, CallingConvention = CallingConvention.Cdecl)]
+            public extern static BioHandle BIO_new_file(string filename, string mode);
+            [DllImport(CryptoDll, CallingConvention = CallingConvention.Cdecl)]
+            public extern static BioHandle BIO_new(IntPtr type);
+            [DllImport(CryptoDll, CallingConvention = CallingConvention.Cdecl)]
+            public extern static void BIO_free(IntPtr bio);
+        }
 
-        [DllImport(InteropCrypto.CryptoDll, CallingConvention = CallingConvention.Cdecl)]
-        public extern static IntPtr BIO_s_mem();
+        public static BioHandle BIO_new_file_write(string fileName) => IsWindows ? WindowsLib.BIO_new_file(fileName, "w") : UnixLib.BIO_new_file(fileName, "w");
+        public static BioHandle BIO_new_file_read(string fileName) => IsWindows ? WindowsLib.BIO_new_file(fileName, "r") : UnixLib.BIO_new_file(fileName, "r");
+        public static BioHandle BIO_new(IntPtr type) => IsWindows ? WindowsLib.BIO_new(type) : UnixLib.BIO_new(type);
+        public static void BIO_free(IntPtr bio)
+        {
+            if (IsWindows)
+            {
+                WindowsLib.BIO_free(bio);
+            }
+            else
+            {
+                UnixLib.BIO_free(bio);
+            }
+        }
 
         [StructLayout(LayoutKind.Sequential)]
         public struct BioHandle

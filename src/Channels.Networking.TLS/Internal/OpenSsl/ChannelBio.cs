@@ -16,7 +16,7 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
         static readonly Write _write;
         static readonly Read _read;
         static readonly Control _control;
-        
+
         static ChannelBio()
         {
             _create = CreateBio;
@@ -48,8 +48,31 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         private delegate long Control(ref bio_st bio, BioControl cmd, long num, void* ptr);
 
-        [DllImport(InteropCrypto.CryptoDll, CallingConvention = CallingConvention.Cdecl)]
-        private extern static void BIO_set_flags(ref bio_st bio, BioFlags flags);
+        private static class WindowsLib
+        {
+            public const string CryptoDll = "libeay32.dll";
+            [DllImport(CryptoDll, CallingConvention = CallingConvention.Cdecl)]
+            public extern static void BIO_set_flags(ref bio_st bio, BioFlags flags);
+        }
+
+        private static class UnixLib
+        {
+            public const string CryptoDll = "libcrypto.so";
+            [DllImport(CryptoDll, CallingConvention = CallingConvention.Cdecl)]
+            public extern static void BIO_set_flags(ref bio_st bio, BioFlags flags);
+        }
+
+        private static void BIO_set_flags(ref bio_st bio, BioFlags flags)
+        {
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                WindowsLib.BIO_set_flags(ref bio, flags);
+            }
+            else
+            {
+                UnixLib.BIO_set_flags(ref bio, flags);
+            }
+        }
 
         static int CreateBio(ref bio_st bio)
         {
@@ -82,7 +105,9 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
             {
                 bio.num = 0;
                 if (numberOfBytes > 0)
+                {
                     BIO_set_flags(ref bio, BioFlags.BIO_FLAGS_READ | BioFlags.BIO_FLAGS_SHOULD_RETRY);
+                }
                 return -1;
             }
             if (numberOfBytes == 0)
@@ -121,7 +146,7 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
             }
             return 0;
         }
-        
+
         [StructLayout(LayoutKind.Sequential)]
         private struct bio_method_st
         {

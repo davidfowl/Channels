@@ -18,8 +18,8 @@ namespace Channels.Networking.TLS
         private InteropKeys.PK12Certifcate _certifcateInformation;
         private byte[] _alpnSupportedProtocolsBuffer;
         private GCHandle _alpnHandle;
-        private IntPtr _sslContext;
-        private Interop.alpn_cb _alpnCallback;
+        internal IntPtr _sslContext;
+        internal Interop.alpn_cb _alpnCallback;
         private ApplicationProtocols.ProtocolIds _alpnSupportedProtocols;
 
         public OpenSslSecurityContext(ChannelFactory channelFactory, string hostName, bool isServer, string pathToPfxFile, string password)
@@ -35,9 +35,7 @@ namespace Channels.Networking.TLS
             }
 
             InteropCrypto.Init();
-            InteropCrypto.OPENSSL_add_all_algorithms_noconf();
-            InteropCrypto.CheckForErrorOrThrow(Interop.SSL_library_init());
-            
+                       
             _channelFactory = channelFactory;
             _isServer = isServer;
             _alpnSupportedProtocols = alpnSupportedProtocols;
@@ -74,7 +72,7 @@ namespace Channels.Networking.TLS
                 if (_isServer)
                 {
                     _alpnCallback = alpn_cb;
-                    Interop.SSL_CTX_set_alpn_select_cb(_sslContext, _alpnCallback, IntPtr.Zero);
+                    Interop.SSL_CTX_set_alpn_select_cb(this);
                 }
             }
         }
@@ -109,25 +107,16 @@ namespace Channels.Networking.TLS
         {
             if (_isServer)
             {
-                _sslContext = Interop.NewServerContext();
+                _sslContext = Interop.NewServerContext(Interop.VerifyMode.SSL_VERIFY_NONE);
             }
             else
             {
-                _sslContext = Interop.NewClientContext();
+                _sslContext = Interop.NewClientContext(Interop.VerifyMode.SSL_VERIFY_NONE);
             }
-            Interop.SSL_CTX_set_options(_sslContext, Interop.ContextOptions.SSL_OP_NO_SSLv2 | Interop.ContextOptions.SSL_OP_NO_SSLv3);
-            Interop.SSL_CTX_set_verify(_sslContext, Interop.VerifyMode.SSL_VERIFY_NONE, IntPtr.Zero);
-
+            
             if (_certifcateInformation.Handle != IntPtr.Zero)
             {
-                if (_certifcateInformation.CertificateHandle != IntPtr.Zero)
-                {
-                    InteropCrypto.CheckForErrorOrThrow(Interop.SSL_CTX_use_certificate(_sslContext, _certifcateInformation.CertificateHandle));
-                }
-                if (_certifcateInformation.PrivateKeyHandle != IntPtr.Zero)
-                {
-                    InteropCrypto.CheckForErrorOrThrow(Interop.SSL_CTX_use_PrivateKey(_sslContext, _certifcateInformation.PrivateKeyHandle));
-                }
+                Interop.SetKeys(_sslContext, _certifcateInformation.CertificateHandle, _certifcateInformation.PrivateKeyHandle);
             }
         }
 

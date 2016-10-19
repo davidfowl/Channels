@@ -8,14 +8,13 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
 {
     internal unsafe static class InteropCrypto
     {
-        public const string CryptoDll = "libeay32.dll";
-
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         public delegate void locking_function(LockState mode, int threadNumber, byte* file, int line);
 
         private static class WindowsLib
         {
             public const string CryptoDll = "libeay32.dll";
+            public const string SslDll = "ssleay32.dll";
             [DllImport(CryptoDll, CallingConvention = CallingConvention.Cdecl)]
             public extern static void CRYPTO_set_locking_callback(locking_function lockingFunction);
             [DllImport(CryptoDll, CallingConvention = CallingConvention.Cdecl)]
@@ -24,14 +23,27 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
             public extern static void ERR_load_crypto_strings();
             [DllImport(CryptoDll, CallingConvention = CallingConvention.Cdecl)]
             public extern static void CRYPTO_free(void* pointer);
-
             [DllImport(CryptoDll, CallingConvention = CallingConvention.Cdecl)]
             public extern static int CRYPTO_num_locks();
+            [DllImport(SslDll, CallingConvention = CallingConvention.Cdecl)]
+            public extern static void SSL_load_error_strings();
+            [DllImport(SslDll, CallingConvention = CallingConvention.Cdecl)]
+            public extern static int SSL_library_init();
+
+            public static void Init()
+            {
+                CRYPTO_set_locking_callback(LockStore.Callback);
+                ERR_load_crypto_strings();
+                SSL_load_error_strings();
+                OPENSSL_add_all_algorithms_noconf();
+                CheckForErrorOrThrow(SSL_library_init());
+            }
         }
 
         private static class UnixLib
         {
             public const string CryptoDll = "libcrypto.so";
+            public const string SslDll = "libssl.so";
             [DllImport(CryptoDll, CallingConvention = CallingConvention.Cdecl)]
             public extern static void CRYPTO_set_locking_callback(locking_function lockingFunction);
             [DllImport(CryptoDll, CallingConvention = CallingConvention.Cdecl)]
@@ -40,9 +52,21 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
             public extern static void ERR_load_crypto_strings();
             [DllImport(CryptoDll, CallingConvention = CallingConvention.Cdecl)]
             public extern static void CRYPTO_free(void* pointer);
-
             [DllImport(CryptoDll, CallingConvention = CallingConvention.Cdecl)]
             public extern static int CRYPTO_num_locks();
+            [DllImport(SslDll, CallingConvention = CallingConvention.Cdecl)]
+            public extern static void SSL_load_error_strings();
+            [DllImport(SslDll, CallingConvention = CallingConvention.Cdecl)]
+            public extern static int SSL_library_init();
+
+            public static void Init()
+            {
+                CRYPTO_set_locking_callback(LockStore.Callback);
+                ERR_load_crypto_strings();
+                SSL_load_error_strings();
+                OPENSSL_add_all_algorithms_noconf();
+                CheckForErrorOrThrow(SSL_library_init());
+            }
         }
 
         public static int CRYPTO_num_locks()
@@ -54,40 +78,6 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
             else
             {
                 return UnixLib.CRYPTO_num_locks();
-            }
-        }
-
-        public static void CRYPTO_set_locking_callback(locking_function lockingFunction)
-        {
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                WindowsLib.CRYPTO_set_locking_callback(lockingFunction);
-            }
-            else
-            {
-                UnixLib.CRYPTO_set_locking_callback(lockingFunction);
-            }
-        }
-        public static void OPENSSL_add_all_algorithms_noconf()
-        {
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                WindowsLib.OPENSSL_add_all_algorithms_noconf();
-            }
-            else
-            {
-                UnixLib.OPENSSL_add_all_algorithms_noconf();
-            }
-        }
-        public static void ERR_load_crypto_strings()
-        {
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-            {
-                WindowsLib.ERR_load_crypto_strings();
-            }
-            else
-            {
-                UnixLib.ERR_load_crypto_strings();
             }
         }
         public static void CRYPTO_free(void* pointer)
@@ -121,9 +111,14 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
 
         public static void Init()
         {
-            CRYPTO_set_locking_callback(LockStore.Callback);
-            ERR_load_crypto_strings();
-            Interop.SSL_load_error_strings();
+            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                WindowsLib.Init();
+            }
+            else
+            {
+                UnixLib.Init();
+            }
         }
     }
 }

@@ -8,12 +8,43 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
 {
     internal static class InteropKeys
     {
-        [DllImport(InteropCrypto.CryptoDll, CallingConvention = CallingConvention.Cdecl)]
-        private extern static int PKCS12_parse(IntPtr p12, string password, out IntPtr privateKey, out IntPtr certificate, out IntPtr ca);
-        [DllImport(InteropCrypto.CryptoDll, CallingConvention = CallingConvention.Cdecl)]
-        private extern static void PKCS12_free(IntPtr p12);
-        [DllImport(InteropCrypto.CryptoDll, CallingConvention = CallingConvention.Cdecl)]
-        private extern static IntPtr d2i_PKCS12_bio(InteropBio.BioHandle inputBio, IntPtr p12);
+        private static class WindowsLib
+        {
+            public const string CryptoDll = "libeay32.dll";
+            [DllImport(CryptoDll, CallingConvention = CallingConvention.Cdecl)]
+            public extern static int PKCS12_parse(IntPtr p12, string password, out IntPtr privateKey, out IntPtr certificate, out IntPtr ca);
+            [DllImport(CryptoDll, CallingConvention = CallingConvention.Cdecl)]
+            public extern static void PKCS12_free(IntPtr p12);
+            [DllImport(CryptoDll, CallingConvention = CallingConvention.Cdecl)]
+            public extern static IntPtr d2i_PKCS12_bio(InteropBio.BioHandle inputBio, IntPtr p12);
+        }
+
+        private static class UnixLib
+        {
+            public const string CryptoDll = "libcrypto.so";
+            [DllImport(CryptoDll, CallingConvention = CallingConvention.Cdecl)]
+            public extern static int PKCS12_parse(IntPtr p12, string password, out IntPtr privateKey, out IntPtr certificate, out IntPtr ca);
+            [DllImport(CryptoDll, CallingConvention = CallingConvention.Cdecl)]
+            public extern static void PKCS12_free(IntPtr p12);
+            [DllImport(CryptoDll, CallingConvention = CallingConvention.Cdecl)]
+            public extern static IntPtr d2i_PKCS12_bio(InteropBio.BioHandle inputBio, IntPtr p12);
+        }
+
+        private static readonly bool IsWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+
+        private static int PKCS12_parse(IntPtr p12, string password, out IntPtr privateKey, out IntPtr certificate, out IntPtr ca) => IsWindows ? WindowsLib.PKCS12_parse(p12, password, out privateKey, out certificate, out ca) : UnixLib.PKCS12_parse(p12, password, out privateKey, out certificate, out ca);
+        private static IntPtr d2i_PKCS12_bio(InteropBio.BioHandle inputBio, IntPtr p12) => IsWindows ? WindowsLib.d2i_PKCS12_bio(inputBio, p12) : UnixLib.d2i_PKCS12_bio(inputBio, p12);
+        private static void PKCS12_free(IntPtr p12)
+        {
+            if (IsWindows)
+            {
+                WindowsLib.PKCS12_free(p12);
+            }
+            else
+            {
+                UnixLib.PKCS12_free(p12);
+            }
+        }
 
         public struct PK12Certifcate
         {
