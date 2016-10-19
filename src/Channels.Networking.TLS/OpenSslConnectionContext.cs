@@ -25,8 +25,8 @@ namespace Channels.Networking.TLS
         {
             _ssl = ssl;
             _securityContext = securityContext;
-            _writeBio = InteropBio.BIO_new(ChannelBio.custom());
-            _readBio = InteropBio.BIO_new(ChannelBio.custom());
+            _writeBio = InteropBio.BIO_new(ChannelBio.Custom());
+            _readBio = InteropBio.BIO_new(ChannelBio.Custom());
             //_readBio = InteropBio.BIO_new(InteropBio.BIO_s_mem());
             Interop.SSL_set_bio(_ssl, _readBio, _writeBio);
             if (IsServer)

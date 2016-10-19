@@ -69,11 +69,44 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
             }
         }
 
+        private static class OsxLib
+        {
+            public const string CryptoDll = "libcrypto.dylib";
+            public const string SslDll = "libssl.dylib";
+            [DllImport(CryptoDll, CallingConvention = CallingConvention.Cdecl)]
+            public extern static void CRYPTO_set_locking_callback(locking_function lockingFunction);
+            [DllImport(CryptoDll, CallingConvention = CallingConvention.Cdecl)]
+            public extern static void OPENSSL_add_all_algorithms_noconf();
+            [DllImport(CryptoDll, CallingConvention = CallingConvention.Cdecl)]
+            public extern static void ERR_load_crypto_strings();
+            [DllImport(CryptoDll, CallingConvention = CallingConvention.Cdecl)]
+            public extern static void CRYPTO_free(void* pointer);
+            [DllImport(CryptoDll, CallingConvention = CallingConvention.Cdecl)]
+            public extern static int CRYPTO_num_locks();
+            [DllImport(SslDll, CallingConvention = CallingConvention.Cdecl)]
+            public extern static void SSL_load_error_strings();
+            [DllImport(SslDll, CallingConvention = CallingConvention.Cdecl)]
+            public extern static int SSL_library_init();
+
+            public static void Init()
+            {
+                CRYPTO_set_locking_callback(LockStore.Callback);
+                ERR_load_crypto_strings();
+                SSL_load_error_strings();
+                OPENSSL_add_all_algorithms_noconf();
+                CheckForErrorOrThrow(SSL_library_init());
+            }
+        }
+
         public static int CRYPTO_num_locks()
         {
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            if (Interop.IsWindows)
             {
                 return WindowsLib.CRYPTO_num_locks();
+            }
+            else if (Interop.IsOsx)
+            {
+                return OsxLib.CRYPTO_num_locks();
             }
             else
             {
@@ -82,9 +115,13 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
         }
         public static void CRYPTO_free(void* pointer)
         {
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            if (Interop.IsWindows)
             {
                 WindowsLib.CRYPTO_free(pointer);
+            }
+            else if (Interop.IsOsx)
+            {
+                OsxLib.CRYPTO_free(pointer);
             }
             else
             {
@@ -111,9 +148,13 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
 
         public static void Init()
         {
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            if (Interop.IsWindows)
             {
                 WindowsLib.Init();
+            }
+            else if (Interop.IsOsx)
+            {
+                OsxLib.Init();
             }
             else
             {

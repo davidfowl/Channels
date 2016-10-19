@@ -30,15 +30,28 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
             public extern static IntPtr d2i_PKCS12_bio(InteropBio.BioHandle inputBio, IntPtr p12);
         }
 
-        private static readonly bool IsWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+        private static class OsxLib
+        {
+            public const string CryptoDll = "libcrypto.dylib";
+            [DllImport(CryptoDll, CallingConvention = CallingConvention.Cdecl)]
+            public extern static int PKCS12_parse(IntPtr p12, string password, out IntPtr privateKey, out IntPtr certificate, out IntPtr ca);
+            [DllImport(CryptoDll, CallingConvention = CallingConvention.Cdecl)]
+            public extern static void PKCS12_free(IntPtr p12);
+            [DllImport(CryptoDll, CallingConvention = CallingConvention.Cdecl)]
+            public extern static IntPtr d2i_PKCS12_bio(InteropBio.BioHandle inputBio, IntPtr p12);
+        }
 
-        private static int PKCS12_parse(IntPtr p12, string password, out IntPtr privateKey, out IntPtr certificate, out IntPtr ca) => IsWindows ? WindowsLib.PKCS12_parse(p12, password, out privateKey, out certificate, out ca) : UnixLib.PKCS12_parse(p12, password, out privateKey, out certificate, out ca);
-        private static IntPtr d2i_PKCS12_bio(InteropBio.BioHandle inputBio, IntPtr p12) => IsWindows ? WindowsLib.d2i_PKCS12_bio(inputBio, p12) : UnixLib.d2i_PKCS12_bio(inputBio, p12);
+        private static int PKCS12_parse(IntPtr p12, string password, out IntPtr privateKey, out IntPtr certificate, out IntPtr ca) => Interop.IsWindows ? WindowsLib.PKCS12_parse(p12, password, out privateKey, out certificate, out ca) : Interop.IsOsx ? OsxLib.PKCS12_parse(p12, password, out privateKey, out certificate, out ca) : UnixLib.PKCS12_parse(p12, password, out privateKey, out certificate, out ca);
+        private static IntPtr d2i_PKCS12_bio(InteropBio.BioHandle inputBio, IntPtr p12) => Interop.IsWindows ? WindowsLib.d2i_PKCS12_bio(inputBio, p12) : Interop.IsOsx ? OsxLib.d2i_PKCS12_bio(inputBio, p12) : UnixLib.d2i_PKCS12_bio(inputBio, p12);
         private static void PKCS12_free(IntPtr p12)
         {
-            if (IsWindows)
+            if (Interop.IsWindows)
             {
                 WindowsLib.PKCS12_free(p12);
+            }
+            else if (Interop.IsOsx)
+            {
+                OsxLib.PKCS12_free(p12);
             }
             else
             {

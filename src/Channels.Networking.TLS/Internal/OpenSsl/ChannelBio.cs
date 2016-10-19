@@ -41,7 +41,7 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
             Marshal.StructureToPtr(_methodStruct, _methodPtr, false);
         }
 
-        public static IntPtr custom() => _methodPtr;
+        public static IntPtr Custom() => _methodPtr;
 
         [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
         private delegate int Create(ref bio_st bio);
@@ -67,12 +67,22 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
             [DllImport(CryptoDll, CallingConvention = CallingConvention.Cdecl)]
             public extern static void BIO_set_flags(ref bio_st bio, BioFlags flags);
         }
-        
+        private static class OsxLib
+        {
+            public const string CryptoDll = "libcrypto.dylib";
+            [DllImport(CryptoDll, CallingConvention = CallingConvention.Cdecl)]
+            public extern static void BIO_set_flags(ref bio_st bio, BioFlags flags);
+        }
+
         private static void BIO_set_flags(ref bio_st bio, BioFlags flags)
         {
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            if (Interop.IsWindows)
             {
                 WindowsLib.BIO_set_flags(ref bio, flags);
+            }
+            else if (Interop.IsOsx)
+            {
+                OsxLib.BIO_set_flags(ref bio, flags);
             }
             else
             {
