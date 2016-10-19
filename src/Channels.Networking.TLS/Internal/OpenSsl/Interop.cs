@@ -13,7 +13,7 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
 
         private static class OsxLib
         {
-            public const string SslDll = "libssl.dylib";
+            public const string SslDll = "libssl.1.0.0.dylib";
             [DllImport(SslDll, CallingConvention = CallingConvention.Cdecl)]
             public extern static int SSL_CTX_use_PrivateKey(IntPtr ctx, IntPtr pkey);
             [DllImport(SslDll, CallingConvention = CallingConvention.Cdecl)]

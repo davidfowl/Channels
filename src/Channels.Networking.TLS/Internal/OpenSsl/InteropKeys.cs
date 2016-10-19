@@ -32,7 +32,7 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
 
         private static class OsxLib
         {
-            public const string CryptoDll = "libcrypto.dylib";
+            public const string CryptoDll = "libcrypto.1.0.0.dylib";
             [DllImport(CryptoDll, CallingConvention = CallingConvention.Cdecl)]
             public extern static int PKCS12_parse(IntPtr p12, string password, out IntPtr privateKey, out IntPtr certificate, out IntPtr ca);
             [DllImport(CryptoDll, CallingConvention = CallingConvention.Cdecl)]

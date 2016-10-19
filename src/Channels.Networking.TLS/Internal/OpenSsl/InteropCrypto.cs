@@ -71,8 +71,8 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
 
         private static class OsxLib
         {
-            public const string CryptoDll = "libcrypto.dylib";
-            public const string SslDll = "libssl.dylib";
+            public const string CryptoDll = "libcrypto.1.0.0.dylib";
+            public const string SslDll = "libssl.1.0.0.dylib";
             [DllImport(CryptoDll, CallingConvention = CallingConvention.Cdecl)]
             public extern static void CRYPTO_set_locking_callback(locking_function lockingFunction);
             [DllImport(CryptoDll, CallingConvention = CallingConvention.Cdecl)]

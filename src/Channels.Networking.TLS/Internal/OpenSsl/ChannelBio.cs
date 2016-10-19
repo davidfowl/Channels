@@ -69,7 +69,7 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
         }
         private static class OsxLib
         {
-            public const string CryptoDll = "libcrypto.dylib";
+            public const string CryptoDll = "libcrypto.1.0.0.dylib";
             [DllImport(CryptoDll, CallingConvention = CallingConvention.Cdecl)]
             public extern static void BIO_set_flags(ref bio_st bio, BioFlags flags);
         }
