@@ -42,6 +42,18 @@ namespace Channels.Networking.TLS.Internal.Sspi
         public CredentialFlags dwFlags;
         public int reserved;
     }
+    
+    [StructLayout(LayoutKind.Sequential)]
+    internal struct _SecPkgContext_ConnectionInfo
+    {
+        public int dwProtocol;
+        public AlgId aiCipher;
+        public int dwCipherStrength;
+        public AlgId aiHash;
+        public int dwHashStrength;
+        public AlgId aiExch;
+        public int dwExchStrength;
+    }
 
     internal unsafe struct _SecPkgContext_KeyInfo
     {

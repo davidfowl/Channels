@@ -13,7 +13,7 @@ namespace Channels.Networking.TLS
         private Channel _inputChannel;
         private readonly T _contextToDispose;
         private TaskCompletionSource<ApplicationProtocols.ProtocolIds> _handShakeCompleted;
-
+        
         internal SecureChannel(IChannel inChannel, ChannelFactory channelFactory, T secureContext)
         {
             _contextToDispose = secureContext;
@@ -25,6 +25,7 @@ namespace Channels.Networking.TLS
 
         public IReadableChannel Input => _outputChannel;
         public IWritableChannel Output => _inputChannel;
+        public CipherInfo CipherInfo => _contextToDispose.CipherInfo;
 
         public Task<ApplicationProtocols.ProtocolIds> HandShakeAsync()
         {

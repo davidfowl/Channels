@@ -42,7 +42,7 @@ namespace Channels.Tests
         }
 
         [WindowsOnlyFact()]
-        public async Task OpenSslAsServerAplnMatchingProtocol()
+        public async Task OpenSslAsServerSspiAsClientAplnMatchingProtocol()
         {
             using (X509Certificate cert = new X509Certificate(_certificatePath, _certificatePassword))
             using (ChannelFactory factory = new ChannelFactory())
@@ -60,7 +60,7 @@ namespace Channels.Tests
         }
 
         [WindowsOnlyFact()]
-        public async Task OpenSslAsClientAplnMatchingProtocol()
+        public async Task SspiAsServerOpenSslAsClientAplnMatchingProtocol()
         {
             using (X509Certificate cert = new X509Certificate(_certificatePath, _certificatePassword))
             using (ChannelFactory factory = new ChannelFactory())
@@ -106,7 +106,7 @@ namespace Channels.Tests
                 Assert.Equal(_shortTestString, resultString);
             }
         }
-        
+
         [Fact]
         public async Task OpenSslChannelAllTheThings()
         {
@@ -118,6 +118,7 @@ namespace Channels.Tests
                 var loopback = new LoopbackChannel(factory);
                 Echo(serverContext.CreateSecureChannel(loopback.ServerChannel));
                 var client = clientContext.CreateSecureChannel(loopback.ClientChannel);
+                await client.HandShakeAsync();
                 var outputBuffer = client.Output.Alloc();
                 outputBuffer.WriteUtf8String(_shortTestString);
                 await outputBuffer.FlushAsync();
@@ -152,6 +153,7 @@ namespace Channels.Tests
 
                 using (var client = clientContext.CreateSecureChannel(loopback.ClientChannel))
                 {
+                    await client.HandShakeAsync();
                     var outputBuffer = client.Output.Alloc();
                     outputBuffer.WriteUtf8String(_shortTestString);
                     await outputBuffer.FlushAsync();
@@ -175,13 +177,69 @@ namespace Channels.Tests
         }
 
         [WindowsOnlyFact()]
-        public async Task SspiServerChannelStreamClient()
+        public async Task SspiChannelServerStreamClient()
         {
-            var ip = new IPEndPoint(IPAddress.Loopback, 5023);
-
             using (var channelFactory = new ChannelFactory())
             using (var cert = new X509Certificate(_certificatePath, _certificatePassword))
             using (var secContext = new SecurityContext(channelFactory, "CARoot", true, cert))
+            {
+                var loopback = new LoopbackChannel(channelFactory);
+                Echo(secContext.CreateSecureChannel(loopback.ServerChannel));
+                SslStream sslStream = new SslStream(loopback.ClientChannel.GetStream(), false, ValidateServerCertificate, null, EncryptionPolicy.RequireEncryption);
+                await sslStream.AuthenticateAsClientAsync("CARoot");
+                                
+                byte[] messsage = Encoding.UTF8.GetBytes(_shortTestString);
+                sslStream.Write(messsage);
+                sslStream.Flush();
+                // Read message from the server.
+                string serverMessage = ReadMessageFromStream(sslStream);
+                Assert.Equal(_shortTestString, serverMessage);
+            }
+        }
+
+        [WindowsOnlyFact()]
+        public async Task SspiStreamServerChannelClient()
+        {
+            using (var cert = new X509Certificate(_certificatePath, _certificatePassword))
+            using (ChannelFactory factory = new ChannelFactory())
+            using (var clientContext = new SecurityContext(factory, "CARoot", false, null))
+            {
+                var loopback = new LoopbackChannel(factory);
+                var secureServer = new SslStream(loopback.ServerChannel.GetStream(), false);
+                secureServer.AuthenticateAsServerAsync(cert, false, System.Security.Authentication.SslProtocols.Tls, false);
+                var client = clientContext.CreateSecureChannel(loopback.ClientChannel);
+                await client.HandShakeAsync();
+
+                var buff = client.Output.Alloc();
+                buff.WriteUtf8String(_shortTestString);
+                await buff.FlushAsync();
+
+                //Check that the server actually got it
+                var tempBuff = new byte[_shortTestString.Length];
+                int totalRead = 0;
+                while (true)
+                {
+                    int numberOfBytes = secureServer.Read(tempBuff, totalRead, _shortTestString.Length - totalRead);
+                    if (numberOfBytes == -1)
+                    {
+                        break;
+                    }
+                    totalRead += numberOfBytes;
+                    if (totalRead >= _shortTestString.Length)
+                    {
+                        break;
+                    }
+                }
+                Assert.Equal(_shortTestString, UTF8Encoding.UTF8.GetString(tempBuff));
+            }
+        }
+
+        [Fact]
+        public async Task OpenSslChannelServerStreamClient()
+        {
+            using (var channelFactory = new ChannelFactory())
+            using (var cert = new X509Certificate(_certificatePath, _certificatePassword))
+            using (var secContext = new OpenSslSecurityContext(channelFactory, "CARoot", true, _certificatePath, _certificatePassword))
             {
                 var loopback = new LoopbackChannel(channelFactory);
                 Echo(secContext.CreateSecureChannel(loopback.ServerChannel));
@@ -196,15 +254,14 @@ namespace Channels.Tests
             }
         }
 
-        [WindowsOnlyFact()]
-        public async Task SspiStreamServerChannelClient()
+        [Fact]
+        public async Task OpenSslStreamServerChannelClient()
         {
-            var ip = new IPEndPoint(IPAddress.Loopback, 5024);
             using (var cert = new X509Certificate(_certificatePath, _certificatePassword))
-            using (ChannelFactory factory = new ChannelFactory())
-            using (var clientContext = new SecurityContext(factory, "CARoot", false, null))
+            using (ChannelFactory channelFactory = new ChannelFactory())
+            using (var clientContext = new OpenSslSecurityContext(channelFactory, "CARoot", false, _certificatePath, _certificatePassword))
             {
-                var loopback = new LoopbackChannel(factory);
+                var loopback = new LoopbackChannel(channelFactory);
                 var secureServer = new SslStream(loopback.ServerChannel.GetStream(), false);
                 secureServer.AuthenticateAsServerAsync(cert, false, System.Security.Authentication.SslProtocols.Tls, false);
                 var client = clientContext.CreateSecureChannel(loopback.ClientChannel);

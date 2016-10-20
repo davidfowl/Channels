@@ -5,9 +5,9 @@ using System.Threading.Tasks;
 
 namespace Channels.Networking.TLS
 {
-    public interface ISecureChannel : IChannel
+    public struct CipherInfo
     {
-        Task<ApplicationProtocols.ProtocolIds> HandShakeAsync();
-        CipherInfo CipherInfo { get; }
+        public string Name;
+        public int Bits;
     }
 }

@@ -40,7 +40,7 @@ namespace Channels.Tests.Performance
     {
         Streams = 1,
         // add new ones in powers of two - e.g. 2,4,8,16...
-
+        OpenSsl = 2,
         All = uint.MaxValue
     }
 

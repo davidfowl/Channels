@@ -14,5 +14,6 @@ namespace Channels.Networking.TLS
         void Decrypt(ReadableBuffer encryptedData, ref WritableBuffer decryptedData);
         void Encrypt(ReadableBuffer unencrypted, ref WritableBuffer encryptedData);
         bool IsServer { get; }
+        CipherInfo CipherInfo { get; }
     }
 }

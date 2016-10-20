@@ -25,6 +25,18 @@ namespace Channels.Networking.TLS.Internal.Sspi
         [DllImport(Dll, ExactSpelling = true, SetLastError = true)]
         internal unsafe static extern SecurityStatus AcceptSecurityContext(ref SSPIHandle credentialHandle, [In] void* inContextPtr, SecurityBufferDescriptor* inputBuffer, [In] ContextFlags inFlags, [In] Endianness endianness, [In, Out] void* newContextPtr, SecurityBufferDescriptor* outputBuffer, [In, Out] ref ContextFlags attributes, out long timeStamp);
 
+        internal static CipherInfo GetCipherInfo(SSPIHandle _contextPointer)
+        {
+            _SecPkgContext_ConnectionInfo connInfo;
+            QueryContextAttributesW(ref _contextPointer, ContextAttribute.ConnectionInfo, out connInfo);
+            var returnValue = new CipherInfo()
+            {
+                Bits = connInfo.dwCipherStrength,
+                Name = $"{connInfo.aiCipher}-{connInfo.dwHashStrength}"
+            };
+            return returnValue;
+        }
+
         [DllImport(Dll, ExactSpelling = true, SetLastError = true)]
         internal static unsafe extern SecurityStatus DecryptMessage([In] ref SSPIHandle contextHandle, [In, Out] SecurityBufferDescriptor inputOutput, [In] uint sequenceNumber, uint* qualityOfProtection);
 
@@ -42,6 +54,9 @@ namespace Channels.Networking.TLS.Internal.Sspi
 
         [DllImport(Dll, ExactSpelling = true, SetLastError = true, CharSet = CharSet.Unicode)]
         internal static extern int QueryContextAttributesW(ref SSPIHandle phContext, [In] ContextAttribute contextFlag, [Out] out SessionKey sessionKey);
+
+        [DllImport(Dll, ExactSpelling = true, SetLastError = true, CharSet = CharSet.Unicode)]
+        internal static extern int QueryContextAttributesW(ref SSPIHandle phContext, [In] ContextAttribute contextFlag, [Out] out _SecPkgContext_ConnectionInfo connectionInfo);
 
         [DllImport(Dll, ExactSpelling = true, SetLastError = true)]
         internal unsafe static extern SecurityStatus InitializeSecurityContextW(ref SSPIHandle credentialHandle, [In] void* inContextPtr, [In] string targetName, [In] ContextFlags inFlags, [In] int reservedI, [In] Endianness endianness, SecurityBufferDescriptor* inputBuffer, [In] int reservedII, [In, Out] void* newContextPtr, SecurityBufferDescriptor* outputBuffer, [In, Out] ref ContextFlags attributes, out long timeStamp);

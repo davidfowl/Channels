@@ -27,7 +27,7 @@ namespace Channels.Networking.TLS
             _securityContext = securityContext;
             _writeBio = InteropBio.BIO_new(ChannelBio.Custom());
             _readBio = InteropBio.BIO_new(ChannelBio.Custom());
-            //_readBio = InteropBio.BIO_new(InteropBio.BIO_s_mem());
+            
             Interop.SSL_set_bio(_ssl, _readBio, _writeBio);
             if (IsServer)
             {
@@ -42,9 +42,9 @@ namespace Channels.Networking.TLS
         public bool IsServer => _securityContext.IsServer;
         public int HeaderSize { get { return _headerSize; } set { _headerSize = value; } }
         public int TrailerSize { get { return _trailerSize; } set { _trailerSize = value; } }
-        //Not implemented yet!!
         public ApplicationProtocols.ProtocolIds NegotiatedProtocol => _negotiatedProtocol;
         public bool ReadyToSend => _readyToSend;
+        public CipherInfo CipherInfo => _ssl != IntPtr.Zero ? Interop.GetCipherInfo(_ssl) : default(CipherInfo);
 
         public unsafe void Decrypt(ReadableBuffer encryptedData, ref WritableBuffer decryptedData)
         {
