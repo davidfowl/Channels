@@ -317,6 +317,10 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
             {
                 WindowsLib.SSL_set_connect_state(ssl);
             }
+            else if(IsOsx)
+            {
+                OsxLib.SSL_set_connect_state(ssl);
+            }
             else
             {
                 UnixLib.SSL_set_connect_state(ssl);
@@ -327,6 +331,10 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
             if (IsWindows)
             {
                 WindowsLib.SSL_set_accept_state(ssl);
+            }
+            else if(IsOsx)
+            {
+                OsxLib.SSL_set_accept_state(ssl);
             }
             else
             {
