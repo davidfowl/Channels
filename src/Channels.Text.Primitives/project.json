@@ -12,8 +12,8 @@
 
   "dependencies": {
     "NETStandard.Library": "1.6.0",
-    "System.Text.Formatting": "0.1.0-*",
-    "System.Text.Primitives": "0.1.0-*",
+    "System.Text.Formatting": "0.1.0-e160615-1",
+    "System.Text.Primitives": "0.1.0-e161003-1",
     "Channels": {
       "target": "project"
     }

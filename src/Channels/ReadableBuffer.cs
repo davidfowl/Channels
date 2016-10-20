@@ -501,7 +501,7 @@ namespace Channels
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.length);
             }
 
-            var buffer = new OwnedBuffer(data);
+            var buffer = new OwnedArray<byte>(data);
             var segment = new BufferSegment(buffer, offset, offset + length);
             return new ReadableBuffer(new ReadCursor(segment, offset), new ReadCursor(segment, offset + length));
         }

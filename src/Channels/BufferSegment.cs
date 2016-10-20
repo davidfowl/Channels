@@ -2,6 +2,7 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using System;
+using System.Buffers;
 using System.Text;
 
 namespace Channels
@@ -9,10 +10,12 @@ namespace Channels
     // TODO: Pool segments
     internal class BufferSegment : IDisposable
     {
+        private DisposableReservation _reservation;
+
         /// <summary>
         /// The buffer being tracked
         /// </summary>
-        public IBuffer Buffer;
+        public OwnedMemory<byte> Buffer;
 
         /// <summary>
         /// The Start represents the offset into Array where the range of "active" bytes begins. At the point when the block is leased
@@ -47,7 +50,7 @@ namespace Channels
 
 
         // Leasing ctor
-        public BufferSegment(IBuffer buffer)
+        public BufferSegment(OwnedMemory<byte> buffer)
         {
             Buffer = buffer;
             Start = 0;
@@ -55,17 +58,27 @@ namespace Channels
         }
 
         // Cloning ctor
-        internal BufferSegment(IBuffer buffer, int start, int end)
+        internal BufferSegment(OwnedMemory<byte> buffer, int start, int end)
         {
-            Buffer = buffer.Preserve(start, end - start, out start, out end);
+            // REVIEW: How do we preserve (start, end)
+            // REVIEW: How do we do copies for unowned buffers (that might have to happen from the outside)
+            Buffer = buffer;// buffer.Preserve(start, end - start, out start, out end);
             Start = start;
             End = end;
             ReadOnly = true;
+
+            _reservation = buffer.Memory.Reserve();
         }
 
         public void Dispose()
         {
-            Buffer.Dispose();
+            _reservation.Dispose();
+
+            // REVIEW: Not thread safe
+            if (Buffer.ReferenceCount == 0)
+            {
+                Buffer.Dispose();
+            }
         }
 
 
@@ -76,7 +89,7 @@ namespace Channels
         public override string ToString()
         {
             var builder = new StringBuilder();
-            var data = Buffer.Data.Slice(Start, Length).Span;
+            var data = Buffer.Memory.Span.Slice(Start, Length);
 
             for (int i = 0; i < Length; i++)
             {

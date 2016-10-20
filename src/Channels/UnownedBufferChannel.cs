@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Buffers;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
@@ -73,7 +74,7 @@ namespace Channels
         /// <returns></returns>
         public Task WriteAsync(ArraySegment<byte> buffer, CancellationToken cancellationToken)
         {
-            return WriteAsync(new UnownedBuffer(buffer), cancellationToken);
+            return WriteAsync(new OwnedArraySegment<byte>(buffer), cancellationToken);
         }
 
         /// <summary>
@@ -85,7 +86,7 @@ namespace Channels
         /// <param name="cancellationToken"></param>
         /// <returns></returns>
         // Called by the WRITER
-        public async Task WriteAsync(IBuffer buffer, CancellationToken cancellationToken)
+        public async Task WriteAsync(OwnedMemory<byte> buffer, CancellationToken cancellationToken)
         {
             // If Writing has stopped, why is the caller writing??
             if (Writing.Status != TaskStatus.WaitingForActivation)
@@ -110,7 +111,7 @@ namespace Channels
 
                 // Allocate a new segment to hold the buffer being written.
                 var segment = new BufferSegment(buffer);
-                segment.End = buffer.Data.Length;
+                segment.End = buffer.Length;
 
                 if (_head == null)
                 {
@@ -351,6 +352,37 @@ namespace Channels
             if (Writing.IsCompleted)
             {
                 Dispose();
+            }
+        }
+
+        private class OwnedArraySegment<T> : OwnedMemory<T>
+        {
+            private readonly ArraySegment<T> _segment;
+            public OwnedArraySegment(ArraySegment<T> segment)
+            {
+                _segment = segment;
+            }
+
+            protected override void DisposeCore()
+            {
+
+            }
+
+            protected override Span<T> GetSpanCore()
+            {
+                throw new NotImplementedException();
+            }
+
+            protected override bool TryGetArrayCore(out ArraySegment<T> buffer)
+            {
+                buffer = _segment;
+                return true;
+            }
+
+            protected override unsafe bool TryGetPointerCore(out void* pointer)
+            {
+                pointer = null;
+                return false;
             }
         }
     }
