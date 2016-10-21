@@ -29,7 +29,7 @@ namespace Channels
         /// </summary>
         public int BytesWritten => AsReadableBuffer().Length;
 
-        Span<byte> IOutput.Buffer => Memory;
+        Span<byte> IOutput.Buffer => Memory.Span;
 
         void IOutput.Enlarge(int desiredBufferLength) => Ensure(desiredBufferLength);
 

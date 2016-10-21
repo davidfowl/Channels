@@ -15,8 +15,6 @@ namespace Channels
         private readonly int _offset;
         private readonly int _length;
 
-        public override Memory<byte> Data { get; }
-
         /// <summary>
         /// This object cannot be instantiated outside of the static Create method
         /// </summary>
@@ -24,7 +22,6 @@ namespace Channels
         {
             _offset = offset;
             _length = length;
-            Data = new Memory<byte>(slab.Array, offset, length, (byte*)slab.NativePointer.ToPointer() + offset);
 
             Pool = pool;
             Slab = slab;
@@ -89,5 +86,27 @@ namespace Channels
         }
 
         protected override void DisposeBuffer() => Pool.Return(this);
+
+        protected override Span<byte> GetSpanCore()
+        {
+            return new Span<byte>(Slab.Array, _offset, _length);
+        }
+
+        protected override void DisposeCore()
+        {
+
+        }
+
+        protected override bool TryGetArrayCore(out ArraySegment<byte> buffer)
+        {
+            buffer = new ArraySegment<byte>(Slab.Array, _offset, _length);
+            return true;
+        }
+
+        protected override unsafe bool TryGetPointerCore(out void* pointer)
+        {
+            pointer = (byte*)Slab.NativePointer.ToPointer() + _offset;
+            return true;
+        }
     }
 }

@@ -24,7 +24,7 @@ namespace Channels
             // Fast path, try copying to the available memory directly
             if (source.Length <= buffer.Memory.Length)
             {
-                source.CopyTo(buffer.Memory);
+                source.CopyTo(buffer.Memory.Span);
                 buffer.Advance(source.Length);
                 return;
             }
@@ -43,7 +43,7 @@ namespace Channels
                     continue;
                 }
 
-                source.Slice(offset, writable).CopyTo(buffer.Memory);
+                source.Slice(offset, writable).CopyTo(buffer.Memory.Span);
 
                 remaining -= writable;
                 offset += writable;

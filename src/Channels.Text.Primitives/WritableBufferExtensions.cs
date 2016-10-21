@@ -37,7 +37,7 @@ namespace Channels.Text.Primitives
                         bytesWritten = encoding.GetBytes(s + charOffset, charsThisBatch,
                         (byte*)pointer, memory.Length);
                     }
-                    else if (memory.TryGetArray(out data))
+                    else if (memory.TryGetArray(out data, pointer))
                     {
                         bytesWritten = encoding.GetBytes(value, charOffset, charsThisBatch, data.Array, data.Offset);
                     }

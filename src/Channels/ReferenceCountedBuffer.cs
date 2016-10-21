@@ -1,24 +1,19 @@
 ﻿using System;
 using System.Buffers;
-using System.Diagnostics;
 
 namespace Channels
 {
-    public abstract class ReferenceCountedBuffer : IBuffer
+    public abstract class ReferenceCountedBuffer : OwnedMemory<byte>, IBuffer
     {
-        private object _lockObj = new object();
-        private int _referenceCount = 1;
+        private DisposableReservation _reservation;
 
-        public abstract Memory<byte> Data { get; }
+        public Memory<byte> Data => Memory;
 
         protected abstract void DisposeBuffer();
 
         public IBuffer Preserve(int offset, int count, out int newStart, out int newEnd)
         {
-            lock (_lockObj)
-            {
-                _referenceCount++;
-            }
+            _reservation = Memory.Reserve();
 
             // Ignore the offset and count, we're just going to reference count the buffer
             newStart = offset;
@@ -28,19 +23,13 @@ namespace Channels
 
         public void Dispose()
         {
-            lock (_lockObj)
+            _reservation.Dispose();
+
+            if (ReferenceCount == 0)
             {
-                Debug.Assert(_referenceCount >= 0, "Too many calls to dispose!");
+                DisposeBuffer();
 
-                _referenceCount--;
-
-                if (_referenceCount == 0)
-                {
-                    DisposeBuffer();
-
-                    // Reset the reference count after disposing this buffer
-                    _referenceCount = 1;
-                }
+                Initialize();
             }
         }
     }

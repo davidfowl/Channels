@@ -6,7 +6,7 @@ namespace Channels
     /// <summary>
     /// Represents a buffer that is owned by an external component.
     /// </summary>
-    public class UnownedBuffer : IBuffer
+    public class UnownedBuffer : OwnedMemory<byte>, IBuffer
     {
         private ArraySegment<byte> _buffer;
 
@@ -15,7 +15,7 @@ namespace Channels
             _buffer = buffer;
         }
 
-        public Memory<byte> Data => new Memory<byte>(_buffer.Array, _buffer.Offset, _buffer.Count);
+        public Memory<byte> Data => Memory;
 
         public void Dispose()
         {
@@ -30,6 +30,28 @@ namespace Channels
             newStart = 0;
             newEnd = length;
             return new OwnedBuffer(buffer);
+        }
+
+        protected override void DisposeCore()
+        {
+            
+        }
+
+        protected override Span<byte> GetSpanCore()
+        {
+            return _buffer;
+        }
+
+        protected override bool TryGetArrayCore(out ArraySegment<byte> buffer)
+        {
+            buffer = _buffer;
+            return true;
+        }
+
+        protected override unsafe bool TryGetPointerCore(out void* pointer)
+        {
+            pointer = null;
+            return false;
         }
     }
 }

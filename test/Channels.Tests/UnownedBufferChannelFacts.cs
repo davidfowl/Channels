@@ -131,7 +131,7 @@ namespace Channels.Tests
                     break;
                 }
 
-                var ch = (char)((Span<byte>)buffer.First)[0];
+                var ch = (char)buffer.First.Span[0];
                 Assert.Equal(message[index++], ch);
                 channel.Advance(buffer.Start.Seek(1));
             }
