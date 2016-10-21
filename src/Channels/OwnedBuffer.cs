@@ -23,11 +23,6 @@ namespace Channels
         /// </summary>
         public Memory<byte> Data => Memory;
 
-        void IDisposable.Dispose()
-        {
-            // No need, the GC can handle it.
-        }
-
         // We're owned, we're always "preserved"
         /// <summary>
         /// <see cref="IBuffer.Preserve(int, int, out int, out int)"/>
@@ -46,7 +41,7 @@ namespace Channels
 
         protected override void DisposeCore()
         {
-
+            // No need, the GC can handle it.
         }
 
         protected override bool TryGetArrayCore(out ArraySegment<byte> buffer)

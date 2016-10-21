@@ -17,11 +17,6 @@ namespace Channels
 
         public Memory<byte> Data => Memory;
 
-        public void Dispose()
-        {
-            // GC works
-        }
-
         public IBuffer Preserve(int offset, int length, out int newStart, out int newEnd)
         {
             // Copy to a new Owned Buffer.
@@ -34,7 +29,7 @@ namespace Channels
 
         protected override void DisposeCore()
         {
-            
+            // GC works
         }
 
         protected override Span<byte> GetSpanCore()

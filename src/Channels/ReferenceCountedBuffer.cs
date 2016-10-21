@@ -1,21 +1,27 @@
 ﻿using System;
 using System.Buffers;
-using System.Collections.Generic;
+using System.Threading;
 
 namespace Channels
 {
     public abstract class ReferenceCountedBuffer : OwnedMemory<byte>, IBuffer
     {
-        private Stack<DisposableReservation> _reservations = new Stack<DisposableReservation>();
+        // REVIEW: We need to expose the underlying ID so we can use up the reference count without using
+        // reservations https://github.com/dotnet/corefxlab/issues/914
+        private int _referenceCount = 1;
 
         public Memory<byte> Data => Memory;
 
+        public override void Initialize()
+        {
+            _referenceCount = 1;
+
+            base.Initialize();
+        }
+
         public IBuffer Preserve(int offset, int count, out int newStart, out int newEnd)
         {
-            lock (_reservations)
-            {
-                _reservations.Push(Memory.Reserve());
-            }
+            Interlocked.Increment(ref _referenceCount);
 
             // Ignore the offset and count, we're just going to reference count the buffer
             newStart = offset;
@@ -25,15 +31,7 @@ namespace Channels
 
         void IDisposable.Dispose()
         {
-            lock (_reservations)
-            {
-                if (_reservations.Count > 0)
-                {
-                    _reservations.Pop().Dispose();
-                }
-            }
-
-            if (ReferenceCount == 0)
+            if (Interlocked.Decrement(ref _referenceCount) == 0)
             {
                 Dispose();
             }
