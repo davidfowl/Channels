@@ -191,7 +191,7 @@ namespace Channels.Networking.TLS
             encryptedData.Memory.TryGetPointer(out outBufferPointer);
 
             //Copy the unencrypted across to the encrypted channel, it will be updated in place and destroyed
-            unencrypted.CopyTo(encryptedData.Memory.Slice(_headerSize, unencrypted.Length));
+            unencrypted.CopyTo(encryptedData.Memory.Slice(_headerSize, unencrypted.Length).Span);
 
             var securityBuff = stackalloc SecurityBuffer[4];
             SecurityBufferDescriptor sdcInOut = new SecurityBufferDescriptor(4);
