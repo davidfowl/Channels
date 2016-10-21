@@ -27,7 +27,7 @@ namespace Channels.Networking.TLS
             _securityContext = securityContext;
             _writeBio = InteropBio.BIO_new(ChannelBio.Custom());
             _readBio = InteropBio.BIO_new(ChannelBio.Custom());
-            
+
             Interop.SSL_set_bio(_ssl, _readBio, _writeBio);
             if (IsServer)
             {
@@ -63,6 +63,7 @@ namespace Channels.Networking.TLS
                     decryptedData.Advance(result);
                 }
             }
+            decryptedData.Commit();
         }
 
         public unsafe void Encrypt(ReadableBuffer unencrypted, ref WritableBuffer encryptedData)
@@ -75,6 +76,7 @@ namespace Channels.Networking.TLS
                 var bytesRead = Interop.SSL_write(_ssl, ptr, unencrypted.First.Length);
                 unencrypted = unencrypted.Slice(bytesRead);
             }
+            encryptedData.Commit();
         }
 
         public void ProcessContextMessage(ref WritableBuffer writeBuffer)
@@ -88,6 +90,7 @@ namespace Channels.Networking.TLS
             ChannelBio.SetWriteBufferPointer(_writeBio, ref writeBuffer);
 
             var result = Interop.SSL_do_handshake(_ssl);
+            writeBuffer.Commit();
             if (result == 1)
             {
                 //handshake is complete, do a final write out of data and mark as done
@@ -121,7 +124,7 @@ namespace Channels.Networking.TLS
             }
             throw new InvalidOperationException($"There was an error during the handshake, error code was {errorCode}");
         }
-        
+
         public void Dispose()
         {
             _readBio.FreeBio();

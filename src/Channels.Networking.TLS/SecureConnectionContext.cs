@@ -170,6 +170,8 @@ namespace Channels.Networking.TLS
             }
             finally
             {
+                writeBuffer.Commit();
+
                 if (handleForAllocation.IsAllocated)
                 {
                     handleForAllocation.Free();
@@ -186,44 +188,45 @@ namespace Channels.Networking.TLS
         /// <param name="plainText">The buffer that will provide the bytes to be encrypted</param>
         public unsafe void Encrypt(ReadableBuffer unencrypted, ref WritableBuffer encryptedData)
         {
-            encryptedData.Ensure(_trailerSize + _headerSize + unencrypted.Length);
-            void* outBufferPointer;
-            encryptedData.Memory.TryGetPointer(out outBufferPointer);
-
-            //Copy the unencrypted across to the encrypted channel, it will be updated in place and destroyed
-            unencrypted.CopyTo(encryptedData.Memory.Slice(_headerSize, unencrypted.Length).Span);
-
-            var securityBuff = stackalloc SecurityBuffer[4];
-            SecurityBufferDescriptor sdcInOut = new SecurityBufferDescriptor(4);
-            securityBuff[0] = new SecurityBuffer(outBufferPointer, _headerSize, SecurityBufferType.Header);
-            securityBuff[1] = new SecurityBuffer((byte*)outBufferPointer + _headerSize, unencrypted.Length, SecurityBufferType.Data);
-            securityBuff[2] = new SecurityBuffer((byte*)securityBuff[1].tokenPointer + unencrypted.Length, _trailerSize, SecurityBufferType.Trailer);
-
-            sdcInOut.UnmanagedPointer = securityBuff;
-
-            var handle = _contextPointer;
-            var result = Interop.EncryptMessage(ref handle, 0, sdcInOut, 0);
-            if (result == 0)
+            try
             {
-                var totalSize = securityBuff[0].size + securityBuff[1].size + securityBuff[2].size;
-                encryptedData.Advance(totalSize);
-            }
-            else
-            {
-                //Zero out the output buffer before throwing the exception to stop any data being sent in the clear
-                //By a misbehaving underlying channel
-                var memoryToClear = new Span<byte>(outBufferPointer, _headerSize + _trailerSize + unencrypted.Length);
-                if (_headerSize + _trailerSize + unencrypted.Length > SecurityContext.MaxStackAllocSize)
+                encryptedData.Ensure(_trailerSize + _headerSize + unencrypted.Length);
+                void* outBufferPointer;
+                encryptedData.Memory.TryGetPointer(out outBufferPointer);
+
+                //Copy the unencrypted across to the encrypted channel, it will be updated in place and destroyed
+                unencrypted.CopyTo(encryptedData.Memory.Slice(_headerSize, unencrypted.Length).Span);
+
+                var securityBuff = stackalloc SecurityBuffer[4];
+                SecurityBufferDescriptor sdcInOut = new SecurityBufferDescriptor(4);
+                securityBuff[0] = new SecurityBuffer(outBufferPointer, _headerSize, SecurityBufferType.Header);
+                securityBuff[1] = new SecurityBuffer((byte*)outBufferPointer + _headerSize, unencrypted.Length, SecurityBufferType.Data);
+                securityBuff[2] = new SecurityBuffer((byte*)securityBuff[1].tokenPointer + unencrypted.Length, _trailerSize, SecurityBufferType.Trailer);
+
+                sdcInOut.UnmanagedPointer = securityBuff;
+
+                var handle = _contextPointer;
+                var result = Interop.EncryptMessage(ref handle, 0, sdcInOut, 0);
+                if (result == 0)
                 {
-                    var empty = new byte[_headerSize + _trailerSize + unencrypted.Length];
-                    memoryToClear.Set(empty);
+                    var totalSize = securityBuff[0].size + securityBuff[1].size + securityBuff[2].size;
+                    encryptedData.Advance(totalSize);
                 }
                 else
                 {
-                    var empty = stackalloc byte[_headerSize + _trailerSize + unencrypted.Length];
-                    memoryToClear.Set(empty, _headerSize + _trailerSize + unencrypted.Length);
+                    //Zero out the output buffer before throwing the exception to stop any data being sent in the clear
+                    //By a misbehaving underlying channel we will allocate here simply because it is a rare occurance and not
+                    //worth risking a stack overflow over
+                    var memoryToClear = new Span<byte>(outBufferPointer, _headerSize + _trailerSize + unencrypted.Length);
+                    var empty = new byte[_headerSize + _trailerSize + unencrypted.Length];
+                    memoryToClear.Set(empty);
+
+                    throw new InvalidOperationException($"There was an issue encrypting the data {result}");
                 }
-                throw new InvalidOperationException($"There was an issue encrypting the data {result}");
+            }
+            finally
+            {
+                encryptedData.Commit();
             }
         }
 
@@ -281,7 +284,11 @@ namespace Channels.Networking.TLS
             }
             finally
             {
-                if (handle.IsAllocated) { handle.Free(); }
+                decryptedData.Commit();
+                if (handle.IsAllocated)
+                {
+                    handle.Free();
+                }
             }
         }
 

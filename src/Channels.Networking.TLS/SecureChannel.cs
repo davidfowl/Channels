@@ -13,7 +13,7 @@ namespace Channels.Networking.TLS
         private Channel _inputChannel;
         private readonly T _contextToDispose;
         private TaskCompletionSource<ApplicationProtocols.ProtocolIds> _handShakeCompleted;
-        
+
         internal SecureChannel(IChannel inChannel, ChannelFactory channelFactory, T secureContext)
         {
             _contextToDispose = secureContext;
@@ -63,11 +63,7 @@ namespace Channels.Networking.TLS
                             }
                             var output = _lowerChannel.Output.Alloc();
                             _contextToDispose.ProcessContextMessage(messageBuffer, ref output);
-                            if (output.BytesWritten == 0)
-                            {
-                                output.Commit();
-                            }
-                            else
+                            if (output.BytesWritten > 0)
                             {
                                 await output.FlushAsync();
                             }

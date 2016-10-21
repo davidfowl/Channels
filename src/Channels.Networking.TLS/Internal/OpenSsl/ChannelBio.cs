@@ -35,7 +35,7 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
                 type = BIO_TYPE_MEM,
                 destroy = _free,
                 name = (void*)Marshal.StringToCoTaskMemAnsi("ChannelBio")
-        };
+            };
             var sizeToAlloc = Marshal.SizeOf(_methodStruct);
             _methodPtr = Marshal.AllocHGlobal(sizeToAlloc);
             Marshal.StructureToPtr(_methodStruct, _methodPtr, false);
