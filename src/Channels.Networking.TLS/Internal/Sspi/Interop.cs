@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace Channels.Networking.TLS.Internal.Sspi
@@ -34,6 +35,7 @@ namespace Channels.Networking.TLS.Internal.Sspi
                 Bits = connInfo.dwCipherStrength,
                 Name = $"{connInfo.aiCipher}-{connInfo.dwHashStrength}"
             };
+            FreeContextBuffer((IntPtr)Unsafe.AsPointer(ref connInfo));
             return returnValue;
         }
 
