@@ -73,7 +73,10 @@ namespace Channels
             }
 
             var block = Lease();
-            block.Initialize();
+            if (block.IsDisposed)
+            {
+                block.Initialize();
+            }
             return block;
         }
 

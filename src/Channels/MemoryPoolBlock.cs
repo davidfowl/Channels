@@ -85,8 +85,6 @@ namespace Channels
             return builder.ToString();
         }
 
-        protected override void DisposeBuffer() => Pool.Return(this);
-
         protected override Span<byte> GetSpanCore()
         {
             return new Span<byte>(Slab.Array, _offset, _length);
@@ -94,7 +92,7 @@ namespace Channels
 
         protected override void DisposeCore()
         {
-
+            Pool.Return(this);
         }
 
         protected override bool TryGetArrayCore(out ArraySegment<byte> buffer)

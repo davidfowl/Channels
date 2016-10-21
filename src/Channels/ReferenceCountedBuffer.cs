@@ -10,8 +10,6 @@ namespace Channels
 
         public Memory<byte> Data => Memory;
 
-        protected abstract void DisposeBuffer();
-
         public IBuffer Preserve(int offset, int count, out int newStart, out int newEnd)
         {
             lock (_reservations)
@@ -25,7 +23,7 @@ namespace Channels
             return this;
         }
 
-        public void Dispose()
+        void IDisposable.Dispose()
         {
             lock (_reservations)
             {
@@ -38,8 +36,6 @@ namespace Channels
             if (ReferenceCount == 0)
             {
                 Dispose();
-
-                DisposeBuffer();
             }
         }
     }
