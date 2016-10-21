@@ -155,7 +155,7 @@ namespace Channels
         {
             if (IsDefault)
             {
-                span = default(Memory<byte>);
+                span = Memory<byte>.Empty;
                 cursor = this;
                 return false;
             }
@@ -174,7 +174,7 @@ namespace Channels
                     return true;
                 }
 
-                span = default(Memory<byte>);
+                span = Memory<byte>.Empty;
                 cursor = this;
                 return false;
             }
@@ -216,7 +216,7 @@ namespace Channels
 
                 if (wasLastSegment)
                 {
-                    span = default(Memory<byte>);
+                    span = Memory<byte>.Empty;
                     cursor = this;
                     return false;
                 }
@@ -235,7 +235,7 @@ namespace Channels
         public override string ToString()
         {
             var sb = new StringBuilder();
-            Span<byte> span = Segment.Buffer.Data.Slice(Index, Segment.End - Index);
+            Span<byte> span = Segment.Buffer.Data.Span.Slice(Index, Segment.End - Index);
             for (int i = 0; i < span.Length; i++)
             {
                 sb.Append((char)span[i]);

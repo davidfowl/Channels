@@ -27,7 +27,7 @@ namespace Channels.Text.Primitives
             {
                 EnsureBuffer();
 
-                return _writableBuffer.Memory;
+                return _writableBuffer.Memory.Span;
             }
         }
 

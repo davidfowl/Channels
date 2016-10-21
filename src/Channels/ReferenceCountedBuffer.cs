@@ -1,24 +1,27 @@
 ﻿using System;
 using System.Buffers;
-using System.Diagnostics;
+using System.Threading;
 
 namespace Channels
 {
-    public abstract class ReferenceCountedBuffer : IBuffer
+    public abstract class ReferenceCountedBuffer : OwnedMemory<byte>, IBuffer
     {
-        private object _lockObj = new object();
+        // REVIEW: We need to expose the underlying ID so we can use up the reference count without using
+        // reservations https://github.com/dotnet/corefxlab/issues/914
         private int _referenceCount = 1;
 
-        public abstract Memory<byte> Data { get; }
+        public Memory<byte> Data => Memory;
 
-        protected abstract void DisposeBuffer();
+        public override void Initialize()
+        {
+            _referenceCount = 1;
+
+            base.Initialize();
+        }
 
         public IBuffer Preserve(int offset, int count, out int newStart, out int newEnd)
         {
-            lock (_lockObj)
-            {
-                _referenceCount++;
-            }
+            Interlocked.Increment(ref _referenceCount);
 
             // Ignore the offset and count, we're just going to reference count the buffer
             newStart = offset;
@@ -26,21 +29,11 @@ namespace Channels
             return this;
         }
 
-        public void Dispose()
+        void IDisposable.Dispose()
         {
-            lock (_lockObj)
+            if (Interlocked.Decrement(ref _referenceCount) == 0)
             {
-                Debug.Assert(_referenceCount >= 0, "Too many calls to dispose!");
-
-                _referenceCount--;
-
-                if (_referenceCount == 0)
-                {
-                    DisposeBuffer();
-
-                    // Reset the reference count after disposing this buffer
-                    _referenceCount = 1;
-                }
+                Dispose();
             }
         }
     }

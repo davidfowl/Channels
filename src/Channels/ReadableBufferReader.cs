@@ -21,12 +21,12 @@ namespace Channels
             _index = 0;
             _overallIndex = 0;
             _enumerator = buffer.GetEnumerator();
-            _currentMemory = default(Memory<byte>);
+            _currentMemory = default(Span<byte>);
             while (_enumerator.MoveNext())
             {
                 if (!_enumerator.Current.IsEmpty)
                 {
-                    _currentMemory = _enumerator.Current;
+                    _currentMemory = _enumerator.Current.Span;
                     return;
                 }
             }
@@ -66,7 +66,7 @@ namespace Channels
         {
             if (_enumerator.MoveNext())
             {
-                _currentMemory = _enumerator.Current;
+                _currentMemory = _enumerator.Current.Span;
                 _index = 0;
             }
             else

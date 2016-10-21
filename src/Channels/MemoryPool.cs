@@ -72,7 +72,12 @@ namespace Channels
                 ThrowHelper.ThrowArgumentOutOfRangeException_BufferRequestTooLarge(_blockLength);
             }
 
-            return Lease();
+            var block = Lease();
+            if (block.IsDisposed)
+            {
+                block.Initialize();
+            }
+            return block;
         }
 
         public void RegisterSlabAllocationCallback(Action<MemoryPoolSlab> callback)
