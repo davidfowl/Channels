@@ -32,9 +32,10 @@ namespace Channels.Tests
             using (var clientContext = new SecurityContext(factory, "CARoot", false, null, ApplicationProtocols.ProtocolIds.Http2overTLS))
             {
                 var loopback = new LoopbackChannel(factory);
-                Echo(serverContext.CreateSecureChannel(loopback.ServerChannel));
+                using (var server = serverContext.CreateSecureChannel(loopback.ServerChannel))
                 using (var client = clientContext.CreateSecureChannel(loopback.ClientChannel))
                 {
+                    Echo(server);
                     var proto = await client.HandShakeAsync();
                     Assert.Equal(ApplicationProtocols.ProtocolIds.Http2overTLS, proto);
                 }
@@ -50,9 +51,10 @@ namespace Channels.Tests
             using (var clientContext = new SecurityContext(factory, "CARoot", false, cert, ApplicationProtocols.ProtocolIds.Http2overTLS))
             {
                 var loopback = new LoopbackChannel(factory);
-                Echo(serverContext.CreateSecureChannel(loopback.ServerChannel));
+                using (var server = serverContext.CreateSecureChannel(loopback.ServerChannel))
                 using (var client = clientContext.CreateSecureChannel(loopback.ClientChannel))
                 {
+                    Echo(server);
                     var proto = await client.HandShakeAsync();
                     Assert.Equal(ApplicationProtocols.ProtocolIds.Http2overTLS, proto);
                 }
@@ -116,27 +118,30 @@ namespace Channels.Tests
             using (var clientContext = new OpenSslSecurityContext(factory, "test", false, _certificatePath, _certificatePassword))
             {
                 var loopback = new LoopbackChannel(factory);
-                Echo(serverContext.CreateSecureChannel(loopback.ServerChannel));
-                var client = clientContext.CreateSecureChannel(loopback.ClientChannel);
-                await client.HandShakeAsync();
-                var outputBuffer = client.Output.Alloc();
-                outputBuffer.WriteUtf8String(_shortTestString);
-                await outputBuffer.FlushAsync();
-
-                //Now check we get the same thing back
-                string resultString;
-                while (true)
+                using (var server = serverContext.CreateSecureChannel(loopback.ServerChannel))
+                using (var client = clientContext.CreateSecureChannel(loopback.ClientChannel))
                 {
-                    var result = await client.Input.ReadAsync();
-                    if (result.Buffer.Length >= _shortTestString.Length)
+                    Echo(server);
+                    await client.HandShakeAsync();
+                    var outputBuffer = client.Output.Alloc();
+                    outputBuffer.WriteUtf8String(_shortTestString);
+                    await outputBuffer.FlushAsync();
+
+                    //Now check we get the same thing back
+                    string resultString;
+                    while (true)
                     {
-                        resultString = result.Buffer.GetUtf8String();
-                        client.Input.Advance(result.Buffer.End);
-                        break;
+                        var result = await client.Input.ReadAsync();
+                        if (result.Buffer.Length >= _shortTestString.Length)
+                        {
+                            resultString = result.Buffer.GetUtf8String();
+                            client.Input.Advance(result.Buffer.End);
+                            break;
+                        }
+                        client.Input.Advance(result.Buffer.Start, result.Buffer.End);
                     }
-                    client.Input.Advance(result.Buffer.Start, result.Buffer.End);
+                    Assert.Equal(_shortTestString, resultString);
                 }
-                Assert.Equal(_shortTestString, resultString);
             }
         }
 
@@ -149,10 +154,11 @@ namespace Channels.Tests
             using (var clientContext = new SecurityContext(factory, "CARoot", false, null))
             {
                 var loopback = new LoopbackChannel(factory);
-                Echo(serverContext.CreateSecureChannel(loopback.ServerChannel));
-
+                using (var server = serverContext.CreateSecureChannel(loopback.ServerChannel))
                 using (var client = clientContext.CreateSecureChannel(loopback.ClientChannel))
                 {
+                    Echo(server);
+
                     await client.HandShakeAsync();
                     var outputBuffer = client.Output.Alloc();
                     outputBuffer.WriteUtf8String(_shortTestString);
@@ -184,16 +190,20 @@ namespace Channels.Tests
             using (var secContext = new SecurityContext(channelFactory, "CARoot", true, cert))
             {
                 var loopback = new LoopbackChannel(channelFactory);
-                Echo(secContext.CreateSecureChannel(loopback.ServerChannel));
-                SslStream sslStream = new SslStream(loopback.ClientChannel.GetStream(), false, ValidateServerCertificate, null, EncryptionPolicy.RequireEncryption);
-                await sslStream.AuthenticateAsClientAsync("CARoot");
-                                
-                byte[] messsage = Encoding.UTF8.GetBytes(_shortTestString);
-                sslStream.Write(messsage);
-                sslStream.Flush();
-                // Read message from the server.
-                string serverMessage = ReadMessageFromStream(sslStream);
-                Assert.Equal(_shortTestString, serverMessage);
+                using (var server = secContext.CreateSecureChannel(loopback.ServerChannel))
+                using (var sslStream = new SslStream(loopback.ClientChannel.GetStream(), false, ValidateServerCertificate, null, EncryptionPolicy.RequireEncryption))
+                {
+                    Echo(server);
+
+                    await sslStream.AuthenticateAsClientAsync("CARoot");
+
+                    byte[] messsage = Encoding.UTF8.GetBytes(_shortTestString);
+                    sslStream.Write(messsage);
+                    sslStream.Flush();
+                    // Read message from the server.
+                    string serverMessage = ReadMessageFromStream(sslStream);
+                    Assert.Equal(_shortTestString, serverMessage);
+                }
             }
         }
 
@@ -205,32 +215,35 @@ namespace Channels.Tests
             using (var clientContext = new SecurityContext(factory, "CARoot", false, null))
             {
                 var loopback = new LoopbackChannel(factory);
-                var secureServer = new SslStream(loopback.ServerChannel.GetStream(), false);
-                secureServer.AuthenticateAsServerAsync(cert, false, System.Security.Authentication.SslProtocols.Tls, false);
-                var client = clientContext.CreateSecureChannel(loopback.ClientChannel);
-                await client.HandShakeAsync();
-
-                var buff = client.Output.Alloc();
-                buff.WriteUtf8String(_shortTestString);
-                await buff.FlushAsync();
-
-                //Check that the server actually got it
-                var tempBuff = new byte[_shortTestString.Length];
-                int totalRead = 0;
-                while (true)
+                using (var client = clientContext.CreateSecureChannel(loopback.ClientChannel))
+                using (var secureServer = new SslStream(loopback.ServerChannel.GetStream(), false))
                 {
-                    int numberOfBytes = secureServer.Read(tempBuff, totalRead, _shortTestString.Length - totalRead);
-                    if (numberOfBytes == -1)
+                    secureServer.AuthenticateAsServerAsync(cert, false, System.Security.Authentication.SslProtocols.Tls, false);
+
+                    await client.HandShakeAsync();
+
+                    var buff = client.Output.Alloc();
+                    buff.WriteUtf8String(_shortTestString);
+                    await buff.FlushAsync();
+
+                    //Check that the server actually got it
+                    var tempBuff = new byte[_shortTestString.Length];
+                    int totalRead = 0;
+                    while (true)
                     {
-                        break;
+                        int numberOfBytes = secureServer.Read(tempBuff, totalRead, _shortTestString.Length - totalRead);
+                        if (numberOfBytes == -1)
+                        {
+                            break;
+                        }
+                        totalRead += numberOfBytes;
+                        if (totalRead >= _shortTestString.Length)
+                        {
+                            break;
+                        }
                     }
-                    totalRead += numberOfBytes;
-                    if (totalRead >= _shortTestString.Length)
-                    {
-                        break;
-                    }
+                    Assert.Equal(_shortTestString, UTF8Encoding.UTF8.GetString(tempBuff));
                 }
-                Assert.Equal(_shortTestString, UTF8Encoding.UTF8.GetString(tempBuff));
             }
         }
 
@@ -242,15 +255,18 @@ namespace Channels.Tests
             using (var secContext = new OpenSslSecurityContext(channelFactory, "CARoot", true, _certificatePath, _certificatePassword))
             {
                 var loopback = new LoopbackChannel(channelFactory);
-                Echo(secContext.CreateSecureChannel(loopback.ServerChannel));
-                SslStream sslStream = new SslStream(loopback.ClientChannel.GetStream(), false, ValidateServerCertificate, null, EncryptionPolicy.RequireEncryption);
-                await sslStream.AuthenticateAsClientAsync("CARoot");
-                byte[] messsage = Encoding.UTF8.GetBytes(_shortTestString);
-                sslStream.Write(messsage);
-                sslStream.Flush();
-                // Read message from the server.
-                string serverMessage = ReadMessageFromStream(sslStream);
-                Assert.Equal(_shortTestString, serverMessage);
+                using (var server = secContext.CreateSecureChannel(loopback.ServerChannel))
+                using (var sslStream = new SslStream(loopback.ClientChannel.GetStream(), false, ValidateServerCertificate, null, EncryptionPolicy.RequireEncryption))
+                {
+                    Echo(server);
+                    await sslStream.AuthenticateAsClientAsync("CARoot");
+                    byte[] messsage = Encoding.UTF8.GetBytes(_shortTestString);
+                    sslStream.Write(messsage);
+                    sslStream.Flush();
+                    // Read message from the server.
+                    string serverMessage = ReadMessageFromStream(sslStream);
+                    Assert.Equal(_shortTestString, serverMessage);
+                }
             }
         }
 
@@ -262,32 +278,34 @@ namespace Channels.Tests
             using (var clientContext = new OpenSslSecurityContext(channelFactory, "CARoot", false, _certificatePath, _certificatePassword))
             {
                 var loopback = new LoopbackChannel(channelFactory);
-                var secureServer = new SslStream(loopback.ServerChannel.GetStream(), false);
-                secureServer.AuthenticateAsServerAsync(cert, false, System.Security.Authentication.SslProtocols.Tls, false);
-                var client = clientContext.CreateSecureChannel(loopback.ClientChannel);
-                await client.HandShakeAsync();
-
-                var buff = client.Output.Alloc();
-                buff.WriteUtf8String(_shortTestString);
-                await buff.FlushAsync();
-
-                //Check that the server actually got it
-                var tempBuff = new byte[_shortTestString.Length];
-                int totalRead = 0;
-                while (true)
+                using (var secureServer = new SslStream(loopback.ServerChannel.GetStream(), false))
+                using (var client = clientContext.CreateSecureChannel(loopback.ClientChannel))
                 {
-                    int numberOfBytes = secureServer.Read(tempBuff, totalRead, _shortTestString.Length - totalRead);
-                    if (numberOfBytes == -1)
+                    secureServer.AuthenticateAsServerAsync(cert, false, System.Security.Authentication.SslProtocols.Tls, false);
+
+                    await client.HandShakeAsync();
+                    var buff = client.Output.Alloc();
+                    buff.WriteUtf8String(_shortTestString);
+                    await buff.FlushAsync();
+
+                    //Check that the server actually got it
+                    var tempBuff = new byte[_shortTestString.Length];
+                    int totalRead = 0;
+                    while (true)
                     {
-                        break;
+                        int numberOfBytes = secureServer.Read(tempBuff, totalRead, _shortTestString.Length - totalRead);
+                        if (numberOfBytes == -1)
+                        {
+                            break;
+                        }
+                        totalRead += numberOfBytes;
+                        if (totalRead >= _shortTestString.Length)
+                        {
+                            break;
+                        }
                     }
-                    totalRead += numberOfBytes;
-                    if (totalRead >= _shortTestString.Length)
-                    {
-                        break;
-                    }
+                    Assert.Equal(_shortTestString, UTF8Encoding.UTF8.GetString(tempBuff));
                 }
-                Assert.Equal(_shortTestString, UTF8Encoding.UTF8.GetString(tempBuff));
             }
         }
 
