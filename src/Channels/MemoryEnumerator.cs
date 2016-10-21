@@ -23,7 +23,7 @@ namespace Channels
             _segment = start.Segment;
             _endSegment = end.Segment;
             _endIndex = end.Index;
-            _current = default(Memory<byte>);
+            _current = Memory<byte>.Empty;
         }
 
         /// <summary>

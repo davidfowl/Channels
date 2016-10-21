@@ -155,7 +155,7 @@ namespace Channels
         {
             if (IsDefault)
             {
-                span = default(Memory<byte>);
+                span = Memory<byte>.Empty;
                 cursor = this;
                 return false;
             }
@@ -174,7 +174,7 @@ namespace Channels
                     return true;
                 }
 
-                span = default(Memory<byte>);
+                span = Memory<byte>.Empty;
                 cursor = this;
                 return false;
             }
@@ -216,7 +216,7 @@ namespace Channels
 
                 if (wasLastSegment)
                 {
-                    span = default(Memory<byte>);
+                    span = Memory<byte>.Empty;
                     cursor = this;
                     return false;
                 }
