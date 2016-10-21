@@ -37,10 +37,9 @@ namespace Channels
 
             if (ReferenceCount == 0)
             {
-                DisposeBuffer();
+                Dispose();
 
-                // Do this later
-                Initialize();
+                DisposeBuffer();
             }
         }
     }
