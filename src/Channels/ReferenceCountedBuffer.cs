@@ -1,11 +1,12 @@
 ﻿using System;
 using System.Buffers;
+using System.Collections.Generic;
 
 namespace Channels
 {
     public abstract class ReferenceCountedBuffer : OwnedMemory<byte>, IBuffer
     {
-        private DisposableReservation _reservation;
+        private Stack<DisposableReservation> _reservations = new Stack<DisposableReservation>();
 
         public Memory<byte> Data => Memory;
 
@@ -13,7 +14,10 @@ namespace Channels
 
         public IBuffer Preserve(int offset, int count, out int newStart, out int newEnd)
         {
-            _reservation = Memory.Reserve();
+            lock (_reservations)
+            {
+                _reservations.Push(Memory.Reserve());
+            }
 
             // Ignore the offset and count, we're just going to reference count the buffer
             newStart = offset;
@@ -23,12 +27,19 @@ namespace Channels
 
         public void Dispose()
         {
-            _reservation.Dispose();
+            lock (_reservations)
+            {
+                if (_reservations.Count > 0)
+                {
+                    _reservations.Pop().Dispose();
+                }
+            }
 
             if (ReferenceCount == 0)
             {
                 DisposeBuffer();
 
+                // Do this later
                 Initialize();
             }
         }
