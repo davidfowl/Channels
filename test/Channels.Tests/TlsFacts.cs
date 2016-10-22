@@ -270,7 +270,7 @@ namespace Channels.Tests
             }
         }
 
-        [Fact]
+        [WindowsOnlyFact]
         public async Task OpenSslStreamServerChannelClient()
         {
             using (var cert = new X509Certificate(_certificatePath, _certificatePassword))
