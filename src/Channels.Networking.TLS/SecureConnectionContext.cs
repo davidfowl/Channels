@@ -10,6 +10,7 @@ namespace Channels.Networking.TLS
     internal unsafe class SecureConnectionContext : ISecureContext
     {
         private readonly SecurityContext _securityContext;
+        private static readonly Task _cachedTask = Task.FromResult(0);
         private SSPIHandle _contextPointer;
         private int _headerSize = 5; //5 is the minimum (1 for frame type, 2 for version, 2 for frame size)
         private int _trailerSize = 16;
@@ -34,13 +35,9 @@ namespace Channels.Networking.TLS
         /// Without a payload from the client the server will just return straight away.
         /// </summary>
         /// <param name="writeBuffer"></param>
-        public void ProcessContextMessage(ref WritableBuffer writeBuffer)
+        public Task ProcessContextMessageAsync(IWritableChannel writeBuffer)
         {
-            if (_securityContext.IsServer)
-            {
-                return;
-            }
-            ProcessContextMessage(default(ReadableBuffer), ref writeBuffer);
+            return ProcessContextMessageAsync(default(ReadableBuffer), writeBuffer);
         }
 
         /// <summary>
@@ -48,7 +45,7 @@ namespace Channels.Networking.TLS
         /// </summary>
         /// <param name="readBuffer"></param>
         /// <param name="writeBuffer"></param>
-        public void ProcessContextMessage(ReadableBuffer readBuffer, ref WritableBuffer writeBuffer)
+        public Task ProcessContextMessageAsync(ReadableBuffer readBuffer, IWritableChannel writeChannel)
         {
             var handleForAllocation = default(GCHandle);
             try
@@ -145,11 +142,6 @@ namespace Channels.Networking.TLS
                 _contextPointer = localhandle;
                 if (errorCode == SecurityStatus.ContinueNeeded || errorCode == SecurityStatus.OK)
                 {
-                    if (outputBuff[0].size > 0)
-                    {
-                        writeBuffer.Write(new Span<byte>(outputBuff[0].tokenPointer, outputBuff[0].size));
-                        Interop.FreeContextBuffer((IntPtr)outputBuff[0].tokenPointer);
-                    }
                     if (errorCode == SecurityStatus.OK)
                     {
                         ContextStreamSizes ss;
@@ -164,14 +156,19 @@ namespace Channels.Networking.TLS
                         }
                         _readyToSend = true;
                     }
-                    return;
+                    if (outputBuff[0].size > 0)
+                    {
+                        var writeBuffer = writeChannel.Alloc();
+                        writeBuffer.Write(new Span<byte>(outputBuff[0].tokenPointer, outputBuff[0].size));
+                        Interop.FreeContextBuffer((IntPtr)outputBuff[0].tokenPointer);
+                        return writeBuffer.FlushAsync();
+                    }
+                    return _cachedTask;
                 }
                 throw new InvalidOperationException($"An error occured trying to negoiate a session {errorCode}");
             }
             finally
             {
-                writeBuffer.Commit();
-
                 if (handleForAllocation.IsAllocated)
                 {
                     handleForAllocation.Free();
@@ -186,47 +183,42 @@ namespace Channels.Networking.TLS
         /// <param name="context">The secure context that holds the information about the current connection</param>
         /// <param name="encryptedData">The buffer to write the encryption results to</param>
         /// <param name="plainText">The buffer that will provide the bytes to be encrypted</param>
-        public unsafe void Encrypt(ReadableBuffer unencrypted, ref WritableBuffer encryptedData)
+        public unsafe Task EncryptAsync(ReadableBuffer unencrypted, IWritableChannel encryptedDataChannel)
         {
-            try
+            var encryptedData = encryptedDataChannel.Alloc();
+            encryptedData.Ensure(_trailerSize + _headerSize + unencrypted.Length);
+            void* outBufferPointer;
+            encryptedData.Memory.TryGetPointer(out outBufferPointer);
+
+            //Copy the unencrypted across to the encrypted channel, it will be updated in place and destroyed
+            unencrypted.CopyTo(encryptedData.Memory.Slice(_headerSize, unencrypted.Length).Span);
+
+            var securityBuff = stackalloc SecurityBuffer[4];
+            SecurityBufferDescriptor sdcInOut = new SecurityBufferDescriptor(4);
+            securityBuff[0] = new SecurityBuffer(outBufferPointer, _headerSize, SecurityBufferType.Header);
+            securityBuff[1] = new SecurityBuffer((byte*)outBufferPointer + _headerSize, unencrypted.Length, SecurityBufferType.Data);
+            securityBuff[2] = new SecurityBuffer((byte*)securityBuff[1].tokenPointer + unencrypted.Length, _trailerSize, SecurityBufferType.Trailer);
+
+            sdcInOut.UnmanagedPointer = securityBuff;
+
+            var handle = _contextPointer;
+            var result = Interop.EncryptMessage(ref handle, 0, sdcInOut, 0);
+            if (result == 0)
             {
-                encryptedData.Ensure(_trailerSize + _headerSize + unencrypted.Length);
-                void* outBufferPointer;
-                encryptedData.Memory.TryGetPointer(out outBufferPointer);
-
-                //Copy the unencrypted across to the encrypted channel, it will be updated in place and destroyed
-                unencrypted.CopyTo(encryptedData.Memory.Slice(_headerSize, unencrypted.Length).Span);
-
-                var securityBuff = stackalloc SecurityBuffer[4];
-                SecurityBufferDescriptor sdcInOut = new SecurityBufferDescriptor(4);
-                securityBuff[0] = new SecurityBuffer(outBufferPointer, _headerSize, SecurityBufferType.Header);
-                securityBuff[1] = new SecurityBuffer((byte*)outBufferPointer + _headerSize, unencrypted.Length, SecurityBufferType.Data);
-                securityBuff[2] = new SecurityBuffer((byte*)securityBuff[1].tokenPointer + unencrypted.Length, _trailerSize, SecurityBufferType.Trailer);
-
-                sdcInOut.UnmanagedPointer = securityBuff;
-
-                var handle = _contextPointer;
-                var result = Interop.EncryptMessage(ref handle, 0, sdcInOut, 0);
-                if (result == 0)
-                {
-                    var totalSize = securityBuff[0].size + securityBuff[1].size + securityBuff[2].size;
-                    encryptedData.Advance(totalSize);
-                }
-                else
-                {
-                    //Zero out the output buffer before throwing the exception to stop any data being sent in the clear
-                    //By a misbehaving underlying channel we will allocate here simply because it is a rare occurance and not
-                    //worth risking a stack overflow over
-                    var memoryToClear = new Span<byte>(outBufferPointer, _headerSize + _trailerSize + unencrypted.Length);
-                    var empty = new byte[_headerSize + _trailerSize + unencrypted.Length];
-                    memoryToClear.Set(empty);
-
-                    throw new InvalidOperationException($"There was an issue encrypting the data {result}");
-                }
+                var totalSize = securityBuff[0].size + securityBuff[1].size + securityBuff[2].size;
+                encryptedData.Advance(totalSize);
+                return encryptedData.FlushAsync();
             }
-            finally
+            else
             {
+                //Zero out the output buffer before throwing the exception to stop any data being sent in the clear
+                //By a misbehaving underlying channel we will allocate here simply because it is a rare occurance and not
+                //worth risking a stack overflow over
+                var memoryToClear = new Span<byte>(outBufferPointer, _headerSize + _trailerSize + unencrypted.Length);
+                var empty = new byte[_headerSize + _trailerSize + unencrypted.Length];
+                memoryToClear.Set(empty);
                 encryptedData.Commit();
+                throw new InvalidOperationException($"There was an issue encrypting the data {result}");
             }
         }
 
@@ -239,7 +231,7 @@ namespace Channels.Networking.TLS
         /// <param name="encryptedData">The buffer that will provide the bytes to be encrypted</param>
         /// <param name="decryptedData">The buffer to write the encryption results to</param>
         /// <returns></returns>
-        public unsafe void Decrypt(ReadableBuffer encryptedData, ref WritableBuffer decryptedData)
+        public unsafe Task DecryptAsync(ReadableBuffer encryptedData, IWritableChannel decryptedDataChannel)
         {
             GCHandle handle = default(GCHandle);
             try
@@ -272,19 +264,22 @@ namespace Channels.Networking.TLS
                 if (encryptedData.IsSingleSpan)
                 {
                     //The data was always in a single continous buffer so we can just append the decrypted data to the output
+                    var decryptedData = decryptedDataChannel.Alloc();
                     encryptedData = encryptedData.Slice(offset, count);
                     decryptedData.Append(encryptedData);
+                    return decryptedData.FlushAsync();
                 }
                 else
                 {
                     //The data was multispan so we had to copy it out into either a stack pointer or an allocated and pinned array
                     //so now we need to copy it out to the output
+                    var decryptedData = decryptedDataChannel.Alloc();
                     decryptedData.Write(new Span<byte>(pointer, encryptedData.Length));
+                    return decryptedData.FlushAsync();
                 }
             }
             finally
             {
-                decryptedData.Commit();
                 if (handle.IsAllocated)
                 {
                     handle.Free();

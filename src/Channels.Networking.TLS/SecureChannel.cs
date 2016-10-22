@@ -34,12 +34,11 @@ namespace Channels.Networking.TLS
 
         private async Task<ApplicationProtocols.ProtocolIds> DoHandShake()
         {
+            _handShakeCompleted = new TaskCompletionSource<ApplicationProtocols.ProtocolIds>();
             if (!_contextToDispose.IsServer)
             {
                 //If it is a client we need to start by sending a client hello straight away
-                var output = _lowerChannel.Output.Alloc();
-                _contextToDispose.ProcessContextMessage(ref output);
-                await output.FlushAsync();
+                await _contextToDispose.ProcessContextMessageAsync(_lowerChannel.Output);
             }
             try
             {
@@ -61,15 +60,11 @@ namespace Channels.Networking.TLS
                             {
                                 throw new InvalidOperationException("Received a token that was invalid during the handshake");
                             }
-                            var output = _lowerChannel.Output.Alloc();
-                            _contextToDispose.ProcessContextMessage(messageBuffer, ref output);
-                            if (output.BytesWritten > 0)
-                            {
-                                await output.FlushAsync();
-                            }
+
+                            await _contextToDispose.ProcessContextMessageAsync(messageBuffer, _lowerChannel.Output);
+                            
                             if (_contextToDispose.ReadyToSend)
                             {
-                                _handShakeCompleted = new TaskCompletionSource<ApplicationProtocols.ProtocolIds>();
                                 _handShakeCompleted.SetResult(_contextToDispose.NegotiatedProtocol);
                                 return await _handShakeCompleted.Task;
                             }
@@ -117,9 +112,7 @@ namespace Channels.Networking.TLS
                             //If we have app data, we will slice it out and process it
                             if (frameType == TlsFrameType.AppData)
                             {
-                                var decryptedData = _outputChannel.Alloc();
-                                _contextToDispose.Decrypt(messageBuffer, ref decryptedData);
-                                await decryptedData.FlushAsync();
+                                await _contextToDispose.DecryptAsync(messageBuffer, _outputChannel);
                             }
                             else
                             {
@@ -152,13 +145,14 @@ namespace Channels.Networking.TLS
 
         private async void StartWriting()
         {
+            await HandShakeAsync();
             var maxBlockSize = (SecurityContext.BlockSize - _contextToDispose.HeaderSize - _contextToDispose.TrailerSize);
             try
             {
                 while (true)
                 {
                     var result = await _inputChannel.ReadAsync();
-                    await HandShakeAsync();
+                    
                     var buffer = result.Buffer;
                     if (buffer.IsEmpty && result.IsCompleted)
                     {
@@ -179,9 +173,7 @@ namespace Channels.Networking.TLS
                                 messageBuffer = buffer.Slice(0, maxBlockSize);
                                 buffer = buffer.Slice(maxBlockSize);
                             }
-                            var outputBuffer = _lowerChannel.Output.Alloc();
-                            _contextToDispose.Encrypt(messageBuffer, ref outputBuffer);
-                            await outputBuffer.FlushAsync();
+                            await _contextToDispose.EncryptAsync(messageBuffer, _lowerChannel.Output);
                         }
                     }
                     finally

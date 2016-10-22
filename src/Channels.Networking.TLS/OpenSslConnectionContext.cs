@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Channels.Networking.TLS.Internal.OpenSsl;
 
@@ -10,6 +11,7 @@ namespace Channels.Networking.TLS
     public class OpenSslConnectionContext : ISecureContext
     {
         private const Interop.ContextOptions _contextOptions = Interop.ContextOptions.SSL_OP_NO_SSLv2 | Interop.ContextOptions.SSL_OP_NO_SSLv3;
+        private static readonly Task _cachedTask = Task.FromResult(0);
 
         private readonly OpenSslSecurityContext _securityContext;
         private int _headerSize = 5; //5 is the minimum (1 for frame type, 2 for version, 2 for frame size)
@@ -46,10 +48,11 @@ namespace Channels.Networking.TLS
         public bool ReadyToSend => _readyToSend;
         public CipherInfo CipherInfo => _ssl != IntPtr.Zero ? Interop.GetCipherInfo(_ssl) : default(CipherInfo);
 
-        public unsafe void Decrypt(ReadableBuffer encryptedData, ref WritableBuffer decryptedData)
+        public unsafe Task DecryptAsync(ReadableBuffer encryptedData, IWritableChannel decryptedChannel)
         {
             ChannelBio.SetReadBufferPointer(_readBio, ref encryptedData);
 
+            var decryptedData = decryptedChannel.Alloc();
             var result = 1;
             while (result > 0)
             {
@@ -63,75 +66,96 @@ namespace Channels.Networking.TLS
                     decryptedData.Advance(result);
                 }
             }
-            decryptedData.Commit();
+            return decryptedData.FlushAsync();
         }
 
-        public unsafe void Encrypt(ReadableBuffer unencrypted, ref WritableBuffer encryptedData)
+        public unsafe Task EncryptAsync(ReadableBuffer unencrypted, IWritableChannel encryptedChannel)
         {
-            ChannelBio.SetWriteBufferPointer(_writeBio, ref encryptedData);
-            while (unencrypted.Length > 0)
+            var handle = GCHandle.Alloc(encryptedChannel);
+            try
             {
-                void* ptr;
-                unencrypted.First.TryGetPointer(out ptr);
-                var bytesRead = Interop.SSL_write(_ssl, ptr, unencrypted.First.Length);
-                unencrypted = unencrypted.Slice(bytesRead);
-            }
-            encryptedData.Commit();
-        }
-
-        public void ProcessContextMessage(ref WritableBuffer writeBuffer)
-        {
-            ProcessContextMessage(default(ReadableBuffer), ref writeBuffer);
-        }
-
-        public unsafe void ProcessContextMessage(ReadableBuffer readBuffer, ref WritableBuffer writeBuffer)
-        {
-            ChannelBio.SetReadBufferPointer(_readBio, ref readBuffer);
-            ChannelBio.SetWriteBufferPointer(_writeBio, ref writeBuffer);
-
-            var result = Interop.SSL_do_handshake(_ssl);
-            writeBuffer.Commit();
-            if (result == 1)
-            {
-                //handshake is complete, do a final write out of data and mark as done
-                //WriteToChannel(ref writeBuffer, _writeBio);
-                if (_securityContext.AplnBufferLength > 0)
+                ChannelBio.SetWriteBufferPointer(_writeBio, handle);
+                while (unencrypted.Length > 0)
                 {
-                    byte* protoPointer;
-                    int len;
-                    Interop.SSL_get0_alpn_selected(_ssl, out protoPointer, out len);
-                    _negotiatedProtocol = ApplicationProtocols.GetNegotiatedProtocol(protoPointer, (byte)len);
+                    void* ptr;
+                    unencrypted.First.TryGetPointer(out ptr);
+                    var bytesRead = Interop.SSL_write(_ssl, ptr, unencrypted.First.Length);
+                    unencrypted = unencrypted.Slice(bytesRead);
                 }
-                _readyToSend = true;
-                return;
+                return encryptedChannel.Alloc().FlushAsync();
             }
-            //We didn't get an "okay" message so lets check to see what the actual error was
-            var errorCode = Interop.SSL_get_error(_ssl, result);
-            if (errorCode == Interop.SslErrorCodes.SSL_NOTHING)
+            finally
             {
-                return;
+                handle.Free();
             }
-            if (errorCode == Interop.SslErrorCodes.SSL_WRITING)
-            {
-                //We have data to write out then return
-                //WriteToChannel(ref writeBuffer, _writeBio);
-                return;
-            }
-            if (errorCode == Interop.SslErrorCodes.SSL_READING)
-            {
-                //We need to read more data so just return to wait for it
-                return;
-            }
-            throw new InvalidOperationException($"There was an error during the handshake, error code was {errorCode}");
         }
 
+        public Task ProcessContextMessageAsync(IWritableChannel writeBuffer)
+        {
+            return ProcessContextMessageAsync(default(ReadableBuffer), writeBuffer);
+        }
+
+        public unsafe Task ProcessContextMessageAsync(ReadableBuffer readBuffer, IWritableChannel writeBuffer)
+        {
+            var writeHandle = GCHandle.Alloc(writeBuffer);
+            try
+            {
+                ChannelBio.SetReadBufferPointer(_readBio, ref readBuffer);
+                ChannelBio.SetWriteBufferPointer(_writeBio, writeHandle);
+
+                var result = Interop.SSL_do_handshake(_ssl);
+                if (result == 1)
+                {
+                    //handshake is complete, do a final write out of data and mark as done
+                    //WriteToChannel(ref writeBuffer, _writeBio);
+                    if (_securityContext.AplnBufferLength > 0)
+                    {
+                        byte* protoPointer;
+                        int len;
+                        Interop.SSL_get0_alpn_selected(_ssl, out protoPointer, out len);
+                        _negotiatedProtocol = ApplicationProtocols.GetNegotiatedProtocol(protoPointer, (byte)len);
+                    }
+                    _readyToSend = true;
+                    if (ChannelBio.NumberOfWrittenBytes(_writeBio) > 0)
+                    {
+                        return writeBuffer.Alloc().FlushAsync();
+                    }
+                    else
+                    {
+                        return _cachedTask;
+                    }
+                }
+                //We didn't get an "okay" message so lets check to see what the actual error was
+                var errorCode = Interop.SSL_get_error(_ssl, result);
+                if (errorCode == Interop.SslErrorCodes.SSL_NOTHING || errorCode == Interop.SslErrorCodes.SSL_WRITING || errorCode == Interop.SslErrorCodes.SSL_READING)
+                {
+                    if (ChannelBio.NumberOfWrittenBytes(_writeBio) > 0)
+                    {
+                        return writeBuffer.Alloc().FlushAsync();
+                    }
+                    else
+                    {
+                        return _cachedTask;
+                    }
+                }
+                throw new InvalidOperationException($"There was an error during the handshake, error code was {errorCode}");
+            }
+            finally
+            {
+                writeHandle.Free();
+            }
+        }
+        object l = new object();
         public void Dispose()
         {
-            _readBio.FreeBio();
-            _writeBio.FreeBio();
-            if (_ssl != IntPtr.Zero)
+            lock (l)
             {
-                Interop.SSL_free(_ssl);
+                if (_ssl != IntPtr.Zero)
+                {
+                    Interop.SSL_set_bio(_ssl, new InteropBio.BioHandle(), new InteropBio.BioHandle());
+                    Interop.SSL_free(_ssl);
+                    _ssl = IntPtr.Zero;
+                }
             }
         }
     }
