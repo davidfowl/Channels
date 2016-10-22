@@ -42,7 +42,7 @@ namespace Channels.Tests
             }
         }
 
-        [WindowsOnlyFact()]
+        [WindowsOnlyFact]
         public async Task OpenSslAsServerSspiAsClientAplnMatchingProtocol()
         {
             using (X509Certificate cert = new X509Certificate(_certificatePath, _certificatePassword))
@@ -61,7 +61,7 @@ namespace Channels.Tests
             }
         }
 
-        [WindowsOnlyFact()]
+        [WindowsOnlyFact]
         public async Task SspiAsServerOpenSslAsClientAplnMatchingProtocol()
         {
             using (X509Certificate cert = new X509Certificate(_certificatePath, _certificatePassword))
@@ -247,7 +247,7 @@ namespace Channels.Tests
             }
         }
 
-        [Fact]
+        [WindowsOnlyFact]
         public async Task OpenSslChannelServerStreamClient()
         {
             using (var channelFactory = new ChannelFactory())
