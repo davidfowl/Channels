@@ -33,7 +33,7 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
                 bwriteDelegate = _write,
                 ctrlDelegate = _control,
                 type = BIO_TYPE_MEM,
-                //destroy = _free,
+                destroy = _free,
                 name = null
             };
             var sizeToAlloc = Marshal.SizeOf(_methodStruct);
@@ -123,18 +123,19 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
                 numberOfBytesRemaing -= sizeToWrite;
             }
             buffer.Commit();
-            bio.num_write = (uint) numberOfBytes;
+            bio.num_write = (uint)numberOfBytes;
+            BIO_set_flags(ref bio, BioFlags.BIO_FLAGS_WRITE | BioFlags.BIO_FLAGS_SHOULD_RETRY);
             return numberOfBytes;
         }
-        
+
         public static int NumberOfWrittenBytes(InteropBio.BioHandle handle)
         {
             var bio = (bio_st*)handle.Handle;
             var bytes = (int)bio[0].num_write;
-            bio[0].num_write &= 0xFF00000000000000;
+            bio[0].num_write = 0;
             return bytes;
         }
-        
+
         private static int ReadBio(ref bio_st bio, void* buff, int numberOfBytes)
         {
             var buffer = Unsafe.Read<ReadableBuffer>(bio.ptr);
@@ -168,11 +169,9 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
         public static void SetWriteBufferPointer(InteropBio.BioHandle bio, GCHandle handleToWriteBuffer)
         {
             var b = (bio_st*)bio.Handle;
-            b[0].num = 100000;
             b[0].ptr = (void*)GCHandle.ToIntPtr(handleToWriteBuffer);
-            b[0].num_write = 100000;
         }
-                
+
         private static long ControlBio(ref bio_st bio, BioControl cmd, long num, void* ptr)
         {
             switch (cmd)

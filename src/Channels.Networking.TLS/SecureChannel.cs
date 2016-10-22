@@ -62,7 +62,7 @@ namespace Channels.Networking.TLS
                             }
 
                             await _contextToDispose.ProcessContextMessageAsync(messageBuffer, _lowerChannel.Output);
-                            
+
                             if (_contextToDispose.ReadyToSend)
                             {
                                 _handShakeCompleted.SetResult(_contextToDispose.NegotiatedProtocol);
@@ -152,7 +152,7 @@ namespace Channels.Networking.TLS
                 while (true)
                 {
                     var result = await _inputChannel.ReadAsync();
-                    
+
                     var buffer = result.Buffer;
                     if (buffer.IsEmpty && result.IsCompleted)
                     {

@@ -86,6 +86,7 @@ namespace Channels.Networking.TLS
             }
             finally
             {
+                ChannelBio.NumberOfWrittenBytes(_writeBio);
                 handle.Free();
             }
         }
@@ -140,6 +141,11 @@ namespace Channels.Networking.TLS
                 }
                 throw new InvalidOperationException($"There was an error during the handshake, error code was {errorCode}");
             }
+            catch
+            {
+                ChannelBio.NumberOfWrittenBytes(_writeBio);
+                throw;
+            }
             finally
             {
                 writeHandle.Free();
@@ -152,7 +158,6 @@ namespace Channels.Networking.TLS
             {
                 if (_ssl != IntPtr.Zero)
                 {
-                    Interop.SSL_set_bio(_ssl, new InteropBio.BioHandle(), new InteropBio.BioHandle());
                     Interop.SSL_free(_ssl);
                     _ssl = IntPtr.Zero;
                 }

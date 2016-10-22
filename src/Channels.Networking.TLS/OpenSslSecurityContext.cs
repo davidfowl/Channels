@@ -35,23 +35,25 @@ namespace Channels.Networking.TLS
             }
 
             InteropCrypto.Init();
-                       
+
             _channelFactory = channelFactory;
             _isServer = isServer;
             _alpnSupportedProtocols = alpnSupportedProtocols;
 
-            InteropBio.BioHandle fileBio = new InteropBio.BioHandle();
-            try
+            if (!string.IsNullOrWhiteSpace(pathToPfxFile))
             {
-                fileBio = InteropBio.BIO_new_file_read(pathToPfxFile);
-                //Now we pull out the private key, certificate and Authority if they are all there
-                _certifcateInformation = new InteropKeys.PK12Certifcate(fileBio, password);
+                InteropBio.BioHandle fileBio = new InteropBio.BioHandle();
+                try
+                {
+                    fileBio = InteropBio.BIO_new_file_read(pathToPfxFile);
+                    //Now we pull out the private key, certificate and Authority if they are all there
+                    _certifcateInformation = new InteropKeys.PK12Certifcate(fileBio, password);
+                }
+                finally
+                {
+                    fileBio.FreeBio();
+                }
             }
-            finally
-            {
-                fileBio.FreeBio();
-            }
-
             SetupContext();
             SetupAlpn();
         }
@@ -113,7 +115,7 @@ namespace Channels.Networking.TLS
             {
                 _sslContext = Interop.NewClientContext(Interop.VerifyMode.SSL_VERIFY_NONE);
             }
-            
+
             if (_certifcateInformation.Handle != IntPtr.Zero)
             {
                 Interop.SetKeys(_sslContext, _certifcateInformation.CertificateHandle, _certifcateInformation.PrivateKeyHandle);

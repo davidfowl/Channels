@@ -82,8 +82,8 @@ namespace Channels.Tests
         {
             using (X509Certificate cert = new X509Certificate(_certificatePath, _certificatePassword))
             using (ChannelFactory factory = new ChannelFactory())
-            using (var serverContext = new OpenSslSecurityContext(factory, "test", true, _certificatePath, _certificatePassword))
-            using (var clientContext = new SecurityContext(factory, "CARoot", false, null))
+            using (var clientContext = new OpenSslSecurityContext(factory, "test", false, _certificatePath, _certificatePassword))
+            using (var serverContext = new SecurityContext(factory, "CARoot", true, cert))
             {
                 var loopback = new LoopbackChannel(factory);
                 Echo(serverContext.CreateSecureChannel(loopback.ServerChannel));
@@ -115,7 +115,7 @@ namespace Channels.Tests
             using (X509Certificate cert = new X509Certificate(_certificatePath, _certificatePassword))
             using (ChannelFactory factory = new ChannelFactory())
             using (var serverContext = new OpenSslSecurityContext(factory, "test", true, _certificatePath, _certificatePassword))
-            using (var clientContext = new OpenSslSecurityContext(factory, "test", false, _certificatePath, _certificatePassword))
+            using (var clientContext = new OpenSslSecurityContext(factory, "test", false, null, null))
             {
                 var loopback = new LoopbackChannel(factory);
                 using (var server = serverContext.CreateSecureChannel(loopback.ServerChannel))
@@ -367,10 +367,6 @@ namespace Channels.Tests
             {
                 channel.Input.Complete(ex);
                 channel.Output.Complete(ex);
-            }
-            finally
-            {
-                channel?.Dispose();
             }
         }
     }

@@ -43,7 +43,7 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
             [DllImport(SslDll, CallingConvention = CallingConvention.Cdecl)]
             public extern static void SSL_free(IntPtr ssl);
             [DllImport(SslDll, CallingConvention = CallingConvention.Cdecl)]
-            public extern static void SSL_set_bio(IntPtr ssl, InteropBio.BioHandle readBio, InteropBio.BioHandle writeBio);
+            public extern static void SSL_set_bio(IntPtr ssl, IntPtr readBio, IntPtr writeBio);
             [DllImport(SslDll, CallingConvention = CallingConvention.Cdecl)]
             public extern static SslErrorCodes SSL_get_error(IntPtr ssl, int errorIndetity);
             [DllImport(SslDll, CallingConvention = CallingConvention.Cdecl)]
@@ -135,7 +135,7 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
             [DllImport(SslDll, CallingConvention = CallingConvention.Cdecl)]
             public extern static void SSL_free(IntPtr ssl);
             [DllImport(SslDll, CallingConvention = CallingConvention.Cdecl)]
-            public extern static void SSL_set_bio(IntPtr ssl, InteropBio.BioHandle readBio, InteropBio.BioHandle writeBio);
+            public extern static void SSL_set_bio(IntPtr ssl, IntPtr readBio, IntPtr writeBio);
             [DllImport(SslDll, CallingConvention = CallingConvention.Cdecl)]
             public extern static SslErrorCodes SSL_get_error(IntPtr ssl, int errorIndetity);
             [DllImport(SslDll, CallingConvention = CallingConvention.Cdecl)]
@@ -227,7 +227,7 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
             [DllImport(SslDll, CallingConvention = CallingConvention.Cdecl)]
             public extern static void SSL_set_accept_state(IntPtr sll);
             [DllImport(SslDll, CallingConvention = CallingConvention.Cdecl)]
-            public extern static void SSL_set_bio(IntPtr ssl, InteropBio.BioHandle readBio, InteropBio.BioHandle writeBio);
+            public extern static void SSL_set_bio(IntPtr ssl, IntPtr readBio, IntPtr writeBio);
             [DllImport(SslDll, CallingConvention = CallingConvention.Cdecl)]
             public extern static SslErrorCodes SSL_get_error(IntPtr ssl, int errorIndetity);
             [DllImport(SslDll, CallingConvention = CallingConvention.Cdecl)]
@@ -300,15 +300,15 @@ namespace Channels.Networking.TLS.Internal.OpenSsl
         {
             if (IsWindows)
             {
-                WindowsLib.SSL_set_bio(ssl, readBio, writeBio);
+                WindowsLib.SSL_set_bio(ssl, readBio.Handle, writeBio.Handle);
             }
             else if (IsOsx)
             {
-                OsxLib.SSL_set_bio(ssl, readBio, writeBio);
+                OsxLib.SSL_set_bio(ssl, readBio.Handle, writeBio.Handle);
             }
             else
             {
-                UnixLib.SSL_set_bio(ssl, readBio, writeBio);
+                UnixLib.SSL_set_bio(ssl, readBio.Handle, writeBio.Handle);
             }
         }
         public static void SSL_set_connect_state(IntPtr ssl)
