@@ -25,12 +25,9 @@ namespace Channels
 
         // We're owned, we're always "preserved"
         /// <summary>
-        /// <see cref="IBuffer.Preserve(int, int, out int, out int)"/>
         /// </summary>
-        public IBuffer Preserve(int offset, int length, out int newStart, out int newEnd)
+        public IBuffer Preserve()
         {
-            newStart = offset;
-            newEnd = offset + length;
             return this;
         }
 

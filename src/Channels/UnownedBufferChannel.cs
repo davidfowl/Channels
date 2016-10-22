@@ -19,8 +19,8 @@ namespace Channels
 
         private Action _awaitableState;
 
-        private BufferSegment _head;
-        private BufferSegment _tail;
+        private ReadCursor _head;
+        private ReadCursor _tail;
 
         private bool _consuming;
 
@@ -110,21 +110,20 @@ namespace Channels
 
                 // Allocate a new segment to hold the buffer being written.
                 var segment = new BufferSegment(buffer);
-                segment.End = buffer.Data.Length;
 
-                if (_head == null)
+                if (_head.Segment == null)
                 {
                     // Update the head to point to the head of the buffer.
-                    _head = segment;
+                    _head = new ReadCursor(segment);
                 }
-                else if (_tail != null)
+                else if (_tail.Segment != null)
                 {
                     // Add this segment to the end of the chain
-                    _tail.Next = segment;
+                    _tail.Segment.Next = segment;
                 }
 
                 // Always update tail to the buffer's tail
-                _tail = segment;
+                _tail = new ReadCursor(segment);
 
                 // Trigger the continuation
                 Complete();
@@ -133,7 +132,11 @@ namespace Channels
                 await _readWaiting;
 
                 // We need to preserve any buffers that haven't been consumed
-                _head = BufferSegment.Clone(new ReadCursor(_head), new ReadCursor(_tail, _tail?.End ?? 0), out _tail);
+                BufferSegment newEnd;
+                var newBegin = BufferSegment.Clone(_head, _tail, out newEnd);
+
+                _head = new ReadCursor(newBegin);
+                _tail = new ReadCursor(newEnd);
 
                 // Cancel this task if this write is cancelled
                 cancellationToken.ThrowIfCancellationRequested();
@@ -164,7 +167,7 @@ namespace Channels
             }
             _consuming = true;
 
-            return new ReadableBuffer(new ReadCursor(_head), new ReadCursor(_tail, _tail?.End ?? 0));
+            return new ReadableBuffer(_head, _tail);
         }
 
         // Called by the READER
@@ -175,10 +178,9 @@ namespace Channels
 
             if (!consumed.IsDefault)
             {
-                returnStart = _head;
+                returnStart = _head.Segment;
                 returnEnd = consumed.Segment;
-                _head = consumed.Segment;
-                _head.Start = consumed.Index;
+                _head = consumed;
             }
 
             // Again, we don't need an interlock here because Read and Write proceed serially.
@@ -323,7 +325,7 @@ namespace Channels
             Debug.Assert(Reading.IsCompleted, "Not completed reading");
 
             // Return all segments
-            var segment = _head;
+            var segment = _head.Segment;
             while (segment != null)
             {
                 var returnSegment = segment;
@@ -332,8 +334,8 @@ namespace Channels
                 returnSegment.Dispose();
             }
 
-            _head = null;
-            _tail = null;
+            _head = default(ReadCursor);
+            _tail = default(ReadCursor);
         }
 
         // Called by the WRITER

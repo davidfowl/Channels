@@ -17,13 +17,11 @@ namespace Channels
 
         public Memory<byte> Data => Memory;
 
-        public IBuffer Preserve(int offset, int length, out int newStart, out int newEnd)
+        public IBuffer Preserve()
         {
             // Copy to a new Owned Buffer.
-            var buffer = new byte[length];
-            Buffer.BlockCopy(_buffer.Array, _buffer.Offset + offset, buffer, 0, length);
-            newStart = 0;
-            newEnd = length;
+            var buffer = new byte[Data.Length];
+            Buffer.BlockCopy(_buffer.Array, _buffer.Offset, buffer, 0, Data.Length);
             return new OwnedBuffer(buffer);
         }
 
