@@ -136,7 +136,7 @@ namespace Channels
                 var newBegin = BufferSegment.Clone(_head, _tail, out newEnd);
 
                 _head = new ReadCursor(newBegin);
-                _tail = new ReadCursor(newEnd);
+                _tail = new ReadCursor(newEnd, newEnd.Length);
 
                 // Cancel this task if this write is cancelled
                 cancellationToken.ThrowIfCancellationRequested();
