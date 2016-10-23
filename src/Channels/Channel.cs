@@ -210,6 +210,10 @@ namespace Channels
             else
             {
                 Debug.Assert(_writingHead.Segment.Next == null);
+
+                // Trim the existing buffer before moving to the next
+                _writingHead.Segment.Trim(_writingHead.Segment.Length - _writingHead.Index);
+
                 // Active write, append as next segment
                 _writingHead.Segment.Next = clonedBegin;
             }
