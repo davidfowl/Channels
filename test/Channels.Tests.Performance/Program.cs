@@ -13,20 +13,20 @@ namespace Channels.Tests.Performance
         {
             RunSelectedBenchmarks(BenchmarkType.OpenSsl);
             return;
-            var options = (uint[])Enum.GetValues(typeof(BenchmarkType));
-            BenchmarkType type;
-            if (args.Length != 1 || !Enum.TryParse(args[0], out type))
-            {
-                Console.WriteLine($"Please add benchmark to run as parameter:");
-                for (var i = 0; i < options.Length; i++)
-                {
-                    Console.WriteLine($"  {((BenchmarkType)options[i]).ToString()}");
-                }
+            //var options = (uint[])Enum.GetValues(typeof(BenchmarkType));
+            //BenchmarkType type;
+            //if (args.Length != 1 || !Enum.TryParse(args[0], out type))
+            //{
+            //    Console.WriteLine($"Please add benchmark to run as parameter:");
+            //    for (var i = 0; i < options.Length; i++)
+            //    {
+            //        Console.WriteLine($"  {((BenchmarkType)options[i]).ToString()}");
+            //    }
 
-                return;
-            }
+            //    return;
+            //}
 
-            RunSelectedBenchmarks(type);
+            //RunSelectedBenchmarks(type);
         }
 
         private static void RunSelectedBenchmarks(BenchmarkType type)
