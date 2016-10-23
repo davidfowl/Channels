@@ -18,19 +18,6 @@ namespace Channels
             _buffer = buffer;
         }
 
-        /// <summary>
-        /// Raw representation of the underlying data this <see cref="IBuffer"/> represents
-        /// </summary>
-        public Memory<byte> Data => Memory;
-
-        // We're owned, we're always "preserved"
-        /// <summary>
-        /// </summary>
-        public IBuffer Preserve()
-        {
-            return this;
-        }
-
         protected override Span<byte> GetSpanCore()
         {
             return _buffer;
