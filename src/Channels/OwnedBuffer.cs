@@ -6,7 +6,7 @@ namespace Channels
     /// <summary>
     /// Represents a buffer that is completely owned by this object.
     /// </summary>
-    public class OwnedBuffer : OwnedMemory<byte>, IBuffer
+    public class OwnedBuffer : ReferenceCountedBuffer
     {
         private byte[] _buffer;
 
