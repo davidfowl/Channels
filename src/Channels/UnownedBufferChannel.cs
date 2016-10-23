@@ -123,7 +123,7 @@ namespace Channels
                 }
 
                 // Always update tail to the buffer's tail
-                _tail = new ReadCursor(segment);
+                _tail = new ReadCursor(segment, segment.Length);
 
                 // Trigger the continuation
                 Complete();
