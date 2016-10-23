@@ -4,7 +4,7 @@
     "keyFile": "../../tools/Key.snk",
     "allowUnsafe": true,
     "emitEntryPoint": true,
-    "copyToOutput": "random.json.gz"
+    "copyToOutput": [ "random.json.gz", "../../data/TestCert.pfx" ]
   },
 
   "publishOptions": {
