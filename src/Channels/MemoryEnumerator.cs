@@ -50,8 +50,8 @@ namespace Channels
                 return false;
             }
 
-            int start = _segment.Start;
-            int end = _segment.End;
+            int start = 0;
+            int end = _segment.Length;
 
             if (_startIndex != 0)
             {
@@ -64,7 +64,7 @@ namespace Channels
                 end = _endIndex;
             }
 
-            _current = _segment.Buffer.Data.Slice(start, end - start);
+            _current = _segment.Data.Slice(start, end - start);
 
             if (_segment == _endSegment)
             {

@@ -13,7 +13,7 @@ namespace Channels
         internal ReadCursor(BufferSegment segment)
         {
             _segment = segment;
-            _index = segment?.Start ?? 0;
+            _index = 0;
         }
 
         internal ReadCursor(BufferSegment segment, int index)
@@ -39,7 +39,7 @@ namespace Channels
                 {
                     return true;
                 }
-                else if (_index < segment.End)
+                else if (_index < segment.Length)
                 {
                     return false;
                 }
@@ -59,7 +59,7 @@ namespace Channels
             var segment = _segment.Next;
             while (segment != null)
             {
-                if (segment.Start < segment.End)
+                if (segment.Length > 0)
                 {
                     return false; // subsequent block has data - IsEnd is false
                 }
@@ -92,9 +92,9 @@ namespace Channels
                     }
                     else
                     {
-                        length += segment.End - index;
+                        length += segment.Length - index;
                         segment = segment.Next;
-                        index = segment.Start;
+                        index = 0;
                     }
                 }
             }
@@ -115,7 +115,7 @@ namespace Channels
             }
 
             var wasLastSegment = _segment.Next == null;
-            var following = _segment.End - _index;
+            var following = _segment.Length - _index;
 
             if (following >= bytes)
             {
@@ -136,11 +136,11 @@ namespace Channels
                 {
                     bytes -= following;
                     segment = segment.Next;
-                    index = segment.Start;
+                    index = 0;
                 }
 
                 wasLastSegment = segment.Next == null;
-                following = segment.End - index;
+                following = segment.Length - index;
 
                 if (following >= bytes)
                 {
@@ -169,7 +169,7 @@ namespace Channels
 
                 if (following > 0)
                 {
-                    span = segment.Buffer.Data.Slice(index, following);
+                    span = segment.Data.Slice(index, following);
                     cursor = new ReadCursor(segment, index + following);
                     return true;
                 }
@@ -206,7 +206,7 @@ namespace Channels
                 }
                 else
                 {
-                    following = segment.End - index;
+                    following = segment.Length - index;
                 }
 
                 if (following > 0)
@@ -223,11 +223,11 @@ namespace Channels
                 else
                 {
                     segment = segment.Next;
-                    index = segment.Start;
+                    index = 0;
                 }
             }
 
-            span = segment.Buffer.Data.Slice(index, following);
+            span = segment.Data.Slice(index, following);
             cursor = new ReadCursor(segment, index + following);
             return true;
         }
@@ -235,7 +235,7 @@ namespace Channels
         public override string ToString()
         {
             var sb = new StringBuilder();
-            Span<byte> span = Segment.Buffer.Data.Span.Slice(Index, Segment.End - Index);
+            Span<byte> span = Segment.Data.Span.Slice(Index, Segment.Length - Index);
             for (int i = 0; i < span.Length; i++)
             {
                 sb.Append((char)span[i]);

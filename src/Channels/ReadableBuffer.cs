@@ -70,7 +70,7 @@ namespace Channels
             var segmentHead = BufferSegment.Clone(begin, end, out segmentTail);
 
             begin = new ReadCursor(segmentHead);
-            end = new ReadCursor(segmentTail, segmentTail.End);
+            end = new ReadCursor(segmentTail, segmentTail.Length);
 
             _start = begin;
             _end = end;
@@ -502,7 +502,7 @@ namespace Channels
             }
 
             var buffer = new OwnedBuffer(data);
-            var segment = new BufferSegment(buffer, offset, offset + length);
+            var segment = new BufferSegment(buffer);
             return new ReadableBuffer(new ReadCursor(segment, offset), new ReadCursor(segment, offset + length));
         }
     }
