@@ -119,6 +119,9 @@ namespace Channels
             // If inadequate bytes left or if the segment is readonly
             if (bytesLeftInBuffer == 0 || bytesLeftInBuffer < count || segment.ReadOnly)
             {
+                // Trim the previous segment since we're not writing to it anymore
+                segment.Trim(bytesLeftInBuffer);
+
                 var nextBuffer = _pool.Lease(count);
                 var nextSegment = new BufferSegment(nextBuffer);
 
@@ -141,6 +144,10 @@ namespace Channels
                 {
                     // Free tail space of the right amount, use that
                     segment = _commitHead.Segment;
+                }
+                else
+                {
+                    _commitHead.Segment.Trim(remaining);
                 }
             }
 

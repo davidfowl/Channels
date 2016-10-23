@@ -10,7 +10,7 @@ namespace Channels
     internal class BufferSegment : IDisposable
     {
         private readonly IBuffer _buffer;
-        private readonly Memory<byte> _data;
+        private Memory<byte> _data;
 
         public BufferSegment(IBuffer buffer)
         {
@@ -33,6 +33,14 @@ namespace Channels
         public BufferSegment Next;
 
         public int Length => Data.Length;
+
+        public void Trim(int remaining)
+        {
+            if (remaining > 0)
+            {
+                _data = _data.Slice(0, Length - remaining);
+            }
+        }
 
         public void Dispose()
         {
