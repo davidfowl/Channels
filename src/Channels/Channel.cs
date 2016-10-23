@@ -24,13 +24,14 @@ namespace Channels
         private Action _awaitableState;
 
         // The read head which is the extent of the IReadableChannel's consumed bytes
-        private ReadCursor _readHead;
+        private BufferSegment _readHead;
 
         // The commit head which is the extent of the bytes available to the IReadableChannel to consume
-        private ReadCursor _commitHead;
+        private BufferSegment _commitHead;
+        private int _commitHeadIndex;
 
         // The write head which is the extent of the IWritableChannel's written bytes
-        private ReadCursor _writingHead;
+        private BufferSegment _writingHead;
 
         private int _consumingState;
         private int _producingState;
@@ -77,7 +78,7 @@ namespace Channels
 
         private bool IsCompleted => ReferenceEquals(_awaitableState, _awaitableIsCompleted);
 
-        internal Memory<byte> Memory => _writingHead.Segment == null ? Memory<byte>.Empty : _writingHead.Segment.Data.Slice(_writingHead.Index, _writingHead.Segment.Length - _writingHead.Index);
+        internal Memory<byte> Memory => _writingHead == null ? Memory<byte>.Empty : _writingHead.Buffer.Data.Slice(_writingHead.End, _writingHead.Buffer.Data.Length - _writingHead.End);
 
         /// <summary>
         /// Allocates memory from the channel to write into.
@@ -108,26 +109,24 @@ namespace Channels
         {
             EnsureAlloc();
 
-            var segment = _writingHead.Segment;
+            var segment = _writingHead;
             if (segment == null)
             {
                 segment = AllocateWriteHead(count);
             }
 
-            var bytesLeftInBuffer = segment.Length - _writingHead.Index;
+            var buffer = segment.Buffer;
+            var bytesLeftInBuffer = buffer.Data.Length - segment.End;
 
             // If inadequate bytes left or if the segment is readonly
             if (bytesLeftInBuffer == 0 || bytesLeftInBuffer < count || segment.ReadOnly)
             {
-                // Trim the previous segment since we're not writing to it anymore
-                segment.Trim(bytesLeftInBuffer);
-
                 var nextBuffer = _pool.Lease(count);
                 var nextSegment = new BufferSegment(nextBuffer);
 
                 segment.Next = nextSegment;
 
-                _writingHead = new ReadCursor(nextSegment);
+                _writingHead = nextSegment;
             }
         }
 
@@ -135,19 +134,15 @@ namespace Channels
         {
             BufferSegment segment = null;
 
-            if (_commitHead.Segment != null && !_commitHead.Segment.ReadOnly)
+            if (_commitHead != null && !_commitHead.ReadOnly)
             {
                 // Try to return the tail so the calling code can append to it
-                int remaining = _commitHead.Segment.Length - _commitHead.Index;
+                int remaining = _commitHead.Buffer.Data.Length - _commitHead.End;
 
                 if (count <= remaining)
                 {
                     // Free tail space of the right amount, use that
-                    segment = _commitHead.Segment;
-                }
-                else
-                {
-                    _commitHead.Segment.Trim(remaining);
+                    segment = _commitHead;
                 }
             }
 
@@ -160,21 +155,21 @@ namespace Channels
             // Changing commit head shared with Reader
             lock (_sync)
             {
-                if (_commitHead.Segment == null)
+                if (_commitHead == null)
                 {
                     // No previous writes have occurred
-                    _commitHead = new ReadCursor(segment);
+                    _commitHead = segment;
                 }
-                else if (segment != _commitHead.Segment && _commitHead.Segment.Next == null)
+                else if (segment != _commitHead && _commitHead.Next == null)
                 {
                     // Append the segment to the commit head if writes have been committed
                     // and it isn't the same segment (unused tail space)
-                    _commitHead.Segment.Next = segment;
+                    _commitHead.Next = segment;
                 }
             }
 
             // Set write head to assigned segment
-            _writingHead = _commitHead;
+            _writingHead = segment;
 
             return segment;
         }
@@ -191,35 +186,31 @@ namespace Channels
             BufferSegment clonedEnd;
             var clonedBegin = BufferSegment.Clone(buffer.Start, buffer.End, out clonedEnd);
 
-            if (_writingHead.Segment == null)
+            if (_writingHead == null)
             {
                 // No active write
 
-                if (_commitHead.Segment == null)
+                if (_commitHead == null)
                 {
                     // No allocated buffers yet, not locking as _readHead will be null
-                    _commitHead = new ReadCursor(clonedBegin);
+                    _commitHead = clonedBegin;
                 }
                 else
                 {
-                    Debug.Assert(_commitHead.Segment.Next == null);
+                    Debug.Assert(_commitHead.Next == null);
                     // Allocated buffer, append as next segment
-                    _commitHead.Segment.Next = clonedBegin;
+                    _commitHead.Next = clonedBegin;
                 }
             }
             else
             {
-                Debug.Assert(_writingHead.Segment.Next == null);
-
-                // Trim the existing buffer before moving to the next
-                _writingHead.Segment.Trim(_writingHead.Segment.Length - _writingHead.Index);
-
+                Debug.Assert(_writingHead.Next == null);
                 // Active write, append as next segment
-                _writingHead.Segment.Next = clonedBegin;
+                _writingHead.Next = clonedBegin;
             }
 
             // Move write head to end of buffer
-            _writingHead = new ReadCursor(clonedEnd, clonedEnd.Length);
+            _writingHead = clonedEnd;
         }
 
         private void EnsureAlloc()
@@ -238,7 +229,7 @@ namespace Channels
                 ThrowHelper.ThrowInvalidOperationException(ExceptionResource.NotProducingToComplete);
             }
 
-            if (_writingHead.Segment == null)
+            if (_writingHead == null)
             {
                 // Nothing written to commit
                 return;
@@ -247,7 +238,7 @@ namespace Channels
             // Changing commit head shared with Reader
             lock (_sync)
             {
-                if (_readHead.Segment == null)
+                if (_readHead == null)
                 {
                     // Update the head to point to the head of the buffer. 
                     // This happens if we called alloc(0) then write
@@ -256,10 +247,11 @@ namespace Channels
 
                 // Always move the commit head to the write head
                 _commitHead = _writingHead;
+                _commitHeadIndex = _writingHead.End;
             }
 
             // Clear the writing state
-            _writingHead = default(ReadCursor);
+            _writingHead = null;
         }
 
         public void AdvanceWriter(int bytesWritten)
@@ -268,16 +260,16 @@ namespace Channels
 
             if (bytesWritten > 0)
             {
-                Debug.Assert(_writingHead.Segment != null);
-                Debug.Assert(!_writingHead.Segment.ReadOnly);
-                Debug.Assert(_writingHead.Segment.Next == null);
+                Debug.Assert(_writingHead != null);
+                Debug.Assert(!_writingHead.ReadOnly);
+                Debug.Assert(_writingHead.Next == null);
 
-                var buffer = _writingHead.Segment.Data;
-                var bufferIndex = _writingHead.Index + bytesWritten;
+                var buffer = _writingHead.Buffer;
+                var bufferIndex = _writingHead.End + bytesWritten;
 
-                Debug.Assert(bufferIndex <= buffer.Length);
+                Debug.Assert(bufferIndex <= buffer.Data.Length);
 
-                _writingHead = new ReadCursor(_writingHead.Segment, bufferIndex);
+                _writingHead.End = bufferIndex;
             }
             else if (bytesWritten < 0)
             {
@@ -298,12 +290,12 @@ namespace Channels
 
         internal ReadableBuffer AsReadableBuffer()
         {
-            if (_writingHead.Segment == null)
+            if (_writingHead == null)
             {
                 return new ReadableBuffer(); // Nothing written return empty
             }
 
-            return new ReadableBuffer(_commitHead, _writingHead);
+            return new ReadableBuffer(new ReadCursor(_commitHead, _commitHeadIndex), new ReadCursor(_writingHead, _writingHead.End));
         }
 
         private Task CompleteWriteAsync()
@@ -351,10 +343,10 @@ namespace Channels
             // Reading commit head shared with writer
             lock (_sync)
             {
-                readEnd = _commitHead;
+                readEnd = new ReadCursor(_commitHead, _commitHeadIndex);
             }
 
-            return new ReadableBuffer(_readHead, readEnd);
+            return new ReadableBuffer(new ReadCursor(_readHead), readEnd);
         }
 
         void IReadableChannel.Advance(ReadCursor consumed, ReadCursor examined) => AdvanceReader(consumed, examined);
@@ -366,17 +358,18 @@ namespace Channels
 
             if (!consumed.IsDefault)
             {
-                returnStart = _readHead.Segment;
+                returnStart = _readHead;
                 returnEnd = consumed.Segment;
-                _readHead = consumed;
+                _readHead = consumed.Segment;
+                _readHead.Start = consumed.Index;
             }
 
             // Reading commit head shared with writer
             lock (_sync)
             {
                 if (!examined.IsDefault &&
-                    examined.Segment == _commitHead.Segment &&
-                    examined.Index == _commitHead.Index &&
+                    examined.Segment == _commitHead &&
+                    examined.Index == _commitHeadIndex &&
                     Reading.Status == TaskStatus.WaitingForActivation)
                 {
                     Interlocked.CompareExchange(
@@ -534,7 +527,7 @@ namespace Channels
             lock (_sync)
             {
                 // Return all segments
-                var segment = _readHead.Segment;
+                var segment = _readHead;
                 while (segment != null)
                 {
                     var returnSegment = segment;
@@ -543,8 +536,8 @@ namespace Channels
                     returnSegment.Dispose();
                 }
 
-                _readHead = default(ReadCursor);
-                _commitHead = default(ReadCursor);
+                _readHead = null;
+                _commitHead = null;
             }
         }
 

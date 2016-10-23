@@ -19,9 +19,13 @@ namespace Channels
             base.Initialize();
         }
 
-        public IBuffer Preserve()
+        public IBuffer Preserve(int offset, int count, out int newStart, out int newEnd)
         {
             Interlocked.Increment(ref _referenceCount);
+
+            // Ignore the offset and count, we're just going to reference count the buffer
+            newStart = offset;
+            newEnd = offset + count;
             return this;
         }
 

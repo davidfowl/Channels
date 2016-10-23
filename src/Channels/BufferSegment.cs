@@ -9,43 +9,65 @@ namespace Channels
     // TODO: Pool segments
     internal class BufferSegment : IDisposable
     {
-        private readonly IBuffer _buffer;
-        private Memory<byte> _data;
+        /// <summary>
+        /// The buffer being tracked
+        /// </summary>
+        public IBuffer Buffer;
 
-        public BufferSegment(IBuffer buffer)
-        {
-            _buffer = buffer;
-            _data = buffer.Data;
-        }
+        /// <summary>
+        /// The Start represents the offset into Array where the range of "active" bytes begins. At the point when the block is leased
+        /// the Start is guaranteed to be equal to Array.Offset. The value of Start may be assigned anywhere between Data.Offset and
+        /// Data.Offset + Data.Count, and must be equal to or less than End.
+        /// </summary>
+        public int Start;
 
-        public BufferSegment(IBuffer buffer, int offset, int length)
-        {
-            _buffer = buffer.Preserve();
-            _data = _buffer.Data.Slice(offset, length);
+        /// <summary>
+        /// The End represents the offset into Array where the range of "active" bytes ends. At the point when the block is leased
+        /// the End is guaranteed to be equal to Array.Offset. The value of Start may be assigned anywhere between Data.Offset and
+        /// Data.Offset + Data.Count, and must be equal to or less than End.
+        /// </summary>
+        public int End;
 
-            ReadOnly = true;
-        }
-
-        public Memory<byte> Data => _data;
-
-        public bool ReadOnly { get; }
-
+        /// <summary>
+        /// Reference to the next block of data when the overall "active" bytes spans multiple blocks. At the point when the block is
+        /// leased Next is guaranteed to be null. Start, End, and Next are used together in order to create a linked-list of discontiguous 
+        /// working memory. The "active" memory is grown when bytes are copied in, End is increased, and Next is assigned. The "active" 
+        /// memory is shrunk when bytes are consumed, Start is increased, and blocks are returned to the pool.
+        /// </summary>
         public BufferSegment Next;
 
-        public int Length => Data.Length;
 
-        public void Trim(int remaining)
+        /// <summary>
+        /// If true, data should not be written into the backing block after the End offset. Data between start and end should never be modified
+        /// since this would break cloning.
+        /// </summary>
+        public bool ReadOnly;
+
+        public int Length => End - Start;
+
+
+        // Leasing ctor
+        public BufferSegment(IBuffer buffer)
         {
-            if (remaining > 0)
-            {
-                _data = _data.Slice(0, Length - remaining);
-            }
+            Buffer = buffer;
+            Start = 0;
+            End = 0;
+        }
+
+        // Cloning ctor
+        internal BufferSegment(IBuffer buffer, int start, int end)
+        {
+            Buffer = buffer.Preserve(start, end - start, out start, out end);
+            Start = start;
+            End = end;
+            ReadOnly = true;
         }
 
         public void Dispose()
         {
-            _buffer.Dispose();
+            Buffer.Dispose();
         }
+
 
         /// <summary>
         /// ToString overridden for debugger convenience. This displays the "active" byte information in this block as ASCII characters.
@@ -54,7 +76,7 @@ namespace Channels
         public override string ToString()
         {
             var builder = new StringBuilder();
-            var data = Data.Span;
+            var data = Buffer.Data.Slice(Start, Length).Span;
 
             for (int i = 0; i < Length; i++)
             {
@@ -63,31 +85,31 @@ namespace Channels
             return builder.ToString();
         }
 
-        public static BufferSegment Clone(ReadCursor begin, ReadCursor end, out BufferSegment lastSegment)
+        public static BufferSegment Clone(ReadCursor beginBuffer, ReadCursor endBuffer, out BufferSegment lastSegment)
         {
-            var beginSegment = begin.Segment;
-            var endSegment = end.Segment;
+            var beginOrig = beginBuffer.Segment;
+            var endOrig = endBuffer.Segment;
 
-            if (beginSegment == endSegment)
+            if (beginOrig == endOrig)
             {
-                lastSegment = new BufferSegment(beginSegment._buffer, begin.Index, end.Index - begin.Index);
+                lastSegment = new BufferSegment(beginOrig.Buffer, beginBuffer.Index, endBuffer.Index);
                 return lastSegment;
             }
 
-            var beginClone = new BufferSegment(beginSegment._buffer, begin.Index, beginSegment.Length);
+            var beginClone = new BufferSegment(beginOrig.Buffer, beginBuffer.Index, beginOrig.End);
             var endClone = beginClone;
 
-            beginSegment = beginSegment.Next;
+            beginOrig = beginOrig.Next;
 
-            while (beginSegment != endSegment)
+            while (beginOrig != endOrig)
             {
-                endClone.Next = new BufferSegment(beginSegment._buffer, 0, beginSegment.Length);
+                endClone.Next = new BufferSegment(beginOrig.Buffer, beginOrig.Start, beginOrig.End);
 
                 endClone = endClone.Next;
-                beginSegment = beginSegment.Next;
+                beginOrig = beginOrig.Next;
             }
 
-            lastSegment = new BufferSegment(endSegment._buffer, 0, end.Index);
+            lastSegment = new BufferSegment(endOrig.Buffer, endOrig.Start, endBuffer.Index);
             endClone.Next = lastSegment;
 
             return beginClone;

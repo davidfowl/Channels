@@ -511,7 +511,7 @@ namespace Channels.Tests
 
                 protected unsafe override bool TryGetArrayCore(out ArraySegment<byte> buffer)
                 {
-                    return _memory.Memory.TryGetArray(out buffer);
+                    return _memory.Memory.TryGetArray(out buffer, (void*)null);
                 }
 
                 protected override unsafe bool TryGetPointerCore(out void* pointer)
