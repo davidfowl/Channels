@@ -6,22 +6,18 @@ namespace Channels
 {
     public abstract class ReferenceCountedBuffer : OwnedMemory<byte>, IBuffer
     {
-        // REVIEW: We need to expose the underlying ID so we can use up the reference count without using
-        // reservations https://github.com/dotnet/corefxlab/issues/914
-        private int _referenceCount = 1;
-
         public Memory<byte> Data => Memory;
 
         public override void Initialize()
         {
-            _referenceCount = 1;
-
             base.Initialize();
+
+            AddReference(Id);
         }
 
         public IBuffer Preserve(int offset, int count, out int newStart, out int newEnd)
         {
-            Interlocked.Increment(ref _referenceCount);
+            AddReference(Id);
 
             // Ignore the offset and count, we're just going to reference count the buffer
             newStart = offset;
@@ -29,12 +25,17 @@ namespace Channels
             return this;
         }
 
-        void IDisposable.Dispose()
+        protected override void OnReferenceCountChanged(int newReferenceCount)
         {
-            if (Interlocked.Decrement(ref _referenceCount) == 0)
+            if (newReferenceCount == 0)
             {
                 Dispose();
             }
+        }
+
+        void IDisposable.Dispose()
+        {
+            ReleaseReference(Id);
         }
     }
 }
