@@ -15,13 +15,9 @@ namespace Channels
             AddReference(Id);
         }
 
-        public IBuffer Preserve(int offset, int count, out int newStart, out int newEnd)
+        public IBuffer Preserve()
         {
             AddReference(Id);
-
-            // Ignore the offset and count, we're just going to reference count the buffer
-            newStart = offset;
-            newEnd = offset + count;
             return this;
         }
 

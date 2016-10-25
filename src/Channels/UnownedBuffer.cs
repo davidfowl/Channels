@@ -17,14 +17,12 @@ namespace Channels
 
         public Memory<byte> Data => Memory;
 
-        public IBuffer Preserve(int offset, int length, out int newStart, out int newEnd)
+        public IBuffer Preserve()
         {
             // Copy to a new Owned Buffer.
-            var buffer = new byte[length];
-            Buffer.BlockCopy(_buffer.Array, _buffer.Offset + offset, buffer, 0, length);
-            newStart = 0;
-            newEnd = length;
-            return new OwnedBuffer(buffer);
+            var copy = new byte[_buffer.Count];
+            Buffer.BlockCopy(_buffer.Array, _buffer.Offset, copy, 0, _buffer.Count);
+            return new OwnedBuffer(copy);
         }
 
         protected override void DisposeCore()
