@@ -10,7 +10,7 @@ namespace Channels
     {
         private ArraySegment<byte> _buffer;
 
-        public UnownedBuffer(ArraySegment<byte> buffer)
+        public UnownedBuffer(ArraySegment<byte> buffer) : base(buffer.Array, buffer.Offset, buffer.Count)
         {
             _buffer = buffer;
         }
@@ -23,28 +23,6 @@ namespace Channels
             var copy = new byte[_buffer.Count];
             Buffer.BlockCopy(_buffer.Array, _buffer.Offset, copy, 0, _buffer.Count);
             return new OwnedBuffer(copy);
-        }
-
-        protected override void DisposeCore()
-        {
-            // GC works
-        }
-
-        protected override Span<byte> GetSpanCore()
-        {
-            return _buffer;
-        }
-
-        protected override bool TryGetArrayCore(out ArraySegment<byte> buffer)
-        {
-            buffer = _buffer;
-            return true;
-        }
-
-        protected override unsafe bool TryGetPointerCore(out void* pointer)
-        {
-            pointer = null;
-            return false;
         }
     }
 }

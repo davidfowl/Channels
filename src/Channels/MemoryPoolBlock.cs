@@ -18,7 +18,7 @@ namespace Channels
         /// <summary>
         /// This object cannot be instantiated outside of the static Create method
         /// </summary>
-        protected unsafe MemoryPoolBlock(MemoryPool pool, MemoryPoolSlab slab, int offset, int length)
+        protected unsafe MemoryPoolBlock(MemoryPool pool, MemoryPoolSlab slab, int offset, int length) : base(slab.Array, offset, length, slab.NativePointer + offset)
         {
             _offset = offset;
             _length = length;
@@ -54,6 +54,12 @@ namespace Channels
             }
         }
 
+        public void Initialize()
+        {
+            Initialize(Slab.Array, _offset, _length, Slab.NativePointer + _offset);
+            AddReference();
+        }
+
         internal static MemoryPoolBlock Create(
             int offset,
             int length,
@@ -85,26 +91,11 @@ namespace Channels
             return builder.ToString();
         }
 
-        protected override Span<byte> GetSpanCore()
-        {
-            return new Span<byte>(Slab.Array, _offset, _length);
-        }
-
-        protected override void DisposeCore()
+        protected override void Dispose(bool disposing)
         {
             Pool.Return(this);
-        }
 
-        protected override bool TryGetArrayCore(out ArraySegment<byte> buffer)
-        {
-            buffer = new ArraySegment<byte>(Slab.Array, _offset, _length);
-            return true;
-        }
-
-        protected override unsafe bool TryGetPointerCore(out void* pointer)
-        {
-            pointer = (byte*)Slab.NativePointer.ToPointer() + _offset;
-            return true;
+            base.Dispose(disposing);
         }
     }
 }

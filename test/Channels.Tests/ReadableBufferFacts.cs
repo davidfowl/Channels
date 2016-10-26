@@ -490,33 +490,32 @@ namespace Channels.Tests
                 return new NativeBuffer(NativeBufferPool.Shared.Rent(size));
             }
 
-            private class NativeBuffer : ReferenceCountedBuffer
+            private class NativeBuffer : IBuffer
             {
                 private readonly OwnedMemory<byte> _memory;
 
                 public NativeBuffer(OwnedMemory<byte> memory)
                 {
                     _memory = memory;
+                    _memory.AddReference();
                 }
 
-                protected override void DisposeCore()
+                public Memory<byte> Data => _memory.Memory;
+
+                public void Dispose()
                 {
-                    NativeBufferPool.Shared.Return(_memory);
+                    _memory.Release();
+
+                    if (_memory.ReferenceCount == 0)
+                    {
+                        _memory.Dispose();
+                    }
                 }
 
-                protected override Span<byte> GetSpanCore()
+                public IBuffer Preserve()
                 {
-                    return _memory.Span;
-                }
-
-                protected unsafe override bool TryGetArrayCore(out ArraySegment<byte> buffer)
-                {
-                    return _memory.Memory.TryGetArray(out buffer);
-                }
-
-                protected override unsafe bool TryGetPointerCore(out void* pointer)
-                {
-                    return _memory.Memory.TryGetPointer(out pointer);
+                    _memory.AddReference();
+                    return this;
                 }
             }
         }

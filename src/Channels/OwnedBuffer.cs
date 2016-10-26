@@ -1,57 +1,16 @@
-﻿using System;
-using System.Buffers;
-
+﻿
 namespace Channels
 {
     /// <summary>
     /// Represents a buffer that is completely owned by this object.
     /// </summary>
-    public class OwnedBuffer : OwnedMemory<byte>, IBuffer
+    public class OwnedBuffer : ReferenceCountedBuffer
     {
-        private byte[] _buffer;
-
         /// <summary>
         /// Create a new instance of <see cref="OwnedBuffer"/> that spans the array provided.
         /// </summary>
-        public OwnedBuffer(byte[] buffer)
+        public OwnedBuffer(byte[] buffer) : base(buffer, 0, buffer.Length)
         {
-            _buffer = buffer;
-        }
-
-        /// <summary>
-        /// Raw representation of the underlying data this <see cref="IBuffer"/> represents
-        /// </summary>
-        public Memory<byte> Data => Memory;
-
-        // We're owned, we're always "preserved"
-        /// <summary>
-        /// <see cref="IBuffer.Preserve()"/>
-        /// </summary>
-        public IBuffer Preserve()
-        {
-            return this;
-        }
-
-        protected override Span<byte> GetSpanCore()
-        {
-            return _buffer;
-        }
-
-        protected override void DisposeCore()
-        {
-            // No need, the GC can handle it.
-        }
-
-        protected override bool TryGetArrayCore(out ArraySegment<byte> buffer)
-        {
-            buffer = new ArraySegment<byte>(_buffer);
-            return true;
-        }
-
-        protected override unsafe bool TryGetPointerCore(out void* pointer)
-        {
-            pointer = null;
-            return false;
         }
     }
 }

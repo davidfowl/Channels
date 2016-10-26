@@ -1,23 +1,21 @@
 ﻿using System;
 using System.Buffers;
-using System.Threading;
 
 namespace Channels
 {
     public abstract class ReferenceCountedBuffer : OwnedMemory<byte>, IBuffer
     {
-        public Memory<byte> Data => Memory;
-
-        public override void Initialize()
+        public ReferenceCountedBuffer(byte[] buffer, int offset, int length, IntPtr pointer = default(IntPtr)) 
+            : base(buffer, offset, length, pointer)
         {
-            base.Initialize();
-
-            AddReference(Id);
+            AddReference();
         }
+
+        public Memory<byte> Data => Memory;
 
         public IBuffer Preserve()
         {
-            AddReference(Id);
+            AddReference();
             return this;
         }
 
@@ -31,7 +29,7 @@ namespace Channels
 
         void IDisposable.Dispose()
         {
-            ReleaseReference(Id);
+            Release();
         }
     }
 }
