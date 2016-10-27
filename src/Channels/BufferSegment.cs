@@ -66,7 +66,7 @@ namespace Channels
             var unowned = buffer as UnownedBuffer;
             if (unowned != null)
             {
-                Buffer = unowned.MakeCopy();
+                Buffer = unowned.MakeCopy(start, end - start, out Start, out End);
             }
             else
             {
