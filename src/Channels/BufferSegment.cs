@@ -17,15 +17,15 @@ namespace Channels
 
         /// <summary>
         /// The Start represents the offset into Array where the range of "active" bytes begins. At the point when the block is leased
-        /// the Start is guaranteed to be equal to Array.Offset. The value of Start may be assigned anywhere between Data.Offset and
-        /// Data.Offset + Data.Count, and must be equal to or less than End.
+        /// the Start is guaranteed to be equal to 0. The value of Start may be assigned anywhere between 0 and
+        /// Buffer.Length, and must be equal to or less than End.
         /// </summary>
         public int Start;
 
         /// <summary>
         /// The End represents the offset into Array where the range of "active" bytes ends. At the point when the block is leased
-        /// the End is guaranteed to be equal to Array.Offset. The value of Start may be assigned anywhere between Data.Offset and
-        /// Data.Offset + Data.Count, and must be equal to or less than End.
+        /// the End is guaranteed to be equal to Start. The value of Start may be assigned anywhere between 0 and
+        /// Buffer.Length, and must be equal to or less than End.
         /// </summary>
         public int End;
 
@@ -44,7 +44,15 @@ namespace Channels
         /// </summary>
         public bool ReadOnly;
 
-        public int Length => End - Start;
+        /// <summary>
+        /// The amount of readable bytes in this segment
+        /// </summary>
+        public int ReadableBytes => End - Start;
+
+        /// <summary>
+        /// The amount of writable bytes in this segment
+        /// </summary>
+        public int WritableBytes => Buffer.Length - End;
 
 
         // Leasing ctor
@@ -87,9 +95,9 @@ namespace Channels
         public override string ToString()
         {
             var builder = new StringBuilder();
-            var data = Buffer.Memory.Slice(Start, Length).Span;
+            var data = Buffer.Memory.Slice(Start, ReadableBytes).Span;
 
-            for (int i = 0; i < Length; i++)
+            for (int i = 0; i < ReadableBytes; i++)
             {
                 builder.Append((char)data[i]);
             }

@@ -78,7 +78,7 @@ namespace Channels
 
         private bool IsCompleted => ReferenceEquals(_awaitableState, _awaitableIsCompleted);
 
-        internal Memory<byte> Memory => _writingHead == null ? Memory<byte>.Empty : _writingHead.Buffer.Memory.Slice(_writingHead.End, _writingHead.Buffer.Memory.Length - _writingHead.End);
+        internal Memory<byte> Memory => _writingHead == null ? Memory<byte>.Empty : _writingHead.Buffer.Memory.Slice(_writingHead.End, _writingHead.WritableBytes);
 
         /// <summary>
         /// Allocates memory from the channel to write into.
@@ -115,8 +115,7 @@ namespace Channels
                 segment = AllocateWriteHead(count);
             }
 
-            var buffer = segment.Buffer;
-            var bytesLeftInBuffer = buffer.Memory.Length - segment.End;
+            var bytesLeftInBuffer = segment.WritableBytes;
 
             // If inadequate bytes left or if the segment is readonly
             if (bytesLeftInBuffer == 0 || bytesLeftInBuffer < count || segment.ReadOnly)
@@ -137,7 +136,7 @@ namespace Channels
             if (_commitHead != null && !_commitHead.ReadOnly)
             {
                 // Try to return the tail so the calling code can append to it
-                int remaining = _commitHead.Buffer.Memory.Length - _commitHead.End;
+                int remaining = _commitHead.WritableBytes;
 
                 if (count <= remaining)
                 {
