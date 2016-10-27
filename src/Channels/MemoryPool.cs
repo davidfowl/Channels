@@ -1,4 +1,5 @@
 using System;
+using System.Buffers;
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
@@ -65,7 +66,7 @@ namespace Channels
 
         private Action<MemoryPoolSlab> _slabDeallocationCallback;
 
-        public IBuffer Lease(int size)
+        public OwnedMemory<byte> Lease(int size)
         {
             if (size > _blockLength)
             {

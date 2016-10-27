@@ -485,38 +485,9 @@ namespace Channels.Tests
 
             }
 
-            public IBuffer Lease(int size)
+            public OwnedMemory<byte> Lease(int size)
             {
-                return new NativeBuffer(NativeBufferPool.Shared.Rent(size));
-            }
-
-            private class NativeBuffer : IBuffer
-            {
-                private readonly OwnedMemory<byte> _memory;
-
-                public NativeBuffer(OwnedMemory<byte> memory)
-                {
-                    _memory = memory;
-                    _memory.AddReference();
-                }
-
-                public Memory<byte> Memory => _memory.Memory;
-
-                public void Dispose()
-                {
-                    _memory.Release();
-
-                    if (_memory.ReferenceCount == 0)
-                    {
-                        _memory.Dispose();
-                    }
-                }
-
-                public IBuffer Preserve()
-                {
-                    _memory.AddReference();
-                    return this;
-                }
+                return NativeBufferPool.Shared.Rent(size);
             }
         }
     }

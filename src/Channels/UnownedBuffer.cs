@@ -6,7 +6,7 @@ namespace Channels
     /// <summary>
     /// Represents a buffer that is owned by an external component.
     /// </summary>
-    public class UnownedBuffer : OwnedMemory<byte>, IBuffer
+    public class UnownedBuffer : OwnedMemory<byte>
     {
         private ArraySegment<byte> _buffer;
 
@@ -15,7 +15,7 @@ namespace Channels
             _buffer = buffer;
         }
 
-        public IBuffer Preserve()
+        public OwnedMemory<byte> MakeCopy()
         {
             // Copy to a new Owned Buffer.
             var copy = new byte[_buffer.Count];

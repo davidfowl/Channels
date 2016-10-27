@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Buffers;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
@@ -85,7 +86,7 @@ namespace Channels
         /// <param name="cancellationToken"></param>
         /// <returns></returns>
         // Called by the WRITER
-        public async Task WriteAsync(IBuffer buffer, CancellationToken cancellationToken)
+        public async Task WriteAsync(OwnedMemory<byte> buffer, CancellationToken cancellationToken)
         {
             // If Writing has stopped, why is the caller writing??
             if (Writing.Status != TaskStatus.WaitingForActivation)

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Buffers;
 
 namespace Channels
 {
@@ -12,6 +13,6 @@ namespace Channels
         /// </summary>
         /// <param name="size">The size of the requested buffer</param>
         /// <returns>A <see cref="IBuffer"/> which is a wrapper around leased memory</returns>
-        IBuffer Lease(int size);
+        OwnedMemory<byte> Lease(int size);
     }
 }

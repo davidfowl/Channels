@@ -3,18 +3,12 @@ using System.Buffers;
 
 namespace Channels
 {
-    public abstract class ReferenceCountedBuffer : OwnedMemory<byte>, IBuffer
+    public abstract class ReferenceCountedBuffer : OwnedMemory<byte>
     {
         public ReferenceCountedBuffer(byte[] buffer, int offset, int length, IntPtr pointer = default(IntPtr)) 
             : base(buffer, offset, length, pointer)
         {
             AddReference();
-        }
-
-        public IBuffer Preserve()
-        {
-            AddReference();
-            return this;
         }
 
         protected override void OnReferenceCountChanged(int newReferenceCount)
@@ -23,11 +17,6 @@ namespace Channels
             {
                 Dispose();
             }
-        }
-
-        void IDisposable.Dispose()
-        {
-            Release();
         }
     }
 }
