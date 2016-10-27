@@ -500,7 +500,7 @@ namespace Channels.Tests
                     _memory.AddReference();
                 }
 
-                public Memory<byte> Data => _memory.Memory;
+                public Memory<byte> Memory => _memory.Memory;
 
                 public void Dispose()
                 {

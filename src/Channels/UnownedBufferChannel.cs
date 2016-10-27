@@ -110,7 +110,7 @@ namespace Channels
 
                 // Allocate a new segment to hold the buffer being written.
                 var segment = new BufferSegment(buffer);
-                segment.End = buffer.Data.Length;
+                segment.End = buffer.Memory.Length;
 
                 if (_head == null)
                 {

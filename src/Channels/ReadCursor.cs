@@ -169,7 +169,7 @@ namespace Channels
 
                 if (following > 0)
                 {
-                    span = segment.Buffer.Data.Slice(index, following);
+                    span = segment.Buffer.Memory.Slice(index, following);
                     cursor = new ReadCursor(segment, index + following);
                     return true;
                 }
@@ -227,7 +227,7 @@ namespace Channels
                 }
             }
 
-            span = segment.Buffer.Data.Slice(index, following);
+            span = segment.Buffer.Memory.Slice(index, following);
             cursor = new ReadCursor(segment, index + following);
             return true;
         }
@@ -235,7 +235,7 @@ namespace Channels
         public override string ToString()
         {
             var sb = new StringBuilder();
-            Span<byte> span = Segment.Buffer.Data.Span.Slice(Index, Segment.End - Index);
+            Span<byte> span = Segment.Buffer.Memory.Span.Slice(Index, Segment.End - Index);
             for (int i = 0; i < span.Length; i++)
             {
                 sb.Append((char)span[i]);

@@ -64,7 +64,7 @@ namespace Channels
                 end = _endIndex;
             }
 
-            _current = _segment.Buffer.Data.Slice(start, end - start);
+            _current = _segment.Buffer.Memory.Slice(start, end - start);
 
             if (_segment == _endSegment)
             {

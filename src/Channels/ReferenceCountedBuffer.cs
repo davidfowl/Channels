@@ -11,8 +11,6 @@ namespace Channels
             AddReference();
         }
 
-        public Memory<byte> Data => Memory;
-
         public IBuffer Preserve()
         {
             AddReference();

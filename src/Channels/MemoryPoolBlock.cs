@@ -82,7 +82,7 @@ namespace Channels
         public override string ToString()
         {
             var builder = new StringBuilder();
-            var data = Data.Span;
+            var data = Memory.Span;
 
             for (int i = 0; i < data.Length; i++)
             {

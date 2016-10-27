@@ -15,6 +15,6 @@ namespace Channels
         /// <summary>
         /// Raw representation of the underlying data this <see cref="IBuffer"/> represents
         /// </summary>
-        Memory<byte> Data { get; }
+        Memory<byte> Memory { get; }
     }
 }

@@ -15,8 +15,6 @@ namespace Channels
             _buffer = buffer;
         }
 
-        public Memory<byte> Data => Memory;
-
         public IBuffer Preserve()
         {
             // Copy to a new Owned Buffer.
