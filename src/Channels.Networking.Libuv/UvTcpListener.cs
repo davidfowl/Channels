@@ -5,7 +5,7 @@ using Channels.Networking.Libuv.Interop;
 
 namespace Channels.Networking.Libuv
 {
-    public class UvTcpListener
+    public class UvTcpListener : IChannelEndPoint , ICallbackOnConnection
     {
         private static Action<UvStreamHandle, int, Exception, object> _onConnectionCallback = OnConnectionCallback;
         private static Action<object> _startListeningCallback = state => ((UvTcpListener)state).Listen();
@@ -17,28 +17,48 @@ namespace Channels.Networking.Libuv
         private UvTcpHandle _listenSocket;
         private Func<UvTcpConnection, Task> _callback;
 
+        /// <summary>
+        /// </summary>
+        /// <param name="thread"></param>
+        /// <param name="endpoint"></param>
         public UvTcpListener(UvThread thread, IPEndPoint endpoint)
         {
             _thread = thread;
             _endpoint = endpoint;
         }
 
-        public void OnConnection(Func<UvTcpConnection, Task> callback)
+        /// <summary>
+        /// </summary>
+        public IPEndPoint EndPoint      
         {
-            _callback = callback;
+            get; private set;
         }
 
-        public void Start()
+        public void Start()             
         {
             // TODO: Make idempotent
             _thread.Post(_startListeningCallback, this);
         }
 
-        public void Stop()
+        public void Stop()              
         {
             // TODO: Make idempotent
             _thread.Post(_stopListeningCallback, this);
         }
+
+        /// <summary>
+        /// callback function when a connection happens, IChannel
+        /// is used so the callback need not know about the connection
+        /// concrete implementation.
+        /// </summary>
+        /// <param name="callback"></param>
+        public void OnConnection(Func<IChannel, Task> callback)
+        {
+            _callback = callback;
+        }
+
+
+
 
         private void Dispose()
         {

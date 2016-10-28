@@ -22,7 +22,10 @@ namespace Channels.Networking.Libuv
             _ipEndPoint = endPoint;
         }
 
-        public async Task<UvTcpConnection> ConnectAsync()
+        /// <summary>
+        /// </summary>
+        /// <returns></returns>
+        public async Task<IChannel> ConnectAsync()
         {
             _thread.Post(_startConnect, this);
 

@@ -8,7 +8,7 @@ namespace Channels.Networking.Sockets
     /// <summary>
     /// Allows a managed socket to be used as a server, listening on a designated address and accepting connections from clients
     /// </summary>
-    public class SocketListener : IDisposable
+    public class SocketListener : ICallbackOnConnection, IDisposable
     {
         private readonly bool _ownsChannelFactory;
         private Socket _socket;
@@ -98,7 +98,7 @@ namespace Channels.Networking.Sockets
         /// <summary>
         /// Specifies a callback to be invoked whenever a connection is accepted
         /// </summary>
-        public void OnConnection(Func<SocketConnection, Task> callback)
+        public void OnConnection(Func<IChannel, Task> callback)
         {
             Callback = callback;
         }
