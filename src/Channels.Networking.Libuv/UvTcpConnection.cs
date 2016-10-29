@@ -117,11 +117,9 @@ namespace Channels.Networking.Libuv
             writeReq.Write(_handle, buffer, _writeCallback, this);
         }
 
-        private static void WriteCallback(UvWriteReq req, int status, object state)
+        private static void WriteCallback(UvWriteReq writeReq, int status, object state)
         {
-            var connection = ((UvTcpConnection)state);
-
-            connection.EndWrite(req);
+            ((UvTcpConnection)state).EndWrite(writeReq);
         }
 
         private void EndWrite(UvWriteReq writeReq)
