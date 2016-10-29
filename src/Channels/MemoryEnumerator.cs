@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Buffers;
 
 namespace Channels
 {
@@ -64,7 +63,7 @@ namespace Channels
                 end = _endIndex;
             }
 
-            _current = _segment.Buffer.Memory.Slice(start, end - start);
+            _current = _segment.Memory.Slice(start, end - start);
 
             if (_segment == _endSegment)
             {

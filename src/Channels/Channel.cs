@@ -78,7 +78,7 @@ namespace Channels
 
         private bool IsCompleted => ReferenceEquals(_awaitableState, _awaitableIsCompleted);
 
-        internal Memory<byte> Memory => _writingHead == null ? Memory<byte>.Empty : _writingHead.Buffer.Memory.Slice(_writingHead.End, _writingHead.WritableBytes);
+        internal Memory<byte> Memory => _writingHead == null ? Memory<byte>.Empty : _writingHead.Memory.Slice(_writingHead.End, _writingHead.WritableBytes);
 
         /// <summary>
         /// Allocates memory from the channel to write into.
@@ -263,10 +263,10 @@ namespace Channels
                 Debug.Assert(!_writingHead.ReadOnly);
                 Debug.Assert(_writingHead.Next == null);
 
-                var buffer = _writingHead.Buffer;
+                var buffer = _writingHead.Memory;
                 var bufferIndex = _writingHead.End + bytesWritten;
 
-                Debug.Assert(bufferIndex <= buffer.Memory.Length);
+                Debug.Assert(bufferIndex <= buffer.Length);
 
                 _writingHead.End = bufferIndex;
             }

@@ -33,18 +33,23 @@ namespace Channels
         /// </summary>
         public BufferSegment Next;
 
+        /// <summary>
+        /// The buffer being tracked
+        /// </summary>
+        private OwnedMemory<byte> _buffer;
+
         public BufferSegment(OwnedMemory<byte> buffer)
         {
-            Buffer = buffer;
+            _buffer = buffer;
             Start = 0;
             End = 0;
 
-            Buffer.AddReference();
+            _buffer.AddReference();
         }
 
         public BufferSegment(OwnedMemory<byte> buffer, int start, int end)
         {
-            Buffer = buffer;
+            _buffer = buffer;
             Start = start;
             End = end;
             ReadOnly = true;
@@ -54,16 +59,13 @@ namespace Channels
             var unowned = buffer as UnownedBuffer;
             if (unowned != null)
             {
-                Buffer = unowned.MakeCopy(start, end - start, out Start, out End);
+                _buffer = unowned.MakeCopy(start, end - start, out Start, out End);
             }
 
-            Buffer.AddReference();
+            _buffer.AddReference();
         }
 
-        /// <summary>
-        /// The buffer being tracked
-        /// </summary>
-        public OwnedMemory<byte> Buffer { get; }
+        public Memory<byte> Memory => _buffer.Memory;
 
         /// <summary>
         /// If true, data should not be written into the backing block after the End offset. Data between start and end should never be modified
@@ -79,17 +81,17 @@ namespace Channels
         /// <summary>
         /// The amount of writable bytes in this segment. It is the amount of bytes between Length and End
         /// </summary>
-        public int WritableBytes => Buffer.Length - End;
+        public int WritableBytes => _buffer.Length - End;
 
         public void Dispose()
         {
-            Debug.Assert(Buffer.ReferenceCount >= 1);
+            Debug.Assert(_buffer.ReferenceCount >= 1);
 
-            Buffer.Release();
+            _buffer.Release();
 
-            if (Buffer.ReferenceCount == 0)
+            if (_buffer.ReferenceCount == 0)
             {
-                Buffer.Dispose();
+                _buffer.Dispose();
             }
         }
 
@@ -101,7 +103,7 @@ namespace Channels
         public override string ToString()
         {
             var builder = new StringBuilder();
-            var data = Buffer.Memory.Slice(Start, ReadableBytes).Span;
+            var data = _buffer.Memory.Slice(Start, ReadableBytes).Span;
 
             for (int i = 0; i < ReadableBytes; i++)
             {
@@ -117,24 +119,24 @@ namespace Channels
 
             if (beginOrig == endOrig)
             {
-                lastSegment = new BufferSegment(beginOrig.Buffer, beginBuffer.Index, endBuffer.Index);
+                lastSegment = new BufferSegment(beginOrig._buffer, beginBuffer.Index, endBuffer.Index);
                 return lastSegment;
             }
 
-            var beginClone = new BufferSegment(beginOrig.Buffer, beginBuffer.Index, beginOrig.End);
+            var beginClone = new BufferSegment(beginOrig._buffer, beginBuffer.Index, beginOrig.End);
             var endClone = beginClone;
 
             beginOrig = beginOrig.Next;
 
             while (beginOrig != endOrig)
             {
-                endClone.Next = new BufferSegment(beginOrig.Buffer, beginOrig.Start, beginOrig.End);
+                endClone.Next = new BufferSegment(beginOrig._buffer, beginOrig.Start, beginOrig.End);
 
                 endClone = endClone.Next;
                 beginOrig = beginOrig.Next;
             }
 
-            lastSegment = new BufferSegment(endOrig.Buffer, endOrig.Start, endBuffer.Index);
+            lastSegment = new BufferSegment(endOrig._buffer, endOrig.Start, endBuffer.Index);
             endClone.Next = lastSegment;
 
             return beginClone;
