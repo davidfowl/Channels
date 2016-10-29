@@ -158,9 +158,9 @@ namespace Channels
 
             var seek = 0;
 
-            foreach (var span in this)
+            foreach (var memory in this)
             {
-                var currentSpan = span.Span;
+                var currentSpan = memory.Span;
                 var found = false;
 
                 if (Vector.IsHardwareAccelerated)

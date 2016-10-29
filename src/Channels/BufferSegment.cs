@@ -3,6 +3,7 @@
 
 using System;
 using System.Buffers;
+using System.Diagnostics;
 using System.Text;
 
 namespace Channels
@@ -82,6 +83,8 @@ namespace Channels
 
         public void Dispose()
         {
+            Debug.Assert(Buffer.ReferenceCount >= 1);
+
             Buffer.Release();
 
             if (Buffer.ReferenceCount == 0)
