@@ -11,11 +11,6 @@ namespace Channels
     internal class BufferSegment : IDisposable
     {
         /// <summary>
-        /// The buffer being tracked
-        /// </summary>
-        public OwnedMemory<byte> Buffer;
-
-        /// <summary>
         /// The Start represents the offset into Array where the range of "active" bytes begins. At the point when the block is leased
         /// the Start is guaranteed to be equal to 0. The value of Start may be assigned anywhere between 0 and
         /// Buffer.Length, and must be equal to or less than End.
@@ -36,24 +31,6 @@ namespace Channels
         /// memory is shrunk when bytes are consumed, Start is increased, and blocks are returned to the pool.
         /// </summary>
         public BufferSegment Next;
-
-
-        /// <summary>
-        /// If true, data should not be written into the backing block after the End offset. Data between start and end should never be modified
-        /// since this would break cloning.
-        /// </summary>
-        public bool ReadOnly;
-
-        /// <summary>
-        /// The amount of readable bytes in this segment
-        /// </summary>
-        public int ReadableBytes => End - Start;
-
-        /// <summary>
-        /// The amount of writable bytes in this segment
-        /// </summary>
-        public int WritableBytes => Buffer.Length - End;
-
 
         // Leasing ctor
         public BufferSegment(OwnedMemory<byte> buffer)
@@ -83,6 +60,27 @@ namespace Channels
 
             Buffer.AddReference();
         }
+
+        /// <summary>
+        /// The buffer being tracked
+        /// </summary>
+        public OwnedMemory<byte> Buffer { get; }
+
+        /// <summary>
+        /// If true, data should not be written into the backing block after the End offset. Data between start and end should never be modified
+        /// since this would break cloning.
+        /// </summary>
+        public bool ReadOnly { get; }
+
+        /// <summary>
+        /// The amount of readable bytes in this segment. Is is the amount of bytes between Start and End.
+        /// </summary>
+        public int ReadableBytes => End - Start;
+
+        /// <summary>
+        /// The amount of writable bytes in this segment. It is the amount of bytes between Length and End
+        /// </summary>
+        public int WritableBytes => Buffer.Length - End;
 
         public void Dispose()
         {
