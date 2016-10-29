@@ -28,18 +28,12 @@ namespace Channels.Tests
             string reply = null;
 
             using (var thread = new UvThread())
+            using (var server = new UvTcpListener(thread, endpoint))
             {
-                var server = new UvTcpListener(thread, endpoint);
                 server.OnConnection(Echo);
                 await server.StartAsync();
-                try
-                {
-                    reply = SendBasicSocketMessage(endpoint, MessageToSend);
-                }
-                finally
-                {
-                    server.Stop();
-                }
+
+                reply = SendBasicSocketMessage(endpoint, MessageToSend);
             }
             Assert.Equal(MessageToSend, reply);
         }
@@ -103,14 +97,14 @@ namespace Channels.Tests
             Assert.Equal(MessageToSend, reply);
         }
 
-        [Fact(Skip = "Libuv shutdown needs work for Client API")]
+        [Fact]
         public async Task RunStressPingPongTest_Libuv()
         {
             var endpoint = new IPEndPoint(IPAddress.Loopback, 5020);
 
             using (var thread = new UvThread())
+            using (var server = new UvTcpListener(thread, endpoint))
             {
-                var server = new UvTcpListener(thread, endpoint);
                 server.OnConnection(PongServer);
                 await server.StartAsync();
 
@@ -127,6 +121,7 @@ namespace Channels.Tests
                 }
             }
         }
+
 
         [Fact]
         public async Task RunStressPingPongTest_Socket()

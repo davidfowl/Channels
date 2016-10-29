@@ -87,7 +87,7 @@ namespace Channels.Samples
 
             wh.Wait();
 
-            listener.Stop();
+            listener.Dispose();
             thread.Dispose();
         }
     }

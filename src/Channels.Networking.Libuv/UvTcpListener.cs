@@ -5,11 +5,11 @@ using Channels.Networking.Libuv.Interop;
 
 namespace Channels.Networking.Libuv
 {
-    public class UvTcpListener
+    public class UvTcpListener : IDisposable
     {
         private static Action<UvStreamHandle, int, Exception, object> _onConnectionCallback = OnConnectionCallback;
         private static Action<object> _startListeningCallback = state => ((UvTcpListener)state).Listen();
-        private static Action<object> _stopListeningCallback = state => ((UvTcpListener)state).Dispose();
+        private static Action<object> _stopListeningCallback = state => ((UvTcpListener)state).Shutdown();
 
         private readonly IPEndPoint _endpoint;
         private readonly UvThread _thread;
@@ -38,13 +38,13 @@ namespace Channels.Networking.Libuv
             return _startedTcs.Task;
         }
 
-        public void Stop()
+        public void Dispose()
         {
             // TODO: Make idempotent
             _thread.Post(_stopListeningCallback, this);
         }
 
-        private void Dispose()
+        private void Shutdown()
         {
             _listenSocket.Dispose();
         }

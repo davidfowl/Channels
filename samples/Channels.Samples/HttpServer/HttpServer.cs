@@ -117,7 +117,7 @@ namespace Channels.Samples.Http
         {
             _rioTcpServer?.Stop();
             _listenSocket?.Dispose();
-            _uvTcpListener?.Stop();
+            _uvTcpListener?.Dispose();
             _uvThread?.Dispose();
         }
 

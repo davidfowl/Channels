@@ -77,7 +77,7 @@ namespace Channels.Samples.Framing
             Console.WriteLine($"Listening on {ip} on port {port}");
             Console.ReadKey();
 
-            listener.Stop();
+            listener.Dispose();
             thread.Dispose();
         }
 
