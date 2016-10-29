@@ -79,9 +79,6 @@ namespace Channels
             if (unowned != null)
             {
                 Buffer = unowned.MakeCopy(start, end - start, out Start, out End);
-
-                // Release the reference to the unowned buffer
-                unowned.Release();
             }
 
             Buffer.AddReference();
