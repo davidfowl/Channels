@@ -59,4 +59,5 @@ install:
 
 script:
   # Build sample
+  - dotnet build samples/Channels.Samples
   - dotnet test test/Channels.Tests

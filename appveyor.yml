@@ -7,6 +7,7 @@ before_test:
 
 test_script:
   # Build sample
+  - dotnet build samples/Channels.Samples
   - dotnet test test/Channels.Tests
 
 after_test:

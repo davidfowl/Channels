@@ -48,7 +48,7 @@ namespace Channels.Samples.Http
                 await ProcessClient(application, connection);
             });
 
-            _uvTcpListener.Start();
+            _uvTcpListener.StartAsync();
         }
 
         private void StartAcceptingRIOConnections<TContext>(IHttpApplication<TContext> application, IPAddress ip, int port)

@@ -72,7 +72,7 @@ namespace Channels.Samples.Framing
                 }
             });
 
-            listener.Start();
+            listener.StartAsync().GetAwaiter().GetResult();
 
             Console.WriteLine($"Listening on {ip} on port {port}");
             Console.ReadKey();
