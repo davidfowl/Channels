@@ -12,6 +12,7 @@ namespace Channels.Networking.Libuv
 
         private static readonly Action<UvStreamHandle, int, object> _readCallback = ReadCallback;
         private static readonly Func<UvStreamHandle, int, object, Uv.uv_buf_t> _allocCallback = AllocCallback;
+        private static readonly Action<UvWriteReq, int, object> _writeCallback = WriteCallback;
 
         protected readonly Channel _input;
         protected readonly Channel _output;
@@ -75,7 +76,7 @@ namespace Channels.Networking.Libuv
 
                         if (!buffer.IsEmpty)
                         {
-                            DoWrite(buffer);
+                            BeginWrite(buffer);
                         }
                     }
                     finally
@@ -107,32 +108,33 @@ namespace Channels.Networking.Libuv
             }
         }
 
-        private async void DoWrite(ReadableBuffer buffer)
+        private void BeginWrite(ReadableBuffer buffer)
         {
             var writeReq = _thread.WriteReqPool.Allocate();
 
-            try
+            _pendingWrites++;
+
+            writeReq.Write(_handle, buffer, _writeCallback, this);
+        }
+
+        private static void WriteCallback(UvWriteReq req, int status, object state)
+        {
+            var connection = ((UvTcpConnection)state);
+
+            connection.EndWrite(req);
+        }
+
+        private void EndWrite(UvWriteReq writeReq)
+        {
+            _pendingWrites--;
+
+            _thread.WriteReqPool.Return(writeReq);
+
+            if (_drainWrites != null)
             {
-                _pendingWrites++;
-
-                // Preserve this buffer for disposal after the write completes
-                using (buffer.Preserve())
+                if (_pendingWrites == 0)
                 {
-                    await writeReq.WriteAsync(_handle, ref buffer);
-                }
-            }
-            finally
-            {
-                _pendingWrites--;
-
-                _thread.WriteReqPool.Return(writeReq);
-
-                if (_drainWrites != null)
-                {
-                    if (_pendingWrites == 0)
-                    {
-                        _drainWrites.TrySetResult(null);
-                    }
+                    _drainWrites.TrySetResult(null);
                 }
             }
         }

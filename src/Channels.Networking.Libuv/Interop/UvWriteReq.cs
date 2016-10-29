@@ -17,12 +17,11 @@ namespace Channels.Networking.Libuv.Interop
         private IntPtr _bufs;
 
         private Action<UvWriteReq, int, object> _callback;
+        private PreservedBuffer _buffer;
         private object _state;
         private const int BUFFER_COUNT = 4;
 
         private List<GCHandle> _pins = new List<GCHandle>(BUFFER_COUNT + 1);
-
-        private LibuvAwaitable<UvWriteReq> _awaitable = new LibuvAwaitable<UvWriteReq>();
 
         public UvWriteReq() : base()
         {
@@ -39,23 +38,17 @@ namespace Channels.Networking.Libuv.Interop
             _bufs = handle + requestSize;
         }
 
-        public unsafe LibuvAwaitable<UvWriteReq> WriteAsync(
+        public unsafe void Write(
             UvStreamHandle handle,
-            ref ReadableBuffer buffer)
-        {
-            Write(handle, ref buffer, LibuvAwaitable<UvWriteReq>.Callback, _awaitable);
-            return _awaitable;
-        }
-
-
-        private unsafe void Write(
-            UvStreamHandle handle,
-            ref ReadableBuffer buffer,
+            ReadableBuffer buffer,
             Action<UvWriteReq, int, object> callback,
             object state)
         {
             try
             {
+                // Preserve the buffer for the async call
+                _buffer = buffer.Preserve();
+                buffer = _buffer.Buffer;
 
                 int nBuffers = 0;
                 if (buffer.IsSingleSpan)
@@ -121,6 +114,7 @@ namespace Channels.Networking.Libuv.Interop
             {
                 _callback = null;
                 _state = null;
+                _buffer.Dispose();
                 Unpin(this);
                 throw;
             }
@@ -139,6 +133,8 @@ namespace Channels.Networking.Libuv.Interop
         {
             var req = FromIntPtr<UvWriteReq>(ptr);
             Unpin(req);
+
+            req._buffer.Dispose();
 
             var callback = req._callback;
             req._callback = null;
