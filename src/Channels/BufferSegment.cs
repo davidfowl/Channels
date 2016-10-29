@@ -32,7 +32,6 @@ namespace Channels
         /// </summary>
         public BufferSegment Next;
 
-        // Leasing ctor
         public BufferSegment(OwnedMemory<byte> buffer)
         {
             Buffer = buffer;
@@ -42,8 +41,7 @@ namespace Channels
             Buffer.AddReference();
         }
 
-        // Cloning ctor
-        internal BufferSegment(OwnedMemory<byte> buffer, int start, int end)
+        public BufferSegment(OwnedMemory<byte> buffer, int start, int end)
         {
             Buffer = buffer;
             Start = start;
