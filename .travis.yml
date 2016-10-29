@@ -10,6 +10,11 @@ addons:
     - libunwind8
     - zlib1g
 
+env:
+  global:
+    - DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+    - DOTNET_CLI_TELEMETRY_OPTOUT: 1
+
 matrix:
   include:
     - os: linux
