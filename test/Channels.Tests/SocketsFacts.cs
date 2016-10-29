@@ -20,7 +20,7 @@ namespace Channels.Tests
         }
         static readonly Span<byte> _ping = new Span<byte>(Encoding.ASCII.GetBytes("PING")), _pong = new Span<byte>(Encoding.ASCII.GetBytes("PING"));
 
-        [Fact(Skip = "flakey?")]
+        [Fact]
         public void CanCreateWorkingEchoServer_ChannelLibuvServer_NonChannelClient()
         {
             var endpoint = new IPEndPoint(IPAddress.Loopback, 5010);
