@@ -76,7 +76,7 @@ namespace Channels.Samples
                 }
             });
 
-            listener.Start();
+            listener.StartAsync().GetAwaiter().GetResult();
 
             Console.WriteLine($"Listening on {ip} on port {port}");
             var wh = new ManualResetEventSlim();

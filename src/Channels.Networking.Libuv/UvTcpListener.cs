@@ -17,6 +17,8 @@ namespace Channels.Networking.Libuv
         private UvTcpHandle _listenSocket;
         private Func<UvTcpConnection, Task> _callback;
 
+        private TaskCompletionSource<object> _startedTcs = new TaskCompletionSource<object>();
+
         public UvTcpListener(UvThread thread, IPEndPoint endpoint)
         {
             _thread = thread;
@@ -28,10 +30,12 @@ namespace Channels.Networking.Libuv
             _callback = callback;
         }
 
-        public void Start()
+        public Task StartAsync()
         {
             // TODO: Make idempotent
             _thread.Post(_startListeningCallback, this);
+
+            return _startedTcs.Task;
         }
 
         public void Stop()
@@ -47,11 +51,15 @@ namespace Channels.Networking.Libuv
 
         private void Listen()
         {
+            // TODO: Error handling
             _listenSocket = new UvTcpHandle();
             _listenSocket.Init(_thread.Loop, null);
             _listenSocket.NoDelay(true);
             _listenSocket.Bind(_endpoint);
             _listenSocket.Listen(10, _onConnectionCallback, this);
+
+            // Don't complete the task on the UV thread
+            Task.Run(() => _startedTcs.TrySetResult(null));
         }
 
         private static void OnConnectionCallback(UvStreamHandle listenSocket, int status, Exception error, object state)

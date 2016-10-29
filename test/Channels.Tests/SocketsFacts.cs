@@ -21,7 +21,7 @@ namespace Channels.Tests
         static readonly Span<byte> _ping = new Span<byte>(Encoding.ASCII.GetBytes("PING")), _pong = new Span<byte>(Encoding.ASCII.GetBytes("PING"));
 
         [Fact]
-        public void CanCreateWorkingEchoServer_ChannelLibuvServer_NonChannelClient()
+        public async Task CanCreateWorkingEchoServer_ChannelLibuvServer_NonChannelClient()
         {
             var endpoint = new IPEndPoint(IPAddress.Loopback, 5010);
             const string MessageToSend = "Hello world!";
@@ -31,7 +31,7 @@ namespace Channels.Tests
             {
                 var server = new UvTcpListener(thread, endpoint);
                 server.OnConnection(Echo);
-                server.Start();
+                await server.StartAsync();
                 try
                 {
                     reply = SendBasicSocketMessage(endpoint, MessageToSend);
@@ -103,7 +103,7 @@ namespace Channels.Tests
             Assert.Equal(MessageToSend, reply);
         }
 
-        [Fact(Skip = "flakey?")]
+        [Fact]
         public async Task RunStressPingPongTest_Libuv()
         {
             var endpoint = new IPEndPoint(IPAddress.Loopback, 5020);
@@ -112,7 +112,7 @@ namespace Channels.Tests
             {
                 var server = new UvTcpListener(thread, endpoint);
                 server.OnConnection(PongServer);
-                server.Start();
+                await server.StartAsync();
 
                 const int SendCount = 500, ClientCount = 5;
                 for (int loop = 0; loop < ClientCount; loop++)
