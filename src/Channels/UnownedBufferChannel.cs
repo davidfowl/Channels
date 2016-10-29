@@ -72,9 +72,12 @@ namespace Channels
         /// <param name="buffer"></param>
         /// <param name="cancellationToken"></param>
         /// <returns></returns>
-        public Task WriteAsync(ArraySegment<byte> buffer, CancellationToken cancellationToken)
+        public async Task WriteAsync(ArraySegment<byte> buffer, CancellationToken cancellationToken)
         {
-            return WriteAsync(new UnownedBuffer(buffer), cancellationToken);
+            using (var unowned = new UnownedBuffer(buffer))
+            {
+                await WriteAsync(unowned, cancellationToken);
+            }
         }
 
         /// <summary>
@@ -110,31 +113,36 @@ namespace Channels
                 cancellationToken.ThrowIfCancellationRequested();
 
                 // Allocate a new segment to hold the buffer being written.
-                var segment = new BufferSegment(buffer);
-                segment.End = buffer.Memory.Length;
-
-                if (_head == null)
+                using (var segment = new BufferSegment(buffer))
                 {
-                    // Update the head to point to the head of the buffer.
-                    _head = segment;
+                    segment.End = buffer.Memory.Length;
+
+                    if (_head == null || _head.ReadableBytes == 0)
+                    {
+                        // Update the head to point to the head of the buffer.
+                        _head = segment;
+                    }
+                    else if (_tail != null)
+                    {
+                        // Add this segment to the end of the chain
+                        _tail.Next = segment;
+                    }
+
+                    // Always update tail to the buffer's tail
+                    _tail = segment;
+
+                    // Trigger the continuation
+                    Complete();
+
+                    // Wait for another read to come (or for the end of Reading, which will also trigger this gate to open) in before returning
+                    await _readWaiting;
+
+                    if (_head.ReadableBytes > 0)
+                    {
+                        // We need to preserve any buffers that haven't been consumed
+                        _head = BufferSegment.Clone(new ReadCursor(_head), new ReadCursor(_tail, _tail?.End ?? 0), out _tail);
+                    }
                 }
-                else if (_tail != null)
-                {
-                    // Add this segment to the end of the chain
-                    _tail.Next = segment;
-                }
-
-                // Always update tail to the buffer's tail
-                _tail = segment;
-
-                // Trigger the continuation
-                Complete();
-
-                // Wait for another read to come (or for the end of Reading, which will also trigger this gate to open) in before returning
-                await _readWaiting;
-
-                // We need to preserve any buffers that haven't been consumed
-                _head = BufferSegment.Clone(new ReadCursor(_head), new ReadCursor(_tail, _tail?.End ?? 0), out _tail);
 
                 // Cancel this task if this write is cancelled
                 cancellationToken.ThrowIfCancellationRequested();

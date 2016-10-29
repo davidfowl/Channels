@@ -61,6 +61,8 @@ namespace Channels
             Buffer = buffer;
             Start = 0;
             End = 0;
+
+            Buffer.AddReference();
         }
 
         // Cloning ctor
@@ -71,20 +73,25 @@ namespace Channels
             End = end;
             ReadOnly = true;
 
+            // For unowned buffers, we need to make a copy here so that the caller can 
+            // give up the give this buffer back to the caller
             var unowned = buffer as UnownedBuffer;
             if (unowned != null)
             {
                 Buffer = unowned.MakeCopy(start, end - start, out Start, out End);
             }
-            else
-            {
-                buffer.AddReference();
-            }
+
+            Buffer.AddReference();
         }
 
         public void Dispose()
         {
             Buffer.Release();
+
+            if (Buffer.ReferenceCount == 0)
+            {
+                Buffer.Dispose();
+            }
         }
 
 

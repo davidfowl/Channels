@@ -151,11 +151,11 @@ namespace Channels
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        internal bool TryGetBuffer(ReadCursor end, out Memory<byte> span, out ReadCursor cursor)
+        internal bool TryGetBuffer(ReadCursor end, out Memory<byte> data, out ReadCursor cursor)
         {
             if (IsDefault)
             {
-                span = Memory<byte>.Empty;
+                data = Memory<byte>.Empty;
                 cursor = this;
                 return false;
             }
@@ -169,22 +169,22 @@ namespace Channels
 
                 if (following > 0)
                 {
-                    span = segment.Buffer.Memory.Slice(index, following);
+                    data = segment.Buffer.Memory.Slice(index, following);
                     cursor = new ReadCursor(segment, index + following);
                     return true;
                 }
 
-                span = Memory<byte>.Empty;
+                data = Memory<byte>.Empty;
                 cursor = this;
                 return false;
             }
             else
             {
-                return TryGetBufferMultiBlock(end, out span, out cursor);
+                return TryGetBufferMultiBlock(end, out data, out cursor);
             }
         }
 
-        private bool TryGetBufferMultiBlock(ReadCursor end, out Memory<byte> span, out ReadCursor cursor)
+        private bool TryGetBufferMultiBlock(ReadCursor end, out Memory<byte> data, out ReadCursor cursor)
         {
             var segment = _segment;
             var index = _index;
@@ -216,7 +216,7 @@ namespace Channels
 
                 if (wasLastSegment)
                 {
-                    span = Memory<byte>.Empty;
+                    data = Memory<byte>.Empty;
                     cursor = this;
                     return false;
                 }
@@ -227,7 +227,7 @@ namespace Channels
                 }
             }
 
-            span = segment.Buffer.Memory.Slice(index, following);
+            data = segment.Buffer.Memory.Slice(index, following);
             cursor = new ReadCursor(segment, index + following);
             return true;
         }

@@ -140,6 +140,156 @@ namespace Channels.Tests
         }
 
         [Fact]
+        public async Task AccessingUnownedMemoryThrowsIfUsedAfterAdvance()
+        {
+            var stream = new CallbackStream(async (s, token) =>
+            {
+                var sw = new StreamWriter(s);
+                await sw.WriteAsync("Hello ");
+                await sw.FlushAsync();
+            });
+
+            var channel = stream.AsReadableChannel();
+
+            var data = Memory<byte>.Empty;
+
+            while (true)
+            {
+                var result = await channel.ReadAsync();
+                var buffer = result.Buffer;
+
+                if (buffer.IsEmpty && result.IsCompleted)
+                {
+                    // Done
+                    break;
+                }
+                data = buffer.First;
+                channel.Advance(buffer.End);
+            }
+
+            Assert.Throws<ObjectDisposedException>(() => data.Span);
+        }
+
+        [Fact]
+        public async Task PreservingUnownedBufferCopies()
+        {
+            var stream = new CallbackStream(async (s, token) =>
+            {
+                var sw = new StreamWriter(s);
+                await sw.WriteAsync("Hello ");
+                await sw.FlushAsync();
+            });
+
+            var channel = stream.AsReadableChannel();
+
+            var preserved = default(PreservedBuffer);
+
+            while (true)
+            {
+                var result = await channel.ReadAsync();
+                var buffer = result.Buffer;
+
+                if (buffer.IsEmpty && result.IsCompleted)
+                {
+                    // Done
+                    break;
+                }
+
+                preserved = buffer.Preserve();
+
+                // Make sure we can acccess the span
+                var span = buffer.First.Span;
+
+                channel.Advance(buffer.End);
+            }
+
+            using (preserved)
+            {
+                Assert.Equal("Hello ", Encoding.UTF8.GetString(preserved.Buffer.ToArray()));
+            }
+
+            Assert.Throws<ObjectDisposedException>(() => preserved.Buffer.First.Span);
+        }
+
+        [Fact]
+        public async Task CanConsumeLessDataThanProducedAndPreservingOwnedBuffers()
+        {
+            var stream = new CallbackStream(async (s, token) =>
+            {
+                var sw = new StreamWriter(s);
+                await sw.WriteAsync("Hello ");
+                await sw.FlushAsync();
+                await sw.WriteAsync("World");
+                await sw.FlushAsync();
+            });
+
+            var channel = stream.AsReadableChannel();
+
+            int index = 0;
+            var message = "Hello World";
+
+            while (true)
+            {
+                var result = await channel.ReadAsync();
+                var buffer = result.Buffer;
+
+                if (buffer.IsEmpty && result.IsCompleted)
+                {
+                    // Done
+                    break;
+                }
+
+                using (buffer.Preserve())
+                {
+                    var ch = (char)buffer.First.Span[0];
+                    Assert.Equal(message[index++], ch);
+                    channel.Advance(buffer.Start.Seek(1), buffer.End);
+                }
+            }
+
+            Assert.Equal(message.Length, index);
+        }
+
+        [Fact]
+        public async Task CanConsumeLessDataThanProducedAndPreservingUnOwnedBuffers()
+        {
+            var stream = new CallbackStream(async (s, token) =>
+            {
+                var sw = new StreamWriter(s);
+                await sw.WriteAsync("Hello ");
+                await sw.FlushAsync();
+                await sw.WriteAsync("World");
+                await sw.FlushAsync();
+            });
+
+            var channel = stream.AsReadableChannel();
+
+            int index = 0;
+            var message = "Hello World";
+
+            while (true)
+            {
+                var result = await channel.ReadAsync();
+                var buffer = result.Buffer;
+
+                if (buffer.IsEmpty && result.IsCompleted)
+                {
+                    // Done
+                    break;
+                }
+
+                using (buffer.Preserve())
+                {
+                    var ch = (char)buffer.First.Span[0];
+                    Assert.Equal(message[index++], ch);
+                    channel.Advance(buffer.Start.Seek(1));
+                }
+            }
+
+            Assert.Equal(message.Length, index);
+        }
+
+        [Fact]
         public async Task CanConsumeLessDataThanProducedWithBufferReuse()
         {
             var stream = new CallbackStream(async (s, token) =>
