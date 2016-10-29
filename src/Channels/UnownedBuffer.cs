@@ -22,7 +22,7 @@ namespace Channels
             Buffer.BlockCopy(_buffer.Array, _buffer.Offset + offset, buffer, 0, length);
             newStart = 0;
             newEnd = length;
-            return new OwnedBuffer(buffer);
+            return new OwnedArray<byte>(buffer);
         }
     }
 }

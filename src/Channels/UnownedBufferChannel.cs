@@ -72,9 +72,12 @@ namespace Channels
         /// <param name="buffer"></param>
         /// <param name="cancellationToken"></param>
         /// <returns></returns>
-        public Task WriteAsync(ArraySegment<byte> buffer, CancellationToken cancellationToken)
+        public async Task WriteAsync(ArraySegment<byte> buffer, CancellationToken cancellationToken)
         {
-            return WriteAsync(new UnownedBuffer(buffer), cancellationToken);
+            using (var unowned = new UnownedBuffer(buffer))
+            {
+                await WriteAsync(unowned, cancellationToken);
+            }
         }
 
         /// <summary>
@@ -133,8 +136,11 @@ namespace Channels
                 // Wait for another read to come (or for the end of Reading, which will also trigger this gate to open) in before returning
                 await _readWaiting;
 
-                // We need to preserve any buffers that haven't been consumed
-                _head = BufferSegment.Clone(new ReadCursor(_head), new ReadCursor(_tail, _tail?.End ?? 0), out _tail);
+                if (_head.ReadableBytes > 0)
+                {
+                    // We need to preserve any buffers that haven't been consumed
+                    _head = BufferSegment.Clone(new ReadCursor(_head), new ReadCursor(_tail, _tail?.End ?? 0), out _tail);
+                }
 
                 // Cancel this task if this write is cancelled
                 cancellationToken.ThrowIfCancellationRequested();

@@ -496,13 +496,15 @@ namespace Channels
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.offset);
             }
 
-            if(length  < 0 || (offset + length) > data.Length)
+            if (length < 0 || (offset + length) > data.Length)
             {
                 ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.length);
             }
 
-            var buffer = new OwnedBuffer(data);
-            var segment = new BufferSegment(buffer, offset, offset + length);
+            var buffer = new OwnedArray<byte>(data);
+            var segment = new BufferSegment(buffer);
+            segment.Start = offset;
+            segment.End = offset + length;
             return new ReadableBuffer(new ReadCursor(segment, offset), new ReadCursor(segment, offset + length));
         }
     }
