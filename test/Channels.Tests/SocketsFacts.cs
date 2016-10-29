@@ -103,7 +103,7 @@ namespace Channels.Tests
             Assert.Equal(MessageToSend, reply);
         }
 
-        [Fact]
+        [Fact(Skip = "Libuv shutdown needs work for Client API")]
         public async Task RunStressPingPongTest_Libuv()
         {
             var endpoint = new IPEndPoint(IPAddress.Loopback, 5020);
