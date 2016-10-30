@@ -8,6 +8,45 @@ namespace Channels
     public static class StreamExtensions
     {
         /// <summary>
+        /// Adapts a <see cref="Stream"/> into a <see cref="IWritableChannel"/>.
+        /// </summary>
+        /// <param name="stream"></param>
+        /// <returns></returns>
+        public static IWritableChannel AsWritableChannel(this Stream stream)
+        {
+            return stream.AsWritableChannel(ArrayBufferPool.Instance);
+        }
+
+        /// <summary>
+        /// Adapts a <see cref="Stream"/> into a <see cref="IWritableChannel"/>.
+        /// </summary>
+        /// <param name="stream"></param>
+        /// <param name="pool"></param>
+        /// <returns></returns>
+        public static IWritableChannel AsWritableChannel(this Stream stream, IBufferPool pool)
+        {
+            if (stream is IWritableChannel)
+            {
+                return (IWritableChannel)stream;
+            }
+
+            var channel = new Channel(pool);
+            channel.CopyToAsync(stream).ContinueWith((task) =>
+            {
+                if (task.IsFaulted)
+                {
+                    channel.CompleteReader(task.Exception);
+                }
+                else
+                {
+                    channel.CompleteReader();
+                }
+            });
+
+            return channel;
+        }
+
+        /// <summary>
         /// Adapts a <see cref="Stream"/> into a <see cref="IReadableChannel"/>.
         /// </summary>
         /// <param name="stream"></param>
@@ -22,6 +61,11 @@ namespace Channels
         /// <returns></returns>
         public static IReadableChannel AsReadableChannel(this Stream stream, CancellationToken cancellationToken)
         {
+            if (stream is IReadableChannel)
+            {
+                return (IReadableChannel)stream;
+            }
+
             var streamAdaptor = new UnownedBufferStream(stream);
             streamAdaptor.Produce(cancellationToken);
             return streamAdaptor.Channel;
