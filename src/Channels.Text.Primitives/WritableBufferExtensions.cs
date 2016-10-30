@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Runtime;
 using System.Text;
 
 namespace Channels.Text.Primitives
@@ -6,6 +7,12 @@ namespace Channels.Text.Primitives
     // These APIs suck since you can't pass structs by ref to extension methods and they are mutable structs...
     public static class WritableBufferExtensions
     {
+        private static readonly byte[] HexChars = new byte[] {
+                (byte)'0', (byte)'1', (byte)'2', (byte)'3', (byte)'4', (byte)'5', (byte)'6',
+                (byte)'7', (byte)'8', (byte)'9', (byte)'a', (byte)'b', (byte)'c', (byte)'d',
+                (byte)'e', (byte)'f'
+            };
+
         private static readonly Encoding Utf8Encoding = Encoding.UTF8;
         private static readonly Encoding ASCIIEncoding = Encoding.ASCII;
 
@@ -47,6 +54,38 @@ namespace Channels.Text.Primitives
                     buffer.Advance(bytesWritten);
                 }
             }
+        }
+
+        public unsafe static void WriteHex(this WritableBuffer buffer, int value)
+        {
+            if (value < 16)
+            {
+                buffer.Write(new Span<byte>(HexChars, value, 1));
+                return;
+            }
+
+            // TODO: Don't use 2 passes
+            int length = 0;
+            var val = value;
+            while (val > 0)
+            {
+                val >>= 4;
+                length++;
+            }
+
+            // Allocate space for writing the hex number
+            byte* digits = stackalloc byte[length];
+            var span = new Span<byte>(digits, length);
+            int index = span.Length - 1;
+
+            while (value > 0)
+            {
+                span[index--] = HexChars[value & 0x0f];
+                value >>= 4;
+            }
+
+            // Write the span to the buffer
+            buffer.Write(span);
         }
 
         // REVIEW: See if we can use IFormatter here

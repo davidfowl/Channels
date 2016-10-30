@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 using Channels.Text.Primitives;
@@ -293,6 +295,32 @@ namespace Channels.Tests
                 var channel = cf.CreateChannel();
                 var buffer = channel.Alloc();
                 Assert.Throws<ArgumentOutOfRangeException>(() => buffer.Ensure(8192));
+            }
+        }
+
+        public static IEnumerable<object[]> HexNumbers
+        {
+            get
+            {
+                yield return new object[] { 0, "0" };
+                for (int i = 1; i < 50; i++)
+                {
+                    yield return new object[] { i, i.ToString("x2").TrimStart('0') };
+                }
+            }
+        }
+
+        [Theory]
+        [MemberData(nameof(HexNumbers))]
+        public void WriteHex(int value, string hex)
+        {
+            using (var cf = new ChannelFactory())
+            {
+                var channel = cf.CreateChannel();
+                var buffer = channel.Alloc();
+                buffer.WriteHex(value);
+
+                Assert.Equal(hex, buffer.AsReadableBuffer().GetAsciiString());
             }
         }
     }

@@ -1,8 +1,6 @@
 ﻿using System;
 using System.IO;
-using System.Numerics;
 using System.Text;
-using System.Text.Formatting;
 using System.Threading.Tasks;
 using Channels.Text.Primitives;
 using Microsoft.AspNetCore.Hosting.Server;
@@ -18,7 +16,6 @@ namespace Channels.Samples.Http
         private readonly IReadableChannel _input;
         private readonly IWritableChannel _output;
         private readonly IHttpApplication<TContext> _application;
-        private readonly WritableChannelFormatter _outputFormatter;
 
         public RequestHeaderDictionary RequestHeaders => _parser.RequestHeaders;
         public ResponseHeaderDictionary ResponseHeaders { get; } = new ResponseHeaderDictionary();
@@ -47,7 +44,6 @@ namespace Channels.Samples.Http
             _output = output;
             _requestBody = new HttpRequestStream<TContext>(this);
             _responseBody = new HttpResponseStream<TContext>(this);
-            _outputFormatter = _output.GetFormatter(EncodingData.InvariantUtf8);
         }
 
         public IReadableChannel Input => _input;
@@ -140,19 +136,19 @@ namespace Channels.Samples.Http
 
         private Task EndResponse()
         {
+            var buffer = _output.Alloc();
+
             if (!HasStarted)
             {
-                WriteBeginResponseHeaders();
+                WriteBeginResponseHeaders(buffer);
             }
 
             if (_autoChunk)
             {
-                WriteEndResponse();
-
-                return _outputFormatter.FlushAsync();
+                WriteEndResponse(buffer);
             }
 
-            return Task.CompletedTask;
+            return buffer.FlushAsync();
         }
 
         private void Reset()
@@ -170,26 +166,29 @@ namespace Channels.Samples.Http
 
         public Task WriteAsync(Span<byte> data)
         {
+            var buffer = _output.Alloc();
+
             if (!HasStarted)
             {
-                WriteBeginResponseHeaders();
+                WriteBeginResponseHeaders(buffer);
             }
 
             if (_autoChunk)
             {
-                _outputFormatter.Append(data.Length, Format.Parsed.HexLowercase);
-                _outputFormatter.Write(data);
-                _outputFormatter.Write(_endChunkBytes);
+                buffer.WriteHex(data.Length);
+                buffer.Write(_endChunkBytes);
+                buffer.Write(data);
+                buffer.Write(_endChunkBytes);
             }
             else
             {
-                _outputFormatter.Write(data);
+                buffer.Write(data);
             }
 
-            return _outputFormatter.FlushAsync();
+            return buffer.FlushAsync();
         }
 
-        private void WriteBeginResponseHeaders()
+        private void WriteBeginResponseHeaders(WritableBuffer buffer)
         {
             if (HasStarted)
             {
@@ -198,18 +197,18 @@ namespace Channels.Samples.Http
 
             HasStarted = true;
 
-            _outputFormatter.Write(_http11Bytes);
+            buffer.Write(_http11Bytes);
             var status = ReasonPhrases.ToStatusBytes(StatusCode);
-            _outputFormatter.Write(status);
+            buffer.Write(status);
 
             _autoChunk = !HasContentLength && !HasTransferEncoding && KeepAlive;
 
-            ResponseHeaders.CopyTo(_autoChunk, _outputFormatter);
+            ResponseHeaders.CopyTo(_autoChunk, buffer);
         }
 
-        private void WriteEndResponse()
+        private void WriteEndResponse(WritableBuffer buffer)
         {
-            _outputFormatter.Write(_chunkedEndBytes);
+            buffer.Write(_chunkedEndBytes);
         }
     }
 }

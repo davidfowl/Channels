@@ -93,26 +93,26 @@ namespace Channels.Samples.Http
             return GetEnumerator();
         }
 
-        public void CopyTo(bool chunk, WritableChannelFormatter outputFormatter)
+        public void CopyTo(bool chunk, WritableBuffer buffer)
         {
             foreach (var header in _headers)
             {
-                outputFormatter.Write(_headersStartBytes);
-                outputFormatter.Append(header.Key);
-                outputFormatter.Write(_headersSeperatorBytes);
-                outputFormatter.Append(header.Value.ToString());
+                buffer.Write(_headersStartBytes);
+                buffer.WriteUtf8String(header.Key);
+                buffer.Write(_headersSeperatorBytes);
+                buffer.WriteUtf8String(header.Value.ToString());
             }
 
             if (chunk)
             {
-                outputFormatter.Write(_chunkedHeaderBytes);
+                buffer.Write(_chunkedHeaderBytes);
             }
 
-            outputFormatter.Write(_serverHeaderBytes);
+            buffer.Write(_serverHeaderBytes);
             var date = _dateHeaderValueManager.GetDateHeaderValues().Bytes;
-            outputFormatter.Write(date);
+            buffer.Write(date);
 
-            outputFormatter.Write(_headersEndBytes);
+            buffer.Write(_headersEndBytes);
         }
 
         public void Reset() => _headers.Clear();
