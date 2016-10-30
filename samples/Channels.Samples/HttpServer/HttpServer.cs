@@ -119,6 +119,11 @@ namespace Channels.Samples.Http
             _listenSocket?.Dispose();
             _uvTcpListener?.Dispose();
             _uvThread?.Dispose();
+
+            _rioTcpServer = null;
+            _listenSocket = null;
+            _uvTcpListener = null;
+            _uvThread = null;
         }
 
         private static void GetIp(string url, out IPAddress ip, out int port)
