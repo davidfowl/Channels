@@ -96,7 +96,12 @@ namespace Channels.Samples.Http
                 {
                     StatusCode = 400;
 
+                    // Start processing the response body
+                    Task task = ProcessResponseBody();
+
                     CompleteResponse();
+
+                    await task;
 
                     return;
                 }
@@ -151,9 +156,12 @@ namespace Channels.Samples.Http
         private void CompleteResponse()
         {
             // The http request is done
+
+            // The application is done producing the response body
             ResponseBody.CompleteWriter();
 
-            RequestBody.CompleteWriter();
+            // The application is done consuming the request body
+            RequestBody.CompleteReader();
         }
 
         private async Task ProcessRequestBody(uint contentLength)
@@ -195,6 +203,8 @@ namespace Channels.Samples.Http
                     _input.Advance(consumed);
                 }
             }
+
+            RequestBody.CompleteWriter();
         }
 
         private async Task ProcessResponseBody()
