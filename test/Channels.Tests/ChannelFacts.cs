@@ -324,5 +324,31 @@ namespace Channels.Tests
                 Assert.Throws<ArgumentOutOfRangeException>(() => channel.Alloc(8192));
             }
         }
+
+        [Fact]
+        public void ReadingStartedCompletesOnCompleteReader()
+        {
+            using (var cf = new ChannelFactory())
+            {
+                var channel = cf.CreateChannel();
+
+                channel.CompleteReader();
+
+                Assert.True(channel.ReadingStarted.IsCompleted);
+            }
+        }
+
+        [Fact]
+        public void ReadingStartedCompletesOnCallToReadAsync()
+        {
+            using (var cf = new ChannelFactory())
+            {
+                var channel = cf.CreateChannel();
+
+                channel.ReadAsync();
+
+                Assert.True(channel.ReadingStarted.IsCompleted);
+            }
+        }
     }
 }

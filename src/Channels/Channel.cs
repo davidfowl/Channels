@@ -440,6 +440,9 @@ namespace Channels
             // TODO: Review this lock?
             lock (_sync)
             {
+                // Trigger this if it's never been triggered
+                _startingReadingTcs.TrySetResult(null);
+
                 SignalWriter(exception);
 
                 if (Reading.IsCompleted)
@@ -465,12 +468,15 @@ namespace Channels
         /// Asynchronously reads a sequence of bytes from the current <see cref="IReadableChannel"/>.
         /// </summary>
         /// <returns>A <see cref="ReadableChannelAwaitable"/> representing the asynchronous read operation.</returns>
-        public ReadableChannelAwaitable ReadAsync() => new ReadableChannelAwaitable(this);
-
-        void IReadableBufferAwaiter.OnCompleted(Action continuation)
+        public ReadableChannelAwaitable ReadAsync()
         {
             _startingReadingTcs.TrySetResult(null);
 
+            return new ReadableChannelAwaitable(this);
+        }
+
+        void IReadableBufferAwaiter.OnCompleted(Action continuation)
+        {
             var awaitableState = Interlocked.CompareExchange(
                 ref _awaitableState,
                 continuation,
