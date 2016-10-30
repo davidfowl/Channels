@@ -1,9 +1,6 @@
 ﻿using System;
 using System.IO;
-using System.Linq;
 using System.Net;
-using System.Text;
-using System.Text.Formatting;
 using System.Threading;
 using Channels.Networking.Libuv;
 using Channels.Text.Primitives;

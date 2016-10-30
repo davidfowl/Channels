@@ -9,7 +9,7 @@ using Microsoft.AspNetCore.Http.Features;
 
 namespace Channels.Samples.Http
 {
-    public partial class HttpConnection<TContext> : IHttpRequestFeature, IHttpResponseFeature, ITcpConnectionFeature, IFeatureCollection
+    public partial class HttpConnection<TContext> : IHttpRequestFeature, IHttpResponseFeature, IFeatureCollection
     {
         private FeatureCollection _features = new FeatureCollection();
 
@@ -34,11 +34,6 @@ namespace Channels.Samples.Http
             }
 
             if (key == typeof(IHttpResponseFeature))
-            {
-                return this;
-            }
-
-            if (key == typeof(ITcpConnectionFeature))
             {
                 return this;
             }
