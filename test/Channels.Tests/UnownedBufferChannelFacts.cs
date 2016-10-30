@@ -383,6 +383,153 @@ namespace Channels.Tests
             Assert.Equal("Cannot Read until the previous read has been acknowledged by calling Advance", thrown.Message);
         }
 
+        [Fact]
+        public async Task StreamAsReadableChannelUsesUnderlyingChannelIfAvailable()
+        {
+            var stream = new StreamAndChannel();
+            var sw = new StreamWriter(stream);
+            sw.Write("Hello");
+            sw.Flush();
+            stream.FinishWriting();
+
+            var channel = stream.AsReadableChannel();
+
+            while (true)
+            {
+                var result = await channel.ReadAsync();
+                var buffer = result.Buffer;
+                if (buffer.IsEmpty && result.IsCompleted)
+                {
+                    // Done
+                    break;
+                }
+
+                var segment = buffer.ToArray();
+
+                var data = Encoding.UTF8.GetString(segment);
+                Assert.Equal("Hello", data);
+                channel.Advance(buffer.End);
+            }
+
+        }
+
+        [Fact]
+        public async Task StreamAsReadableChannelReadStream()
+        {
+            var stream = new StreamAndChannel();
+            var sw = new StreamWriter(stream);
+            sw.Write("Hello");
+            sw.Flush();
+
+            var channel = stream.AsReadableChannel();
+            var result = await channel.ReadAsync();
+            var buffer = result.Buffer;
+            var segment = buffer.ToArray();
+            var data = Encoding.UTF8.GetString(segment);
+            Assert.Equal("Hello", data);
+            channel.Advance(buffer.End);
+
+            sw.Write("World");
+            sw.Flush();
+            stream.FinishWriting();
+
+            var readBuf = new byte[512];
+            int read = await stream.ReadAsync(readBuf, 0, readBuf.Length);
+            Assert.Equal("World", Encoding.UTF8.GetString(readBuf, 0, read));
+        }
+
+        private class StreamAndChannel : Stream, IReadableChannel
+        {
+            private readonly Channel _channel = new Channel(ArrayBufferPool.Instance);
+
+            public override bool CanRead => true;
+
+            public override bool CanSeek => false;
+
+            public override bool CanWrite => true;
+
+            public override long Length
+            {
+                get
+                {
+                    throw new NotSupportedException();
+                }
+            }
+
+            public override long Position
+            {
+                get
+                {
+                    throw new NotSupportedException();
+                }
+
+                set
+                {
+                    throw new NotSupportedException();
+                }
+            }
+
+            public void Advance(ReadCursor consumed, ReadCursor examined)
+            {
+                _channel.AdvanceReader(consumed, examined);
+            }
+
+            public void Complete(Exception exception = null)
+            {
+                _channel.CompleteReader(exception);
+            }
+
+            public override void Flush()
+            {
+
+            }
+
+            public override int Read(byte[] buffer, int offset, int count)
+            {
+                return _channel.ReadAsync(new Span<byte>(buffer, offset, count)).GetAwaiter().GetResult();
+            }
+
+            public override async Task<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+            {
+                return await _channel.ReadAsync(new Span<byte>(buffer, offset, count));
+            }
+
+            public ReadableChannelAwaitable ReadAsync()
+            {
+                return _channel.ReadAsync();
+            }
+
+            public override long Seek(long offset, SeekOrigin origin)
+            {
+                throw new NotSupportedException();
+            }
+
+            public override void SetLength(long value)
+            {
+                throw new NotSupportedException();
+            }
+
+            public override void Write(byte[] buffer, int offset, int count)
+            {
+                _channel.WriteAsync(new Span<byte>(buffer, offset, count)).GetAwaiter().GetResult();
+            }
+
+            public override Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
+            {
+                return _channel.WriteAsync(new Span<byte>(buffer, offset, count));
+            }
+
+            public void FinishWriting() => _channel.CompleteWriter();
+
+            protected override void Dispose(bool disposing)
+            {
+                base.Dispose(disposing);
+
+                _channel.CompleteReader();
+                _channel.CompleteWriter();
+            }
+        }
+
         private class CallbackStream : Stream
         {
             private readonly Func<Stream, CancellationToken, Task> _callback;
