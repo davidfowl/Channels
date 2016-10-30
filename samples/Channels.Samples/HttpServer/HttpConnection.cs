@@ -46,6 +46,9 @@ namespace Channels.Samples.Http
             _output = output;
             _requestBody = new HttpRequestStream<TContext>(this);
             _responseBody = new HttpResponseStream<TContext>(this);
+
+            RequestBody = factory.CreateChannel();
+            ResponseBody = factory.CreateChannel();
         }
 
         public Channel RequestBody { get; private set; }
@@ -256,8 +259,8 @@ namespace Channels.Samples.Http
 
         private void Reset()
         {
-            RequestBody = _factory.CreateChannel();
-            ResponseBody = _factory.CreateChannel();
+            RequestBody.Reset();
+            ResponseBody.Reset();
 
             _parser.Reset();
             ResponseHeaders.Reset();

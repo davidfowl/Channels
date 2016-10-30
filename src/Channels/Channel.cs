@@ -38,9 +38,9 @@ namespace Channels
         private object _sync = new object();
 
         // REVIEW: This object might be getting a little big :)
-        private readonly TaskCompletionSource<object> _readingTcs = new TaskCompletionSource<object>();
-        private readonly TaskCompletionSource<object> _writingTcs = new TaskCompletionSource<object>();
-        private readonly TaskCompletionSource<object> _startingReadingTcs = new TaskCompletionSource<object>();
+        private TaskCompletionSource<object> _readingTcs = new TaskCompletionSource<object>();
+        private TaskCompletionSource<object> _writingTcs = new TaskCompletionSource<object>();
+        private TaskCompletionSource<object> _startingReadingTcs = new TaskCompletionSource<object>();
 #if DEBUG
         private string _consumingLocation;
 #endif
@@ -544,6 +544,25 @@ namespace Channels
                 _readHead = null;
                 _commitHead = null;
             }
+        }
+
+        public void Reset()
+        {
+            // REVIEW: Should reset make sure nothing is in flight?
+            // TODO: Don't use task...
+            _readingTcs = new TaskCompletionSource<object>();
+            _writingTcs = new TaskCompletionSource<object>();
+            _startingReadingTcs = new TaskCompletionSource<object>();
+
+            _commitHead = null;
+            _commitHeadIndex = 0;
+            _readHead = null;
+            _writingHead = null;
+
+            _awaitableState = _awaitableIsNotCompleted;
+
+            _consumingState = State.NotActive;
+            _producingState = State.NotActive;
         }
 
         // Can't use enums with Interlocked
