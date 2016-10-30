@@ -58,6 +58,8 @@ namespace Channels.Networking.Windows.RIO
             _sendTask = ProcessSends();
         }
 
+        public ChannelFactory ChannelFactory => _rioThread.ChannelFactory;
+
         public IReadableChannel Input => _input;
         public IWritableChannel Output => _output;
 

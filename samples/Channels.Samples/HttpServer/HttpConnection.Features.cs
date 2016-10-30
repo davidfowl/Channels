@@ -56,7 +56,7 @@ namespace Channels.Samples.Http
             }
             set
             {
-
+                // TODO: Allow overwriiting
             }
         }
 
@@ -68,7 +68,7 @@ namespace Channels.Samples.Http
             }
             set
             {
-
+                // TODO: Allow overwriiting
             }
         }
 

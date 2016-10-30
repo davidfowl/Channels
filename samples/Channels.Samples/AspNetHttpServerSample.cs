@@ -27,7 +27,9 @@ namespace Channels.Samples
                                             // HACK: Setting the Content-Length header manually avoids the cost of serializing the int to a string.
                                             //       This is instead of: httpContext.Response.ContentLength = _helloWorldPayload.Length;
                                             context.Response.Headers["Content-Length"] = "13";
-                                            return context.Response.Body.WriteAsync(_helloWorldPayload, 0, _helloWorldPayload.Length);
+
+                                            var output = context.Response.Body.AsWritableChannel();
+                                            return output.WriteAsync(_helloWorldPayload);
                                         });
                                     })
                                     .Build();

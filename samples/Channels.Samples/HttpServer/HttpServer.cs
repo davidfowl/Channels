@@ -45,7 +45,7 @@ namespace Channels.Samples.Http
             _uvTcpListener = new UvTcpListener(_uvThread, new IPEndPoint(ip, port));
             _uvTcpListener.OnConnection(async connection =>
             {
-                await ProcessClient(application, connection);
+                await ProcessClient(_uvThread.ChannelFactory, application, connection);
             });
 
             _uvTcpListener.StartAsync();
@@ -150,7 +150,7 @@ namespace Channels.Samples.Http
         {
             using (connection)
             {
-                await ProcessClient(application, connection);
+                await ProcessClient(connection.ChannelFactory, application, connection);
             }
         }
 
@@ -160,14 +160,14 @@ namespace Channels.Samples.Http
             {
                 using (var channel = channelFactory.MakeChannel(ns))
                 {
-                    await ProcessClient(application, channel);
+                    await ProcessClient(channelFactory, application, channel);
                 }
             }
         }
 
-        private static async Task ProcessClient<TContext>(IHttpApplication<TContext> application, IChannel channel)
+        private static async Task ProcessClient<TContext>(ChannelFactory factory, IHttpApplication<TContext> application, IChannel channel)
         {
-            var connection = new HttpConnection<TContext>(application, channel.Input, channel.Output);
+            var connection = new HttpConnection<TContext>(factory, application, channel.Input, channel.Output);
 
             await connection.ProcessAllRequests();
         }

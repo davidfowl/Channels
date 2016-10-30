@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace Channels.Samples.Http
 {
-    public class HttpResponseStream<TContext> : Stream
+    public class HttpResponseStream<TContext> : Stream, IWritableChannel
     {
         private readonly static Task<int> _initialCachedTask = Task.FromResult(0);
         private Task<int> _cachedTask = _initialCachedTask;
@@ -43,6 +43,8 @@ namespace Channels.Samples.Http
             }
         }
 
+        public Task Writing => _connection.ResponseBody.Writing;
+
         public override long Seek(long offset, SeekOrigin origin)
         {
             throw new NotSupportedException();
@@ -64,7 +66,7 @@ namespace Channels.Samples.Http
 
         public override Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken token)
         {
-            return _connection.WriteAsync(new Span<byte>(buffer, offset, count));
+            return _connection.ResponseBody.WriteAsync(new Span<byte>(buffer, offset, count));
         }
 
         public override void Flush()
@@ -76,6 +78,16 @@ namespace Channels.Samples.Http
         {
             // No-op since writes are immediate.
             return Task.FromResult(0);
+        }
+
+        public WritableBuffer Alloc(int minimumSize = 0)
+        {
+            return _connection.ResponseBody.Alloc(minimumSize);
+        }
+
+        public void Complete(Exception exception = null)
+        {
+            _connection.ResponseBody.CompleteWriter(exception);
         }
 
 #if NET451

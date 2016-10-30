@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace Channels.Samples.Http
 {
-    public class HttpRequestStream<TContext> : Stream
+    public class HttpRequestStream<TContext> : Stream, IReadableChannel
     {
         private readonly static Task<int> _initialCachedTask = Task.FromResult(0);
         private Task<int> _cachedTask = _initialCachedTask;
@@ -97,7 +97,7 @@ namespace Channels.Samples.Http
 
         private ValueTask<int> ReadAsync(ArraySegment<byte> buffer)
         {
-            return _connection.Input.ReadAsync(new Span<byte>(buffer.Array, buffer.Offset, buffer.Count));
+            return _connection.RequestBody.ReadAsync(new Span<byte>(buffer.Array, buffer.Offset, buffer.Count));
         }
 
 #if NET451
@@ -141,8 +141,22 @@ namespace Channels.Samples.Http
 #endif
         public override Task CopyToAsync(Stream destination, int bufferSize, CancellationToken cancellationToken)
         {
-            return _connection.Input.CopyToAsync(destination, bufferSize, cancellationToken);
+            return _connection.RequestBody.CopyToAsync(destination, bufferSize, cancellationToken);
         }
 
+        public ReadableChannelAwaitable ReadAsync()
+        {
+            return _connection.RequestBody.ReadAsync();
+        }
+
+        public void Advance(ReadCursor consumed, ReadCursor examined)
+        {
+            _connection.RequestBody.AdvanceReader(consumed, examined);
+        }
+
+        public void Complete(Exception exception = null)
+        {
+            _connection.RequestBody.CompleteReader(exception);
+        }
     }
 }
