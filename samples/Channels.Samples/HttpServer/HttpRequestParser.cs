@@ -1,5 +1,4 @@
-﻿using System;
-using Channels.Samples.Http;
+﻿using Channels.Samples.Http;
 using Channels.Text.Primitives;
 
 namespace Channels.Samples
@@ -8,9 +7,13 @@ namespace Channels.Samples
     {
         private ParsingState _state;
 
-        public PreservedBuffer HttpVersion { get; set; }
-        public PreservedBuffer Path { get; set; }
-        public PreservedBuffer Method { get; set; }
+        private PreservedBuffer _httpVersion;
+        private PreservedBuffer _path;
+        private PreservedBuffer _method;
+
+        public ReadableBuffer HttpVersion => _httpVersion.Buffer;
+        public ReadableBuffer Path => _path.Buffer;
+        public ReadableBuffer Method => _method.Buffer;
 
         public RequestHeaderDictionary RequestHeaders = new RequestHeaderDictionary();
 
@@ -35,7 +38,7 @@ namespace Channels.Samples
                     return ParseResult.BadRequest;
                 }
 
-                Method = method.Preserve();
+                _method = method.Preserve();
 
                 // Skip ' '
                 startLine = startLine.Slice(delim).Slice(1);
@@ -46,7 +49,7 @@ namespace Channels.Samples
                     return ParseResult.BadRequest;
                 }
 
-                Path = path.Preserve();
+                _path = path.Preserve();
 
                 // Skip ' '
                 startLine = startLine.Slice(delim).Slice(1);
@@ -57,7 +60,7 @@ namespace Channels.Samples
                     return ParseResult.BadRequest;
                 }
 
-                HttpVersion = httpVersion.Preserve();
+                _httpVersion = httpVersion.Preserve();
 
                 _state = ParsingState.Headers;
             }
@@ -107,9 +110,9 @@ namespace Channels.Samples
         {
             _state = ParsingState.StartLine;
 
-            Method.Dispose();
-            Path.Dispose();
-            HttpVersion.Dispose();
+            _method.Dispose();
+            _path.Dispose();
+            _httpVersion.Dispose();
 
             RequestHeaders.Reset();
         }

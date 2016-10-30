@@ -107,7 +107,7 @@ namespace Channels.Samples.Http
             {
                 if (_method == null)
                 {
-                    _method = Method.Buffer.GetAsciiString();
+                    _method = Method.GetAsciiString();
                 }
 
                 return _method;
@@ -125,7 +125,7 @@ namespace Channels.Samples.Http
             {
                 if (_path == null)
                 {
-                    _path = Path.Buffer.GetAsciiString();
+                    _path = Path.GetAsciiString();
                 }
                 return _path;
             }
