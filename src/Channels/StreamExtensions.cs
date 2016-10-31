@@ -14,7 +14,7 @@ namespace Channels
         /// <returns></returns>
         public static IWritableChannel AsWritableChannel(this Stream stream)
         {
-            return stream.AsWritableChannel(ArrayBufferPool.Instance);
+            return (stream as IWritableChannel) ?? stream.AsWritableChannel(ArrayBufferPool.Instance);
         }
 
         /// <summary>
@@ -25,11 +25,6 @@ namespace Channels
         /// <returns></returns>
         public static IWritableChannel AsWritableChannel(this Stream stream, IBufferPool pool)
         {
-            if (stream is IWritableChannel)
-            {
-                return (IWritableChannel)stream;
-            }
-
             var channel = new Channel(pool);
             channel.CopyToAsync(stream).ContinueWith((task) =>
             {
