@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Buffers;
 using System.Collections.Generic;
+using System.Collections.Sequences;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -475,6 +476,47 @@ namespace Channels.Tests
                 }
 
                 Assert.False(iter.MoveNext());
+            }
+        }
+
+        [Fact]
+        public void ReadableBufferSequenceWorks()
+        {
+            using (var cf = new ChannelFactory()) {
+                var channel = cf.CreateChannel();
+                var output = channel.Alloc();
+
+                { // empty buffer
+                    var readable = output.AsReadableBuffer();
+                    var position = Position.First;
+                    ReadOnlyMemory<byte> memory;
+                    int spanCount = 0;
+                    while (readable.TryGet(ref position, out memory, advance: true)) {
+                        spanCount++;
+                        Assert.Equal(0, memory.Length);
+                    }
+                    Assert.Equal(1, spanCount);
+                }
+
+                { // 3 segment buffer
+                    output.Write(new byte[] { 1 });
+                    output.Ensure(4032);
+                    output.Write(new byte[] { 2, 2 });
+                    output.Ensure(4031);
+                    output.Write(new byte[] { 3, 3, 3 });
+
+                    var readable = output.AsReadableBuffer();
+                    Assert.Equal(6, readable.Length);
+
+                    int spanCount = 0;
+                    var position = Position.First;
+                    ReadOnlyMemory<byte> memory;
+                    while (readable.TryGet(ref position, out memory, advance: true)) {
+                        spanCount++;
+                        Assert.Equal(spanCount, memory.Length);
+                    }
+                    Assert.Equal(3, spanCount);
+                }
             }
         }
 

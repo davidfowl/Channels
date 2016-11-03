@@ -3,6 +3,7 @@
 
 using System;
 using System.Buffers;
+using System.Collections.Sequences;
 using System.Numerics;
 using System.Text;
 
@@ -11,7 +12,7 @@ namespace Channels
     /// <summary>
     /// Represents a buffer that can read a sequential series of bytes.
     /// </summary>
-    public struct ReadableBuffer
+    public struct ReadableBuffer : ISequence<ReadOnlyMemory<byte>>
     {
         private static readonly int VectorWidth = Vector<byte>.Count;
 
@@ -506,6 +507,51 @@ namespace Channels
             segment.Start = offset;
             segment.End = offset + length;
             return new ReadableBuffer(new ReadCursor(segment, offset), new ReadCursor(segment, offset + length));
+        }
+
+        public bool TryGet(ref Position position, out ReadOnlyMemory<byte> item, bool advance = false)
+        {
+            if (position == Position.First) {
+                item = First.Slice(_start.Index);
+                if (advance) {
+                    if (_start.IsEnd) {
+                        position = Position.AfterLast;
+                    }
+                    else {
+                        position.ObjectPosition = _start.Segment.Next;
+                    }
+                }
+                return true;
+            }
+            else if(position == Position.BeforeFirst) {
+                if (advance) position = Position.First;
+                item = default(ReadOnlyMemory<byte>);
+                return false;
+            }
+            else if(position == Position.AfterLast) {
+                item = default(ReadOnlyMemory<byte>);
+                return false;
+            }
+
+            var currentSegment = (BufferSegment)position.ObjectPosition;
+            if (advance) {
+                position.ObjectPosition = currentSegment.Next;   
+                if(position.ObjectPosition == null) {
+                    position = Position.AfterLast;
+                }    
+            }
+            if(currentSegment == _end.Segment) {
+                item = currentSegment.Memory.Slice(currentSegment.Start, _end.Index);
+            }
+            else {
+                item = currentSegment.Memory.Slice(currentSegment.Start, currentSegment.End);
+            }
+            return true;
+        }
+
+        SequenceEnumerator<ReadOnlyMemory<byte>> ISequence<ReadOnlyMemory<byte>>.GetEnumerator()
+        {
+            return new SequenceEnumerator<ReadOnlyMemory<byte>>(this);
         }
     }
 }

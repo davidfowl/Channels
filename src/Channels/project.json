@@ -1,4 +1,4 @@
-﻿{
+{
   "version": "0.2.0-beta-*",
   "description": "An abstraction for doing efficient asynchronous IO",
   "packOptions": {
@@ -17,7 +17,8 @@
     "System.Buffers": "4.0.0",
     "System.Runtime.CompilerServices.Unsafe": "4.0.0",
     "System.Numerics.Vectors": "4.1.1",
-    "System.Threading.Tasks.Extensions": "4.0.0"
+    "System.Threading.Tasks.Extensions": "4.0.0",
+    "System.Collections.Sequences": "0.1.0-e161028-1"
   },
 
   "frameworks": {
