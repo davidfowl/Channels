@@ -529,12 +529,14 @@ namespace Channels
                 }
                 return true;
             }
+
             else if (position == Position.BeforeFirst)
             {
                 if (advance) position = Position.First;
                 item = default(ReadOnlyMemory<byte>);
                 return false;
             }
+
             else if (position == Position.AfterLast)
             {
                 item = default(ReadOnlyMemory<byte>);
