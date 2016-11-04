@@ -27,6 +27,8 @@ namespace Channels
         /// </summary>
         public int Length => _length >= 0 ? _length : GetLength();
 
+        int? ISequence<ReadOnlyMemory<byte>>.Length => _length >= 0 ? _length : (int?)null;
+
         /// <summary>
         /// Determines if the <see cref="ReadableBuffer"/> is empty.
         /// </summary>
@@ -552,6 +554,11 @@ namespace Channels
         SequenceEnumerator<ReadOnlyMemory<byte>> ISequence<ReadOnlyMemory<byte>>.GetEnumerator()
         {
             return new SequenceEnumerator<ReadOnlyMemory<byte>>(this);
+        }
+
+        bool ISequence<ReadOnlyMemory<byte>>.TryGet(ref Position position, out ReadOnlyMemory<byte> item, bool advance)
+        {
+            throw new NotImplementedException();
         }
     }
 }
