@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Collections.Sequences;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Utf8;
@@ -74,39 +75,71 @@ namespace Channels.Text.Primitives
             return ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r';
         }
 
-        /// <summary>
-        /// Parses a <see cref="uint"/> from the specified <see cref="ReadableBuffer"/>
-        /// </summary>
-        /// <param name="buffer">The <see cref="ReadableBuffer"/> to parse</param>
-        public unsafe static uint GetUInt32(this ReadableBuffer buffer)
+        private static ReadOnlySpan<byte> Flatten<T>(this T memorySequence) where T : ISequence<ReadOnlyMemory<byte>>
         {
-            ReadOnlySpan<byte> textSpan;
-
-            if (buffer.IsSingleSpan)
+            Position position = Position.First;
+            ReadOnlyMemory<byte> memory;
+            ResizableArray<byte> array = new ResizableArray<byte>(1024); // TODO: could this be rented from a pool?
+            while (memorySequence.TryGet(ref position, out memory, advance: true)) 
             {
-                // It fits!
-                textSpan = buffer.First.Span;
+                array.AddAll(memory.ToArray()); // TODO: remove ToArray once changes propagate
             }
-            else if (buffer.Length < 128) // REVIEW: What's a good number
-            {
-                var data = stackalloc byte[128];
-                var destination = new Span<byte>(data, 128);
+            return array._array.Slice(0, array._count);
+        }
 
-                buffer.CopyTo(destination);
-
-                textSpan = destination.Slice(0, buffer.Length);
-            }
-            else
-            {
-                // Heap allocated copy to parse into array (should be rare)
-                textSpan = new ReadOnlySpan<byte>(buffer.ToArray());
-            }
-
+        /// <summary>
+        /// Parses a uint from a sequence of buffers.
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="memorySequence"></param>
+        /// <returns></returns>
+        public static uint GetUInt32<T>(this T memorySequence) where T : ISequence<ReadOnlyMemory<byte>>
+        {
             uint value;
-            var utf8Buffer = new Utf8String(textSpan);
-            if (!PrimitiveParser.TryParseUInt32(utf8Buffer, out value))
+            Position position = Position.First;
+
+            ReadOnlyMemory<byte> first;
+            if (!memorySequence.TryGet(ref position, out first, advance: true)) 
             {
-                throw new InvalidOperationException();
+                throw new InvalidOperationException("buffer empty");
+            }
+
+            // attempt to parse
+            int consumed;
+            if (PrimitiveParser.TryParseUInt32(new Utf8String(first.Span), out value, out consumed)) 
+            {
+                if (consumed < first.Length) {
+                    return value;
+                }
+            }
+
+            ReadOnlyMemory<byte> second;
+            if (!memorySequence.TryGet(ref position, out second, advance: true)) 
+            {
+                throw new InvalidOperationException("cannot parse");
+            }
+
+            unsafe
+            {
+                ReadOnlySpan<byte> textSpan;
+                if (first.Length < 128)
+                {
+                    var data = stackalloc byte[128];
+                    var destination = new Span<byte>(data, 128);
+                    first.CopyTo(destination);
+                    var remaining = 128 - first.Length;
+                    if (remaining > second.Length) remaining = second.Length;
+                    second.Slice(0, remaining).CopyTo(destination.Slice(first.Length));
+                    textSpan = destination.Slice(0, first.Length + remaining);
+                }
+                else {
+                    // Heap allocated copy to parse into array (should be rare)
+                    textSpan = Flatten(memorySequence);
+                }
+
+                if (!PrimitiveParser.TryParseUInt32(new Utf8String(textSpan), out value)) {
+                    throw new InvalidOperationException("cannot parse");
+                }
             }
             return value;
         }
