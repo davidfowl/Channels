@@ -27,6 +27,8 @@ namespace Channels
         /// </summary>
         public int Length => _length >= 0 ? _length : GetLength();
 
+        int? ISequence<ReadOnlyMemory<byte>>.Length => Length;
+
         /// <summary>
         /// Determines if the <see cref="ReadableBuffer"/> is empty.
         /// </summary>
@@ -509,41 +511,51 @@ namespace Channels
             return new ReadableBuffer(new ReadCursor(segment, offset), new ReadCursor(segment, offset + length));
         }
 
-        public bool TryGet(ref Position position, out ReadOnlyMemory<byte> item, bool advance = false)
+        bool ISequence<ReadOnlyMemory<byte>>.TryGet(ref Position position, out ReadOnlyMemory<byte> item, bool advance = false)
         {
-            if (position == Position.First) {
+            if (position == Position.First)
+            {
                 item = First.Slice(_start.Index);
-                if (advance) {
-                    if (_start.IsEnd) {
+                if (advance)
+                {
+                    if (_start.IsEnd)
+                    {
                         position = Position.AfterLast;
                     }
-                    else {
+                    else
+                    {
                         position.ObjectPosition = _start.Segment.Next;
                     }
                 }
                 return true;
             }
-            else if(position == Position.BeforeFirst) {
+            else if (position == Position.BeforeFirst)
+            {
                 if (advance) position = Position.First;
                 item = default(ReadOnlyMemory<byte>);
                 return false;
             }
-            else if(position == Position.AfterLast) {
+            else if (position == Position.AfterLast)
+            {
                 item = default(ReadOnlyMemory<byte>);
                 return false;
             }
 
             var currentSegment = (BufferSegment)position.ObjectPosition;
-            if (advance) {
-                position.ObjectPosition = currentSegment.Next;   
-                if(position.ObjectPosition == null) {
+            if (advance)
+            {
+                position.ObjectPosition = currentSegment.Next;
+                if (position.ObjectPosition == null)
+                {
                     position = Position.AfterLast;
-                }    
+                }
             }
-            if(currentSegment == _end.Segment) {
+            if (currentSegment == _end.Segment)
+            {
                 item = currentSegment.Memory.Slice(currentSegment.Start, _end.Index);
             }
-            else {
+            else
+            {
                 item = currentSegment.Memory.Slice(currentSegment.Start, currentSegment.End);
             }
             return true;
