@@ -11,22 +11,20 @@ namespace Channels.Tests.Performance
     {
         public static void Main(string[] args)
         {
-            RunSelectedBenchmarks(BenchmarkType.OpenSsl);
-            return;
-            //var options = (uint[])Enum.GetValues(typeof(BenchmarkType));
-            //BenchmarkType type;
-            //if (args.Length != 1 || !Enum.TryParse(args[0], out type))
-            //{
-            //    Console.WriteLine($"Please add benchmark to run as parameter:");
-            //    for (var i = 0; i < options.Length; i++)
-            //    {
-            //        Console.WriteLine($"  {((BenchmarkType)options[i]).ToString()}");
-            //    }
+            var options = (uint[])Enum.GetValues(typeof(BenchmarkType));
+            BenchmarkType type;
+            if (args.Length != 1 || !Enum.TryParse(args[0], out type))
+            {
+                Console.WriteLine($"Please add benchmark to run as parameter:");
+                for (var i = 0; i < options.Length; i++)
+                {
+                    Console.WriteLine($"  {((BenchmarkType)options[i]).ToString()}");
+                }
 
-            //    return;
-            //}
+                return;
+            }
 
-            //RunSelectedBenchmarks(type);
+            RunSelectedBenchmarks(type);
         }
 
         private static void RunSelectedBenchmarks(BenchmarkType type)
@@ -37,18 +35,7 @@ namespace Channels.Tests.Performance
             }
             if(type.HasFlag(BenchmarkType.OpenSsl))
             {
-                //if (Debugger.IsAttached)
-                //{
-                    TlsDataEncryptBenchmark.Setup();
-                //    for (int i = 0; i < 100; i++)
-                //    {
-                //        TlsDataEncryptBenchmark.OpenSslChannelAllTheThings();
-                //    }
-                //}
-                //else
-                //{
-                //    BenchmarkRunner.Run<TlsDataEncryptBenchmark>();
-                //}
+                BenchmarkRunner.Run<TlsDataEncryptBenchmark>();
             }
         }
     }
