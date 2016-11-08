@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Text.Parsing;
 using System.Text.Utf8;
 
 namespace Channels.Text.Primitives
@@ -78,35 +79,13 @@ namespace Channels.Text.Primitives
         /// Parses a <see cref="uint"/> from the specified <see cref="ReadableBuffer"/>
         /// </summary>
         /// <param name="buffer">The <see cref="ReadableBuffer"/> to parse</param>
-        public unsafe static uint GetUInt32(this ReadableBuffer buffer)
+        public static uint GetUInt32(this ReadableBuffer buffer)
         {
-            ReadOnlySpan<byte> textSpan;
-
-            if (buffer.IsSingleSpan)
-            {
-                // It fits!
-                textSpan = buffer.First.Span;
-            }
-            else if (buffer.Length < 128) // REVIEW: What's a good number
-            {
-                var data = stackalloc byte[128];
-                var destination = new Span<byte>(data, 128);
-
-                buffer.CopyTo(destination);
-
-                textSpan = destination.Slice(0, buffer.Length);
-            }
-            else
-            {
-                // Heap allocated copy to parse into array (should be rare)
-                textSpan = new ReadOnlySpan<byte>(buffer.ToArray());
-            }
-
             uint value;
-            var utf8Buffer = new Utf8String(textSpan);
-            if (!PrimitiveParser.TryParseUInt32(utf8Buffer, out value))
+            int consumed;
+            if(!buffer.TryParseUInt32(out value, out consumed))
             {
-                throw new InvalidOperationException();
+                throw new InvalidOperationException("could not parse uint");
             }
             return value;
         }

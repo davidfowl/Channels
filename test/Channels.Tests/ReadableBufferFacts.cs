@@ -509,11 +509,9 @@ namespace Channels.Tests
                     output.Write(new byte[] { 3, 3, 3 });
 
                     var readable = output.AsReadableBuffer() as ISequence<ReadOnlyMemory<byte>>;
-                    Assert.Equal(6, readable.Length);
-
-                    int spanCount = 0;
                     var position = Position.First;
                     ReadOnlyMemory<byte> memory;
+                    int spanCount = 0;
                     while (readable.TryGet(ref position, out memory, advance: true))
                     {
                         spanCount++;
