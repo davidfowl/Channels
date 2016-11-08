@@ -34,7 +34,7 @@ namespace Channels.Tests.Performance
             _openSslServerContext = new OpenSslSecurityContext(factory, "test", true, _certificatePath, _certificatePassword);
             _openSslClientContext = new OpenSslSecurityContext(factory, "test", false, null, null);
         }
-        [Benchmark(Baseline = true)]
+        [Benchmark(Baseline = true, OperationsPerInvoke = InnerLoopCount)]
         public static void SslStreamOverChannels()
         {
             var loopback = new LoopbackChannel(factory);
@@ -56,7 +56,7 @@ namespace Channels.Tests.Performance
             }
         }
 
-        [Benchmark(OperationsPerInvoke = InnerLoopCount * 4)]
+        [Benchmark(OperationsPerInvoke = InnerLoopCount)]
         public static void OpenSslChannelAllTheThings()
         {
             var loopback = new LoopbackChannel(factory);
