@@ -112,7 +112,6 @@ namespace Channels.Tests
         [Fact]
         public async Task OpenSslChannelAllTheThings()
         {
-            using (X509Certificate cert = new X509Certificate(_certificatePath, _certificatePassword))
             using (ChannelFactory factory = new ChannelFactory())
             using (var serverContext = new OpenSslSecurityContext(factory, "test", true, _certificatePath, _certificatePassword))
             using (var clientContext = new OpenSslSecurityContext(factory, "test", false, null, null))
