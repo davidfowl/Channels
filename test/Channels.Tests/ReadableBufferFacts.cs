@@ -482,16 +482,19 @@ namespace Channels.Tests
         [Fact]
         public void ReadableBufferSequenceWorks()
         {
-            using (var cf = new ChannelFactory()) {
+            using (var cf = new ChannelFactory())
+            {
                 var channel = cf.CreateChannel();
                 var output = channel.Alloc();
 
-                { // empty buffer
-                    var readable = output.AsReadableBuffer();
+                {
+                    // empty buffer
+                    var readable = output.AsReadableBuffer() as ISequence<ReadOnlyMemory<byte>>;
                     var position = Position.First;
                     ReadOnlyMemory<byte> memory;
                     int spanCount = 0;
-                    while (readable.TryGet(ref position, out memory, advance: true)) {
+                    while (readable.TryGet(ref position, out memory, advance: true))
+                    {
                         spanCount++;
                         Assert.Equal(0, memory.Length);
                     }
@@ -505,13 +508,12 @@ namespace Channels.Tests
                     output.Ensure(4031);
                     output.Write(new byte[] { 3, 3, 3 });
 
-                    var readable = output.AsReadableBuffer();
-                    Assert.Equal(6, readable.Length);
-
-                    int spanCount = 0;
+                    var readable = output.AsReadableBuffer() as ISequence<ReadOnlyMemory<byte>>;
                     var position = Position.First;
                     ReadOnlyMemory<byte> memory;
-                    while (readable.TryGet(ref position, out memory, advance: true)) {
+                    int spanCount = 0;
+                    while (readable.TryGet(ref position, out memory, advance: true))
+                    {
                         spanCount++;
                         Assert.Equal(spanCount, memory.Length);
                     }

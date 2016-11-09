@@ -18,7 +18,7 @@
     "System.Runtime.CompilerServices.Unsafe": "4.0.0",
     "System.Numerics.Vectors": "4.1.1",
     "System.Threading.Tasks.Extensions": "4.0.0",
-    "System.Collections.Sequences": "0.1.0-e161028-1"
+    "System.Collections.Sequences": "0.1.0-*"
   },
 
   "frameworks": {
