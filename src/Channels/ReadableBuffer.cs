@@ -525,6 +525,10 @@ namespace Channels
                     else
                     {
                         position.ObjectPosition = _start.Segment.Next;
+                        if(position.ObjectPosition == null)
+                        {
+                            position = Position.AfterLast;
+                        }
                     }
                 }
                 return true;

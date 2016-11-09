@@ -94,58 +94,14 @@ namespace Channels.Text.Primitives
         /// Parses a <see cref="ulong"/> from the specified <see cref="ReadableBuffer"/>
         /// </summary>
         /// <param name="buffer">The <see cref="ReadableBuffer"/> to parse</param>
-        public unsafe static ulong GetUInt64(this ReadableBuffer buffer)
+        public static ulong GetUInt64(this ReadableBuffer buffer)
         {
-            byte* addr;
             ulong value;
-            int consumed, len = buffer.Length;
-            if (buffer.IsSingleSpan)
+            int consumed;
+            if (!buffer.TryParseUInt64(out value, out consumed)) 
             {
-                // It fits!
-                void* pointer;
-                ArraySegment<byte> data;
-                if (buffer.First.TryGetPointer(out pointer))
-                {
-                    if (!PrimitiveParser.TryParseUInt64((byte*)pointer, 0, len, EncodingData.InvariantUtf8, Format.Parsed.HexUppercase, out value, out consumed))
-                    {
-                        throw new InvalidOperationException();
-                    }
-                }
-                else if (buffer.First.TryGetArray(out data))
-                {
-                    if (!PrimitiveParser.TryParseUInt64(data.Array, 0, EncodingData.InvariantUtf8, Format.Parsed.HexUppercase, out value, out consumed))
-                    {
-                        throw new InvalidOperationException();
-                    }
-                }
-                else
-                {
-                    throw new InvalidOperationException();
-                }
+                throw new InvalidOperationException("could not parse uint");
             }
-            else if (len < 128) // REVIEW: What's a good number
-            {
-                var data = stackalloc byte[len];
-                buffer.CopyTo(new Span<byte>(data, len));
-                addr = data;
-
-                if (!PrimitiveParser.TryParseUInt64(addr, 0, len, EncodingData.InvariantUtf8, Format.Parsed.HexUppercase, out value, out consumed))
-                {
-                    throw new InvalidOperationException();
-                }
-            }
-            else
-            {
-                // Heap allocated copy to parse into array (should be rare)
-                var arr = buffer.ToArray();
-                if (!PrimitiveParser.TryParseUInt64(arr, 0, EncodingData.InvariantUtf8, Format.Parsed.HexUppercase, out value, out consumed))
-                {
-                    throw new InvalidOperationException();
-                }
-
-                return value;
-            }
-
             return value;
         }
 
