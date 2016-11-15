@@ -9,32 +9,32 @@ using System.Threading.Tasks;
 
 namespace Channels
 {
-    public static class ChannelExtensions
+    public static class DuplexPipelineExtensions
     {
-        public static Stream GetStream(this IChannel channel)
+        public static Stream GetStream(this IPipelineConnection channel)
         {
-            return new ChannelStream(channel);
+            return new PipelineConnectionStream(channel);
         }
     }
 
-    public static class WritableChannelExtensions
+    public static class PipelineWriterExtensions
     {
-        public static Task WriteAsync(this IWritableChannel channel, Span<byte> source)
+        public static Task WriteAsync(this IPipelineWriter output, Span<byte> source)
         {
-            var writeBuffer = channel.Alloc();
+            var writeBuffer = output.Alloc();
             writeBuffer.Write(source);
             return writeBuffer.FlushAsync();
         }
     }
 
-    public static class ReadableChannelExtensions
+    public static class PipelineReaderExtensions
     {
-        public static void Advance(this IReadableChannel input, ReadCursor cursor)
+        public static void Advance(this IPipelineReader input, ReadCursor cursor)
         {
             input.Advance(cursor, cursor);
         }
 
-        public static ValueTask<int> ReadAsync(this IReadableChannel input, Span<byte> destination)
+        public static ValueTask<int> ReadAsync(this IPipelineReader input, Span<byte> destination)
         {
             while (true)
             {
@@ -68,12 +68,12 @@ namespace Channels
             return new ValueTask<int>(input.ReadAsyncAwaited(destination));
         }
 
-        public static Task CopyToAsync(this IReadableChannel input, Stream stream)
+        public static Task CopyToAsync(this IPipelineReader input, Stream stream)
         {
             return input.CopyToAsync(stream, 4096, CancellationToken.None);
         }
 
-        public static async Task CopyToAsync(this IReadableChannel input, Stream stream, int bufferSize, CancellationToken cancellationToken)
+        public static async Task CopyToAsync(this IPipelineReader input, Stream stream, int bufferSize, CancellationToken cancellationToken)
         {
             // TODO: Use bufferSize argument
             while (!cancellationToken.IsCancellationRequested)
@@ -96,7 +96,7 @@ namespace Channels
             }
         }
 
-        public static async Task CopyToAsync(this IReadableChannel input, IWritableChannel output)
+        public static async Task CopyToAsync(this IPipelineReader input, IPipelineWriter output)
         {
             while (true)
             {
@@ -125,7 +125,7 @@ namespace Channels
             }
         }
 
-        private static async Task<int> ReadAsyncAwaited(this IReadableChannel input, Span<byte> destination)
+        private static async Task<int> ReadAsyncAwaited(this IPipelineReader input, Span<byte> destination)
         {
             while (true)
             {

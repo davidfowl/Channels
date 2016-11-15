@@ -91,7 +91,7 @@ namespace Channels.Samples.Http
             _listenSocket.Bind(new IPEndPoint(ip, port));
             _listenSocket.Listen(10);
 
-            using (var channelFactory = new ChannelFactory())
+            using (var channelFactory = new PipelineFactory())
             {
                 while (true)
                 {
@@ -154,20 +154,20 @@ namespace Channels.Samples.Http
             }
         }
 
-        private static async Task ProcessConnection<TContext>(IHttpApplication<TContext> application, ChannelFactory channelFactory, Socket socket)
+        private static async Task ProcessConnection<TContext>(IHttpApplication<TContext> application, PipelineFactory pipelineFactory, Socket socket)
         {
             using (var ns = new NetworkStream(socket))
             {
-                using (var channel = channelFactory.MakeChannel(ns))
+                using (var connection = pipelineFactory.CreateConnection(ns))
                 {
-                    await ProcessClient(application, channel);
+                    await ProcessClient(application, connection);
                 }
             }
         }
 
-        private static async Task ProcessClient<TContext>(IHttpApplication<TContext> application, IChannel channel)
+        private static async Task ProcessClient<TContext>(IHttpApplication<TContext> application, IPipelineConnection pipelineConnection)
         {
-            var connection = new HttpConnection<TContext>(application, channel.Input, channel.Output);
+            var connection = new HttpConnection<TContext>(application, pipelineConnection.Input, pipelineConnection.Output);
 
             await connection.ProcessAllRequests();
         }

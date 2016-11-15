@@ -12,17 +12,17 @@ namespace Channels
     /// </summary>
     public struct WritableBuffer : IOutput
     {
-        private Channel _channel;
+        private PipelineReaderWriter _output;
 
-        internal WritableBuffer(Channel channel)
+        internal WritableBuffer(PipelineReaderWriter output)
         {
-            _channel = channel;
+            _output = output;
         }
 
         /// <summary>
         /// Available memory.
         /// </summary>
-        public Memory<byte> Memory => _channel.Memory;
+        public Memory<byte> Memory => _output.Memory;
 
         /// <summary>
         /// Returns the number of bytes currently written and uncommitted.
@@ -38,7 +38,7 @@ namespace Channels
         /// </summary>
         public ReadableBuffer AsReadableBuffer()
         {
-            return _channel.AsReadableBuffer();
+            return _output.AsReadableBuffer();
         }
 
         /// <summary>
@@ -54,7 +54,7 @@ namespace Channels
         /// </exception>
         public void Ensure(int count = 1)
         {
-            _channel.Ensure(count);
+            _output.Ensure(count);
         }
 
         /// <summary>
@@ -63,11 +63,11 @@ namespace Channels
         /// <param name="buffer">The <see cref="ReadableBuffer"/> to append</param>
         public void Append(ReadableBuffer buffer)
         {
-            _channel.Append(buffer);
+            _output.Append(buffer);
         }
 
         /// <summary>
-        /// Moves forward the underlying <see cref="IWritableChannel"/>'s write cursor but does not commit the data.
+        /// Moves forward the underlying <see cref="IPipelineWriter"/>'s write cursor but does not commit the data.
         /// </summary>
         /// <param name="bytesWritten">number of bytes to be marked as written.</param>
         /// <remarks>Forwards the start of available <see cref="Memory"/> by <paramref name="bytesWritten"/>.</remarks>
@@ -75,11 +75,11 @@ namespace Channels
         /// <exception cref="ArgumentOutOfRangeException"><paramref name="bytesWritten"/> is negative.</exception>
         public void Advance(int bytesWritten)
         {
-            _channel.AdvanceWriter(bytesWritten);
+            _output.AdvanceWriter(bytesWritten);
         }
 
         /// <summary>
-        /// Commits all outstanding written data to the underlying <see cref="IWritableChannel"/> so they can be read
+        /// Commits all outstanding written data to the underlying <see cref="IPipelineWriter"/> so they can be read
         /// and seals the <see cref="WritableBuffer"/> so no more data can be committed.
         /// </summary>
         /// <remarks>
@@ -87,17 +87,17 @@ namespace Channels
         /// </remarks>
         public void Commit()
         {
-            _channel.Commit();
+            _output.Commit();
         }
 
         /// <summary>
-        /// Signals the <see cref="IReadableChannel"/> data is available.
+        /// Signals the <see cref="IPipelineReader"/> data is available.
         /// Will <see cref="Commit"/> if necessary.
         /// </summary>
         /// <returns>A task that completes when the data is fully flushed.</returns>
         public Task FlushAsync()
         {
-            return _channel.FlushAsync();
+            return _output.FlushAsync();
         }
     }
 }

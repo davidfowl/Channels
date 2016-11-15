@@ -29,7 +29,7 @@ namespace Channels.Networking.Libuv
 
         public UvLoopHandle Loop { get; private set; }
 
-        public ChannelFactory ChannelFactory { get; } = new ChannelFactory();
+        public PipelineFactory ChannelFactory { get; } = new PipelineFactory();
 
         public WriteReqPool WriteReqPool { get; }
 

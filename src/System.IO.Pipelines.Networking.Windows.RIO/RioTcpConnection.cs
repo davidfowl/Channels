@@ -10,7 +10,7 @@ using Channels.Networking.Windows.RIO.Internal.Winsock;
 
 namespace Channels.Networking.Windows.RIO
 {
-    public sealed class RioTcpConnection : IChannel
+    public sealed class RioTcpConnection : IPipelineConnection
     {
         private const RioSendFlags MessagePart = RioSendFlags.Defer | RioSendFlags.DontNotify;
         private const RioSendFlags MessageEnd = RioSendFlags.None;
@@ -29,8 +29,8 @@ namespace Channels.Networking.Windows.RIO
 
         private long _previousSendCorrelation = RestartSendCorrelations;
 
-        private readonly Channel _input;
-        private readonly Channel _output;
+        private readonly PipelineReaderWriter _input;
+        private readonly PipelineReaderWriter _output;
 
         private readonly SemaphoreSlim _outgoingSends = new SemaphoreSlim(RioTcpServer.MaxWritesPerSocket);
         private readonly SemaphoreSlim _previousSendsComplete = new SemaphoreSlim(1);
@@ -47,8 +47,8 @@ namespace Channels.Networking.Windows.RIO
             _rio = rio;
             _rioThread = rioThread;
 
-            _input = rioThread.ChannelFactory.CreateChannel();
-            _output = rioThread.ChannelFactory.CreateChannel();
+            _input = rioThread.ChannelFactory.Create();
+            _output = rioThread.ChannelFactory.Create();
 
             _requestQueue = requestQueue;
 
@@ -58,8 +58,8 @@ namespace Channels.Networking.Windows.RIO
             _sendTask = ProcessSends();
         }
 
-        public IReadableChannel Input => _input;
-        public IWritableChannel Output => _output;
+        public IPipelineReader Input => _input;
+        public IPipelineWriter Output => _output;
 
         private void ProcessReceives()
         {

@@ -16,9 +16,9 @@ namespace Channels.Tests
         [Fact]
         public async Task ReaderShouldNotGetUnflushedBytesWhenOverflowingSegments()
         {
-            using (var cf = new ChannelFactory())
+            using (var cf = new PipelineFactory())
             {
-                var c = cf.CreateChannel();
+                var c = cf.Create();
 
                 // Fill the block with stuff leaving 5 bytes at the end
                 var buffer = c.Alloc(1);
@@ -65,9 +65,9 @@ namespace Channels.Tests
         [Fact]
         public async Task ReaderShouldNotGetUnflushedBytes()
         {
-            using (var cf = new ChannelFactory())
+            using (var cf = new PipelineFactory())
             {
-                var c = cf.CreateChannel();
+                var c = cf.Create();
 
                 // Write 10 and flush
                 var buffer = c.Alloc();
@@ -106,9 +106,9 @@ namespace Channels.Tests
         [Fact]
         public async Task ReaderShouldNotGetUnflushedBytesWithAppend()
         {
-            using (var cf = new ChannelFactory())
+            using (var cf = new PipelineFactory())
             {
-                var c = cf.CreateChannel();
+                var c = cf.Create();
 
                 // Write 10 and flush
                 var buffer = c.Alloc();
@@ -118,7 +118,7 @@ namespace Channels.Tests
                 // Write Hello to another channel and get the buffer
                 var bytes = Encoding.ASCII.GetBytes("Hello");
 
-                var c2 = cf.CreateChannel();
+                var c2 = cf.Create();
                 await c2.WriteAsync(bytes);
                 var result = await c2.ReadAsync();
                 var c2Buffer = result.Buffer;
@@ -161,9 +161,9 @@ namespace Channels.Tests
         [Fact]
         public async Task WritingDataMakesDataReadableViaChannel()
         {
-            using (var cf = new ChannelFactory())
+            using (var cf = new PipelineFactory())
             {
-                var channel = cf.CreateChannel();
+                var channel = cf.Create();
                 var bytes = Encoding.ASCII.GetBytes("Hello World");
 
                 await channel.WriteAsync(bytes);
@@ -181,9 +181,9 @@ namespace Channels.Tests
         [Fact]
         public async Task ReadingCanBeCancelled()
         {
-            using (var cf = new ChannelFactory())
+            using (var cf = new PipelineFactory())
             {
-                var channel = cf.CreateChannel();
+                var channel = cf.Create();
                 var cts = new CancellationTokenSource();
                 cts.Token.Register(() =>
                 {
@@ -208,9 +208,9 @@ namespace Channels.Tests
         public async Task HelloWorldAcrossTwoBlocks()
         {
             const int blockSize = 4032;
-            using (var cf = new ChannelFactory())
+            using (var cf = new PipelineFactory())
             {
-                var channel = cf.CreateChannel();
+                var channel = cf.Create();
                 //     block 1       ->    block2
                 // [padding..hello]  ->  [  world   ]
                 var paddingBytes = Enumerable.Repeat((byte)'a', blockSize - 5).ToArray();
@@ -244,9 +244,9 @@ namespace Channels.Tests
         [Fact]
         public async Task IndexOfNotFoundReturnsEnd()
         {
-            using (var cf = new ChannelFactory())
+            using (var cf = new PipelineFactory())
             {
-                var channel = cf.CreateChannel();
+                var channel = cf.Create();
                 var bytes = Encoding.ASCII.GetBytes("Hello World");
 
                 await channel.WriteAsync(bytes);
@@ -265,9 +265,9 @@ namespace Channels.Tests
             var vecUpperR = new Vector<byte>((byte)'R');
 
             const int blockSize = 4032;
-            using (var cf = new ChannelFactory())
+            using (var cf = new PipelineFactory())
             {
-                var channel = cf.CreateChannel();
+                var channel = cf.Create();
                 //     block 1       ->    block2
                 // [padding..hello]  ->  [  world   ]
                 var paddingBytes = Enumerable.Repeat((byte)'a', blockSize - 5).ToArray();
@@ -289,9 +289,9 @@ namespace Channels.Tests
         public async Task SlowPathIndexOfAcrossBlocks()
         {
             const int blockSize = 4032;
-            using (var cf = new ChannelFactory())
+            using (var cf = new PipelineFactory())
             {
-                var channel = cf.CreateChannel();
+                var channel = cf.Create();
                 //     block 1       ->    block2
                 // [padding..hello]  ->  [  world   ]
                 var paddingBytes = Enumerable.Repeat((byte)'a', blockSize - 5).ToArray();
@@ -318,9 +318,9 @@ namespace Channels.Tests
         [Fact]
         public void AllocMoreThanPoolBlockSizeThrows()
         {
-            using (var cf = new ChannelFactory())
+            using (var cf = new PipelineFactory())
             {
-                var channel = cf.CreateChannel();
+                var channel = cf.Create();
                 Assert.Throws<ArgumentOutOfRangeException>(() => channel.Alloc(8192));
             }
         }
@@ -328,9 +328,9 @@ namespace Channels.Tests
         [Fact]
         public void ReadingStartedCompletesOnCompleteReader()
         {
-            using (var cf = new ChannelFactory())
+            using (var cf = new PipelineFactory())
             {
-                var channel = cf.CreateChannel();
+                var channel = cf.Create();
 
                 channel.CompleteReader();
 
@@ -341,9 +341,9 @@ namespace Channels.Tests
         [Fact]
         public void ReadingStartedCompletesOnCallToReadAsync()
         {
-            using (var cf = new ChannelFactory())
+            using (var cf = new PipelineFactory())
             {
-                var channel = cf.CreateChannel();
+                var channel = cf.Create();
 
                 channel.ReadAsync();
 

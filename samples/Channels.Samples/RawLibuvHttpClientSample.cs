@@ -15,7 +15,7 @@ namespace Channels.Samples
             var thread = new UvThread();
             var client = new UvTcpClient(thread, new IPEndPoint(IPAddress.Loopback, 5000));
 
-            var consoleOutput = thread.ChannelFactory.MakeWriteableChannel(Console.OpenStandardOutput());
+            var consoleOutput = thread.ChannelFactory.CreateWriter(Console.OpenStandardOutput());
 
             var connection = await client.ConnectAsync();
 
@@ -34,7 +34,7 @@ namespace Channels.Samples
                 await Task.Delay(1000);
             }
         }
-        private static async Task CopyCompletedAsync(IReadableChannel input, IWritableChannel channel)
+        private static async Task CopyCompletedAsync(IPipelineReader input, IPipelineWriter channel)
         {
             var result = await input.ReadAsync();
             var inputBuffer = result.Buffer;

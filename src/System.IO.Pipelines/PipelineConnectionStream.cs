@@ -5,16 +5,16 @@ using System.Threading.Tasks;
 
 namespace Channels
 {
-    public class ChannelStream : Stream
+    public class PipelineConnectionStream : Stream
     {
         private readonly static Task<int> _initialCachedTask = Task.FromResult(0);
         private Task<int> _cachedTask = _initialCachedTask;
 
-        private readonly IChannel _channel;
+        private readonly IPipelineConnection _connection;
 
-        public ChannelStream(IChannel channel)
+        public PipelineConnectionStream(IPipelineConnection connection)
         {
-            _channel = channel;
+            _connection = connection;
         }
 
         public override bool CanRead => true;
@@ -85,12 +85,12 @@ namespace Channels
 
         public override void Write(byte[] buffer, int offset, int count)
         {
-            _channel.Output.WriteAsync(new Span<byte>(buffer, offset, count)).GetAwaiter().GetResult();
+            _connection.Output.WriteAsync(new Span<byte>(buffer, offset, count)).GetAwaiter().GetResult();
         }
 
         public override Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken token)
         {
-            return _channel.Output.WriteAsync(new Span<byte>(buffer, offset, count));
+            return _connection.Output.WriteAsync(new Span<byte>(buffer, offset, count));
         }
 
         public override void Flush()
@@ -106,7 +106,7 @@ namespace Channels
 
         private ValueTask<int> ReadAsync(ArraySegment<byte> buffer)
         {
-            return _channel.Input.ReadAsync(new Span<byte>(buffer.Array, buffer.Offset, buffer.Count));
+            return _connection.Input.ReadAsync(new Span<byte>(buffer.Array, buffer.Offset, buffer.Count));
         }
 
 #if NET451
@@ -188,12 +188,12 @@ namespace Channels
 #endif
         public override Task CopyToAsync(Stream destination, int bufferSize, CancellationToken cancellationToken)
         {
-            return _channel.Input.CopyToAsync(destination, bufferSize, cancellationToken);
+            return _connection.Input.CopyToAsync(destination, bufferSize, cancellationToken);
         }
 
         protected override void Dispose(bool disposing)
         {
-            _channel.Dispose();
+            _connection.Dispose();
         }
     }
 }

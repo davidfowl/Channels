@@ -81,7 +81,7 @@ namespace Channels.Samples.Framing
             thread.Dispose();
         }
 
-        public static IChannel MakePipeline(IChannel channel)
+        public static IPipelineConnection MakePipeline(IPipelineConnection channel)
         {
             // Do something fancy here to wrap the channel, SSL etc
             return channel;
@@ -97,7 +97,7 @@ namespace Channels.Samples.Framing
     {
         private WritableChannelFormatter _formatter;
 
-        public void Initialize(IChannel channel)
+        public void Initialize(IPipelineConnection channel)
         {
             _formatter = new WritableChannelFormatter(channel.Output, EncodingData.InvariantUtf8);
         }
@@ -135,7 +135,7 @@ namespace Channels.Samples.Framing
 
     public interface IFrameHandler<TInput>
     {
-        void Initialize(IChannel channel);
+        void Initialize(IPipelineConnection channel);
 
         Task HandleAsync(TInput message);
     }

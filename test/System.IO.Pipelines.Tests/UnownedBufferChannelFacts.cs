@@ -21,7 +21,7 @@ namespace Channels.Tests
                 await sw.FlushAsync();
             });
 
-            var channel = stream.AsReadableChannel();
+            var channel = stream.AsPipelineReader();
 
             int calls = 0;
 
@@ -65,13 +65,13 @@ namespace Channels.Tests
                 await s.WriteAsync(world, 0, world.Length, token);
             });
 
-            var channel = stream.AsReadableChannel(cts.Token);
+            var channel = stream.AsPipelineReader(cts.Token);
 
             int calls = 0;
 
             while (true)
             {
-                ChannelReadResult result;
+                ReadResult result;
                 ReadableBuffer buffer;
                 try
                 {
@@ -115,7 +115,7 @@ namespace Channels.Tests
                 await sw.FlushAsync();
             });
 
-            var channel = stream.AsReadableChannel();
+            var channel = stream.AsPipelineReader();
 
             int index = 0;
             var message = "Hello World";
@@ -149,7 +149,7 @@ namespace Channels.Tests
                 await sw.FlushAsync();
             });
 
-            var channel = stream.AsReadableChannel();
+            var channel = stream.AsPipelineReader();
 
             var data = Memory<byte>.Empty;
 
@@ -180,7 +180,7 @@ namespace Channels.Tests
                 await sw.FlushAsync();
             });
 
-            var channel = stream.AsReadableChannel();
+            var channel = stream.AsPipelineReader();
 
             var preserved = default(PreservedBuffer);
 
@@ -223,7 +223,7 @@ namespace Channels.Tests
                 await sw.FlushAsync();
             });
 
-            var channel = stream.AsReadableChannel();
+            var channel = stream.AsPipelineReader();
 
             int index = 0;
             var message = "Hello World";
@@ -262,7 +262,7 @@ namespace Channels.Tests
                 await sw.FlushAsync();
             });
 
-            var channel = stream.AsReadableChannel();
+            var channel = stream.AsPipelineReader();
 
             int index = 0;
             var message = "Hello World";
@@ -301,7 +301,7 @@ namespace Channels.Tests
                 await s.WriteAsync(data, 0, 5);
             });
 
-            var channel = stream.AsReadableChannel();
+            var channel = stream.AsPipelineReader();
 
             int index = 0;
             var message = "Hello World";
@@ -339,14 +339,14 @@ namespace Channels.Tests
                 await sw.FlushAsync();
             });
 
-            var channel = stream.AsReadableChannel();
+            var channel = stream.AsPipelineReader();
 
             int calls = 0;
 
             InvalidOperationException thrown = null;
             while (true)
             {
-                ChannelReadResult result;
+                ReadResult result;
                 ReadableBuffer buffer;
                 try
                 {
@@ -392,7 +392,7 @@ namespace Channels.Tests
             sw.Flush();
             stream.FinishWriting();
 
-            var channel = stream.AsReadableChannel();
+            var channel = stream.AsPipelineReader();
 
             while (true)
             {
@@ -421,7 +421,7 @@ namespace Channels.Tests
             sw.Write("Hello");
             sw.Flush();
 
-            var channel = stream.AsReadableChannel();
+            var channel = stream.AsPipelineReader();
             var result = await channel.ReadAsync();
             var buffer = result.Buffer;
             var segment = buffer.ToArray();
@@ -438,9 +438,9 @@ namespace Channels.Tests
             Assert.Equal("World", Encoding.UTF8.GetString(readBuf, 0, read));
         }
 
-        private class StreamAndChannel : Stream, IReadableChannel
+        private class StreamAndChannel : Stream, IPipelineReader
         {
-            private readonly Channel _channel = new Channel(ArrayBufferPool.Instance);
+            private readonly PipelineReaderWriter _channel = new PipelineReaderWriter(ArrayBufferPool.Instance);
 
             public override bool CanRead => true;
 
@@ -494,7 +494,7 @@ namespace Channels.Tests
                 return await _channel.ReadAsync(new Span<byte>(buffer, offset, count));
             }
 
-            public ReadableChannelAwaitable ReadAsync()
+            public ReadableBufferAwaitable ReadAsync()
             {
                 return _channel.ReadAsync();
             }

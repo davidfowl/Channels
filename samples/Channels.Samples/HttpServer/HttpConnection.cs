@@ -13,8 +13,8 @@ namespace Channels.Samples.Http
         private static readonly byte[] _chunkedEndBytes = Encoding.UTF8.GetBytes("0\r\n\r\n");
         private static readonly byte[] _endChunkBytes = Encoding.ASCII.GetBytes("\r\n");
 
-        private readonly IReadableChannel _input;
-        private readonly IWritableChannel _output;
+        private readonly IPipelineReader _input;
+        private readonly IPipelineWriter _output;
         private readonly IHttpApplication<TContext> _application;
 
         public RequestHeaderDictionary RequestHeaders => _parser.RequestHeaders;
@@ -37,7 +37,7 @@ namespace Channels.Samples.Http
 
         private HttpRequestParser _parser = new HttpRequestParser();
 
-        public HttpConnection(IHttpApplication<TContext> application, IReadableChannel input, IWritableChannel output)
+        public HttpConnection(IHttpApplication<TContext> application, IPipelineReader input, IPipelineWriter output)
         {
             _application = application;
             _input = input;
@@ -46,9 +46,9 @@ namespace Channels.Samples.Http
             _responseBody = new HttpResponseStream<TContext>(this);
         }
 
-        public IReadableChannel Input => _input;
+        public IPipelineReader Input => _input;
 
-        public IWritableChannel Output => _output;
+        public IPipelineWriter Output => _output;
 
         public HttpRequestStream<TContext> RequestBody { get; set; }
 

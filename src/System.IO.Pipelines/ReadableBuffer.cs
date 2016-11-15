@@ -292,7 +292,7 @@ namespace Channels
         }
 
         /// <summary>
-        /// This transfers ownership of the buffer from the <see cref="IReadableChannel"/> to the caller of this method. Preserved buffers must be disposed to avoid
+        /// This transfers ownership of the buffer from the <see cref="IPipelineReader"/> to the caller of this method. Preserved buffers must be disposed to avoid
         /// memory leaks.
         /// </summary>
         public PreservedBuffer Preserve()

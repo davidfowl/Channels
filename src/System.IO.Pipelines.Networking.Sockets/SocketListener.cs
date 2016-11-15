@@ -13,8 +13,8 @@ namespace Channels.Networking.Sockets
         private readonly bool _ownsChannelFactory;
         private Socket _socket;
         private Socket Socket => _socket;
-        private ChannelFactory _channelFactory;
-        private ChannelFactory ChannelFactory => _channelFactory;
+        private PipelineFactory _channelFactory;
+        private PipelineFactory ChannelFactory => _channelFactory;
         private Func<SocketConnection, Task> Callback { get; set; }
         static readonly EventHandler<SocketAsyncEventArgs> _asyncCompleted = OnAsyncCompleted;
 
@@ -22,10 +22,10 @@ namespace Channels.Networking.Sockets
         /// Creates a new SocketListener instance
         /// </summary>
         /// <param name="channelFactory">Optionally allows the underlying channel factory (and hence memory pool) to be specified; if one is not provided, a channel factory will be instantiated and owned by the listener</param>
-        public SocketListener(ChannelFactory channelFactory = null)
+        public SocketListener(PipelineFactory channelFactory = null)
         {
             _ownsChannelFactory = channelFactory == null;
-            _channelFactory = channelFactory ?? new ChannelFactory();
+            _channelFactory = channelFactory ?? new PipelineFactory();
         }
 
         /// <summary>

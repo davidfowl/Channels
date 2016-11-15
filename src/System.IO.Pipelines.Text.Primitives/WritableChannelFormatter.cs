@@ -9,11 +9,11 @@ namespace Channels.Text.Primitives
 {
     public class WritableChannelFormatter : ITextOutput
     {
-        private readonly IWritableChannel _channel;
+        private readonly IPipelineWriter _channel;
         private WritableBuffer _writableBuffer;
         private bool _needAlloc = true;
 
-        public WritableChannelFormatter(IWritableChannel channel, EncodingData encoding)
+        public WritableChannelFormatter(IPipelineWriter channel, EncodingData encoding)
         {
             _channel = channel;
             Encoding = encoding;

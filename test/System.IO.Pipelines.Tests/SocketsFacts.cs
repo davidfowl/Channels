@@ -147,7 +147,7 @@ namespace Channels.Tests
             }
         }
 
-        static async Task<Tuple<int, int, int>> PingClient(IChannel channel, int messagesToSend)
+        static async Task<Tuple<int, int, int>> PingClient(IPipelineConnection channel, int messagesToSend)
         {
             int count = 0;
             var watch = Stopwatch.StartNew();
@@ -201,7 +201,7 @@ namespace Channels.Tests
 
         }
 
-        private static async Task PongServer(IChannel channel)
+        private static async Task PongServer(IPipelineConnection channel)
         {
             while (true)
             {
@@ -257,7 +257,7 @@ namespace Channels.Tests
             }
         }
 
-        private async Task Echo(IChannel channel)
+        private async Task Echo(IPipelineConnection channel)
         {
             while (true)
             {

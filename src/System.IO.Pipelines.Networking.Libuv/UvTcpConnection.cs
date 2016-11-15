@@ -6,7 +6,7 @@ using Channels.Networking.Libuv.Interop;
 
 namespace Channels.Networking.Libuv
 {
-    public class UvTcpConnection : IChannel
+    public class UvTcpConnection : IPipelineConnection
     {
         private const int EOF = -4095;
 
@@ -14,8 +14,8 @@ namespace Channels.Networking.Libuv
         private static readonly Func<UvStreamHandle, int, object, Uv.uv_buf_t> _allocCallback = AllocCallback;
         private static readonly Action<UvWriteReq, int, object> _writeCallback = WriteCallback;
 
-        protected readonly Channel _input;
-        protected readonly Channel _output;
+        protected readonly PipelineReaderWriter _input;
+        protected readonly PipelineReaderWriter _output;
         private readonly UvThread _thread;
         private readonly UvTcpHandle _handle;
 
@@ -30,8 +30,8 @@ namespace Channels.Networking.Libuv
             _thread = thread;
             _handle = handle;
 
-            _input = _thread.ChannelFactory.CreateChannel();
-            _output = _thread.ChannelFactory.CreateChannel();
+            _input = _thread.ChannelFactory.Create();
+            _output = _thread.ChannelFactory.Create();
 
             StartReading();
             _sendingTask = ProcessWrites();
@@ -51,9 +51,9 @@ namespace Channels.Networking.Libuv
             _input.CompleteReader();
         }
 
-        public IWritableChannel Output => _output;
+        public IPipelineWriter Output => _output;
 
-        public IReadableChannel Input => _input;
+        public IPipelineReader Input => _input;
 
         private async Task ProcessWrites()
         {

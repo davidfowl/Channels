@@ -10,9 +10,9 @@ using System.Threading.Tasks;
 namespace Channels
 {
     /// <summary>
-    /// Default <see cref="IWritableChannel"/> and <see cref="IReadableChannel"/> implementation.
+    /// Default <see cref="IPipelineWriter"/> and <see cref="IPipelineReader"/> implementation.
     /// </summary>
-    public class Channel : IReadableChannel, IWritableChannel, IReadableBufferAwaiter
+    public class PipelineReaderWriter : IPipelineReader, IPipelineWriter, IReadableBufferAwaiter
     {
         private static readonly Action _awaitableIsCompleted = () => { };
         private static readonly Action _awaitableIsNotCompleted = () => { };
@@ -45,17 +45,17 @@ namespace Channels
         private string _consumingLocation;
 #endif
         /// <summary>
-        /// Initializes the <see cref="Channel"/> with the specifed <see cref="IBufferPool"/>.
+        /// Initializes the <see cref="PipelineReaderWriter"/> with the specifed <see cref="IBufferPool"/>.
         /// </summary>
         /// <param name="pool"></param>
-        public Channel(IBufferPool pool)
+        public PipelineReaderWriter(IBufferPool pool)
         {
             _pool = pool;
             _awaitableState = _awaitableIsNotCompleted;
         }
 
         /// <summary>
-        /// A <see cref="Task"/> that completes when the consumer starts consuming the <see cref="IReadableChannel"/>.
+        /// A <see cref="Task"/> that completes when the consumer starts consuming the <see cref="IPipelineReader"/>.
         /// </summary>
         public Task ReadingStarted => _startingReadingTcs.Task;
 
@@ -348,7 +348,7 @@ namespace Channels
             return new ReadableBuffer(new ReadCursor(_readHead), readEnd);
         }
 
-        void IReadableChannel.Advance(ReadCursor consumed, ReadCursor examined) => AdvanceReader(consumed, examined);
+        void IPipelineReader.Advance(ReadCursor consumed, ReadCursor examined) => AdvanceReader(consumed, examined);
 
         public void AdvanceReader(ReadCursor consumed, ReadCursor examined)
         {
@@ -395,7 +395,7 @@ namespace Channels
             }
         }
 
-        void IWritableChannel.Complete(Exception exception) => CompleteWriter(exception);
+        void IPipelineWriter.Complete(Exception exception) => CompleteWriter(exception);
 
         /// <summary>
         /// Marks the channel as being complete, meaning no more items will be written to it.
@@ -429,7 +429,7 @@ namespace Channels
             FlushAsync();
         }
 
-        void IReadableChannel.Complete(Exception exception) => CompleteReader(exception);
+        void IPipelineReader.Complete(Exception exception) => CompleteReader(exception);
 
         /// <summary>
         /// Signal to the producer that the consumer is done reading.
@@ -465,14 +465,14 @@ namespace Channels
         }
 
         /// <summary>
-        /// Asynchronously reads a sequence of bytes from the current <see cref="IReadableChannel"/>.
+        /// Asynchronously reads a sequence of bytes from the current <see cref="IPipelineReader"/>.
         /// </summary>
-        /// <returns>A <see cref="ReadableChannelAwaitable"/> representing the asynchronous read operation.</returns>
-        public ReadableChannelAwaitable ReadAsync()
+        /// <returns>A <see cref="ReadableBufferAwaitable"/> representing the asynchronous read operation.</returns>
+        public ReadableBufferAwaitable ReadAsync()
         {
             _startingReadingTcs.TrySetResult(null);
 
-            return new ReadableChannelAwaitable(this);
+            return new ReadableBufferAwaitable(this);
         }
 
         void IReadableBufferAwaiter.OnCompleted(Action continuation)
@@ -505,7 +505,7 @@ namespace Channels
             }
         }
 
-        ChannelReadResult IReadableBufferAwaiter.GetResult()
+        ReadResult IReadableBufferAwaiter.GetResult()
         {
             if (!IsCompleted)
             {
@@ -519,7 +519,7 @@ namespace Channels
                 Reading.GetAwaiter().GetResult();
             }
 
-            return new ChannelReadResult(Read(), readingIsCompleted);
+            return new ReadResult(Read(), readingIsCompleted);
         }
 
         private void Dispose()

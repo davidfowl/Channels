@@ -12,7 +12,7 @@ namespace Channels.Networking.Sockets
     /// <summary>
     /// Represents a channel implementation using the async Socket API
     /// </summary>
-    public class SocketConnection : IChannel
+    public class SocketConnection : IPipelineConnection
     {
         private static readonly EventHandler<SocketAsyncEventArgs> _asyncCompleted = OnAsyncCompleted;
 
@@ -33,8 +33,8 @@ namespace Channels.Networking.Sockets
 
 
         private readonly bool _ownsChannelFactory;
-        private ChannelFactory _channelFactory;
-        private Channel _input, _output;
+        private PipelineFactory _channelFactory;
+        private PipelineReaderWriter _input, _output;
         private Socket _socket;
 
         static SocketConnection()
@@ -65,19 +65,19 @@ namespace Channels.Networking.Sockets
             }
         }
 
-        internal SocketConnection(Socket socket, ChannelFactory channelFactory)
+        internal SocketConnection(Socket socket, PipelineFactory channelFactory)
         {
             socket.NoDelay = true;
             _socket = socket;
             if (channelFactory == null)
             {
                 _ownsChannelFactory = true;
-                channelFactory = new ChannelFactory();
+                channelFactory = new PipelineFactory();
             }
             _channelFactory = channelFactory;
 
-            _input = ChannelFactory.CreateChannel();
-            _output = ChannelFactory.CreateChannel();
+            _input = ChannelFactory.Create();
+            _output = ChannelFactory.Create();
 
             ShutdownSocketWhenWritingCompletedAsync();
             ReceiveFromSocketAndPushToChannelAsync();
@@ -87,14 +87,14 @@ namespace Channels.Networking.Sockets
         /// <summary>
         /// Provides access to data received from the socket
         /// </summary>
-        public IReadableChannel Input => _input;
+        public IPipelineReader Input => _input;
 
         /// <summary>
         /// Provides access to write data to the socket
         /// </summary>
-        public IWritableChannel Output => _output;
+        public IPipelineWriter Output => _output;
 
-        private ChannelFactory ChannelFactory => _channelFactory;
+        private PipelineFactory ChannelFactory => _channelFactory;
 
         private Socket Socket => _socket;
 
@@ -103,7 +103,7 @@ namespace Channels.Networking.Sockets
         /// </summary>
         /// <param name="endPoint">The endpoint to which to connect</param>
         /// <param name="channelFactory">Optionally allows the underlying channel factory (and hence memory pool) to be specified; if one is not provided, a channel factory will be instantiated and owned by the connection</param>
-        public static Task<SocketConnection> ConnectAsync(IPEndPoint endPoint, ChannelFactory channelFactory = null)
+        public static Task<SocketConnection> ConnectAsync(IPEndPoint endPoint, PipelineFactory channelFactory = null)
         {
             var args = new SocketAsyncEventArgs();
             args.RemoteEndPoint = endPoint;
@@ -208,7 +208,7 @@ namespace Channels.Networking.Sockets
             {
                 if (e.SocketError == SocketError.Success)
                 {
-                    tcs.TrySetResult(new SocketConnection(e.ConnectSocket, (ChannelFactory)tcs.Task.AsyncState));
+                    tcs.TrySetResult(new SocketConnection(e.ConnectSocket, (PipelineFactory)tcs.Task.AsyncState));
                 }
                 else
                 {

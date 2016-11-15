@@ -10,9 +10,9 @@ namespace Channels.Samples
 {
     public class ChannelHttpContent : HttpContent
     {
-        private readonly IReadableChannel _output;
+        private readonly IPipelineReader _output;
 
-        public ChannelHttpContent(IReadableChannel output)
+        public ChannelHttpContent(IPipelineReader output)
         {
             _output = output;
         }

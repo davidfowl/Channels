@@ -6,7 +6,7 @@ namespace Channels
     /// <summary>
     /// Defines a class that provides a channel to which data can be written.
     /// </summary>
-    public interface IWritableChannel
+    public interface IPipelineWriter
     {
         /// <summary>
         /// Gets a task that completes when no more data will be read from the channel.

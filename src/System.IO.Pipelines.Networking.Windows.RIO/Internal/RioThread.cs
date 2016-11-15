@@ -27,7 +27,7 @@ namespace Channels.Networking.Windows.RIO.Internal
         private readonly Queue<NotifyBatch> _notifyBatches;
         private readonly Queue<NotifyBatch> _processedBatches;
 
-        private ChannelFactory _channelFactory;
+        private PipelineFactory _channelFactory;
         private Dictionary<long, RioTcpConnection> _connections;
         private List<BufferMapping> _bufferIdMappings;
 
@@ -37,7 +37,7 @@ namespace Channels.Networking.Windows.RIO.Internal
 
         public IntPtr CompletionPort => _completionPort;
 
-        public ChannelFactory ChannelFactory => _channelFactory;
+        public PipelineFactory ChannelFactory => _channelFactory;
 
         public RioThread(int id, CancellationToken token, IntPtr completionPort, IntPtr completionQueue, RegisteredIO rio)
         {
@@ -174,7 +174,7 @@ namespace Channels.Networking.Windows.RIO.Internal
             var memoryPool = new MemoryPool();
             memoryPool.RegisterSlabAllocationCallback((slab) => thread.OnSlabAllocated(slab));
             memoryPool.RegisterSlabDeallocationCallback((slab) => thread.OnSlabDeallocated(slab));
-            thread._channelFactory = new ChannelFactory(memoryPool);
+            thread._channelFactory = new PipelineFactory(memoryPool);
 
             thread.ProcessLogicalCompletions();
 
@@ -200,7 +200,7 @@ namespace Channels.Networking.Windows.RIO.Internal
             var memoryPool = new MemoryPool();
             memoryPool.RegisterSlabAllocationCallback((slab) => thread.OnSlabAllocated(slab));
             memoryPool.RegisterSlabDeallocationCallback((slab) => thread.OnSlabDeallocated(slab));
-            thread._channelFactory = new ChannelFactory(memoryPool);
+            thread._channelFactory = new PipelineFactory(memoryPool);
 
             thread.ProcessPhysicalCompletions();
 

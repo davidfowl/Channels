@@ -8,24 +8,24 @@ namespace Channels
     public static class StreamExtensions
     {
         /// <summary>
-        /// Adapts a <see cref="Stream"/> into a <see cref="IWritableChannel"/>.
+        /// Adapts a <see cref="Stream"/> into a <see cref="IPipelineWriter"/>.
         /// </summary>
         /// <param name="stream"></param>
         /// <returns></returns>
-        public static IWritableChannel AsWritableChannel(this Stream stream)
+        public static IPipelineWriter AsPipelineWriter(this Stream stream)
         {
-            return (stream as IWritableChannel) ?? stream.AsWritableChannel(ArrayBufferPool.Instance);
+            return (stream as IPipelineWriter) ?? stream.AsPipelineWriter(ArrayBufferPool.Instance);
         }
 
         /// <summary>
-        /// Adapts a <see cref="Stream"/> into a <see cref="IWritableChannel"/>.
+        /// Adapts a <see cref="Stream"/> into a <see cref="IPipelineWriter"/>.
         /// </summary>
         /// <param name="stream"></param>
         /// <param name="pool"></param>
         /// <returns></returns>
-        public static IWritableChannel AsWritableChannel(this Stream stream, IBufferPool pool)
+        public static IPipelineWriter AsPipelineWriter(this Stream stream, IBufferPool pool)
         {
-            var channel = new Channel(pool);
+            var channel = new PipelineReaderWriter(pool);
             channel.CopyToAsync(stream).ContinueWith((task) =>
             {
                 if (task.IsFaulted)
@@ -42,23 +42,23 @@ namespace Channels
         }
 
         /// <summary>
-        /// Adapts a <see cref="Stream"/> into a <see cref="IReadableChannel"/>.
+        /// Adapts a <see cref="Stream"/> into a <see cref="IPipelineReader"/>.
         /// </summary>
         /// <param name="stream"></param>
         /// <returns></returns>
-        public static IReadableChannel AsReadableChannel(this Stream stream) => AsReadableChannel(stream, CancellationToken.None);
+        public static IPipelineReader AsPipelineReader(this Stream stream) => AsPipelineReader(stream, CancellationToken.None);
 
         /// <summary>
-        /// Adapts a <see cref="Stream"/> into a <see cref="IReadableChannel"/>.
+        /// Adapts a <see cref="Stream"/> into a <see cref="IPipelineReader"/>.
         /// </summary>
         /// <param name="stream"></param>
         /// <param name="cancellationToken"></param>
         /// <returns></returns>
-        public static IReadableChannel AsReadableChannel(this Stream stream, CancellationToken cancellationToken)
+        public static IPipelineReader AsPipelineReader(this Stream stream, CancellationToken cancellationToken)
         {
-            if (stream is IReadableChannel)
+            if (stream is IPipelineReader)
             {
-                return (IReadableChannel)stream;
+                return (IPipelineReader)stream;
             }
 
             var streamAdaptor = new UnownedBufferStream(stream);
@@ -67,12 +67,12 @@ namespace Channels
         }
 
         /// <summary>
-        /// Copies the content of a <see cref="Stream"/> into a <see cref="IWritableChannel"/>.
+        /// Copies the content of a <see cref="Stream"/> into a <see cref="IPipelineWriter"/>.
         /// </summary>
         /// <param name="stream"></param>
         /// <param name="channel"></param>
         /// <returns></returns>
-        public static Task CopyToAsync(this Stream stream, IWritableChannel channel)
+        public static Task CopyToAsync(this Stream stream, IPipelineWriter channel)
         {
             return stream.CopyToAsync(new StreamChannel(channel));
         }
@@ -80,9 +80,9 @@ namespace Channels
         private class UnownedBufferStream : Stream
         {
             private readonly Stream _stream;
-            private readonly UnownedBufferChannel _channel;
+            private readonly UnownedBufferReader _channel;
 
-            public IReadableChannel Channel => _channel;
+            public IPipelineReader Channel => _channel;
 
             public override bool CanRead => false;
             public override bool CanSeek => false;
@@ -114,7 +114,7 @@ namespace Channels
             public UnownedBufferStream(Stream stream)
             {
                 _stream = stream;
-                _channel = new UnownedBufferChannel();
+                _channel = new UnownedBufferReader();
             }
 
             public override void Write(byte[] buffer, int offset, int count)
@@ -170,9 +170,9 @@ namespace Channels
 
         private class StreamChannel : Stream
         {
-            private IWritableChannel _channel;
+            private IPipelineWriter _channel;
 
-            public StreamChannel(IWritableChannel channel)
+            public StreamChannel(IPipelineWriter channel)
             {
                 _channel = channel;
             }

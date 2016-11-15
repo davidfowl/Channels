@@ -6,13 +6,13 @@ using Microsoft.Win32.SafeHandles;
 
 namespace Channels.File
 {
-    public class ReadableFileChannel : ReadableChannel
+    public class ReadableFileChannel : PipelineReader
     {
         public ReadableFileChannel(MemoryPool pool) : base(pool)
         {
         }
 
-        public ReadableFileChannel(Channel channel) : base(channel)
+        public ReadableFileChannel(PipelineReaderWriter input) : base(input)
         {
         }
 
@@ -26,7 +26,7 @@ namespace Channels.File
 
             var readOperation = new ReadOperation
             {
-                Channel = _channel,
+                Writer = _input,
                 FileHandle = fileHandle,
                 ThreadPoolBoundHandle = handle,
                 IOCallback = IOCallback
@@ -35,7 +35,7 @@ namespace Channels.File
             var overlapped = new PreAllocatedOverlapped(IOCallback, readOperation, null);
             readOperation.PreAllocatedOverlapped = overlapped;
 
-            _channel.ReadingStarted.ContinueWith((t, state) =>
+            _input.ReadingStarted.ContinueWith((t, state) =>
             {
                 ((ReadOperation)state).Read();
             },
@@ -56,9 +56,9 @@ namespace Channels.File
             buffer.Advance((int)numBytes);
             var task = buffer.FlushAsync();
 
-            if (numBytes == 0 || operation.Channel.Writing.IsCompleted)
+            if (numBytes == 0 || operation.Writer.Writing.IsCompleted)
             {
-                operation.Channel.CompleteWriter();
+                operation.Writer.Complete();
 
                 // The operation can be disposed when there's nothing more to produce
                 operation.Dispose();
@@ -94,7 +94,7 @@ namespace Channels.File
 
             public unsafe NativeOverlapped* Overlapped { get; set; }
 
-            public Channel Channel { get; set; }
+            public IPipelineWriter Writer { get; set; }
 
             public Box<WritableBuffer> BoxedBuffer { get; set; }
 
@@ -102,7 +102,7 @@ namespace Channels.File
 
             public unsafe void Read()
             {
-                var buffer = Channel.Alloc(2048);
+                var buffer = Writer.Alloc(2048);
                 void* pointer;
                 if (!buffer.Memory.TryGetPointer(out pointer))
                 {
@@ -126,7 +126,7 @@ namespace Channels.File
                 int hr = Marshal.GetLastWin32Error();
                 if (hr != 997)
                 {
-                    Channel.CompleteWriter(Marshal.GetExceptionForHR(hr));
+                    Writer.Complete(Marshal.GetExceptionForHR(hr));
                 }
             }
 

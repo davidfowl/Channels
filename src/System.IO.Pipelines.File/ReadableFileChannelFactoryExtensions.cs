@@ -7,9 +7,9 @@ namespace Channels.File
 {
     public static class ReadableFileChannelFactoryExtensions
     {
-        public static IReadableChannel ReadFile(this ChannelFactory factory, string path)
+        public static IPipelineReader ReadFile(this PipelineFactory factory, string path)
         {
-            var channel = factory.CreateChannel();
+            var channel = factory.Create();
 
             var file = new ReadableFileChannel(channel);
             file.OpenReadFile(path);

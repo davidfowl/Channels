@@ -6,64 +6,64 @@ namespace Channels.Compression
 {
     public static class CompressionChannelFactoryExtensions
     {
-        public static IReadableChannel DeflateDecompress(this IReadableChannel channel, ChannelFactory factory)
+        public static IPipelineReader DeflateDecompress(this IPipelineReader channel, PipelineFactory factory)
         {
             var inflater = new ReadableDeflateChannel(ZLibNative.Deflate_DefaultWindowBits);
-            return factory.MakeReadableChannel(channel, inflater.Execute);
+            return factory.CreateReader(channel, inflater.Execute);
         }
 
-        public static IReadableChannel DeflateCompress(this IReadableChannel channel, ChannelFactory factory, CompressionLevel compressionLevel)
+        public static IPipelineReader DeflateCompress(this IPipelineReader channel, PipelineFactory factory, CompressionLevel compressionLevel)
         {
             var deflater = new WritableDeflateChannel(compressionLevel, ZLibNative.Deflate_DefaultWindowBits);
-            return factory.MakeReadableChannel(channel, deflater.Execute);
+            return factory.CreateReader(channel, deflater.Execute);
         }
 
-        public static IReadableChannel GZipDecompress(this IReadableChannel channel, ChannelFactory factory)
+        public static IPipelineReader GZipDecompress(this IPipelineReader channel, PipelineFactory factory)
         {
             var inflater = new ReadableDeflateChannel(ZLibNative.GZip_DefaultWindowBits);
-            return factory.MakeReadableChannel(channel, inflater.Execute);
+            return factory.CreateReader(channel, inflater.Execute);
         }
 
-        public static IWritableChannel GZipCompress(this IWritableChannel channel, ChannelFactory factory, CompressionLevel compressionLevel)
+        public static IPipelineWriter GZipCompress(this IPipelineWriter channel, PipelineFactory factory, CompressionLevel compressionLevel)
         {
             var deflater = new WritableDeflateChannel(compressionLevel, ZLibNative.GZip_DefaultWindowBits);
-            return factory.MakeWriteableChannel(channel, deflater.Execute);
+            return factory.CreateWriter(channel, deflater.Execute);
         }
 
-        public static IReadableChannel GZipCompress(this IReadableChannel channel, ChannelFactory factory, CompressionLevel compressionLevel)
+        public static IPipelineReader GZipCompress(this IPipelineReader channel, PipelineFactory factory, CompressionLevel compressionLevel)
         {
             var deflater = new WritableDeflateChannel(compressionLevel, ZLibNative.GZip_DefaultWindowBits);
-            return factory.MakeReadableChannel(channel, deflater.Execute);
+            return factory.CreateReader(channel, deflater.Execute);
         }
 
-        public static IReadableChannel CreateDeflateDecompressChannel(this ChannelFactory factory, IReadableChannel channel)
+        public static IPipelineReader CreateDeflateDecompressChannel(this PipelineFactory factory, IPipelineReader channel)
         {
             var inflater = new ReadableDeflateChannel(ZLibNative.Deflate_DefaultWindowBits);
-            return factory.MakeReadableChannel(channel, inflater.Execute);
+            return factory.CreateReader(channel, inflater.Execute);
         }
 
-        public static IReadableChannel CreateDeflateCompressChannel(this ChannelFactory factory, IReadableChannel channel, CompressionLevel compressionLevel)
+        public static IPipelineReader CreateDeflateCompressChannel(this PipelineFactory factory, IPipelineReader channel, CompressionLevel compressionLevel)
         {
             var deflater = new WritableDeflateChannel(compressionLevel, ZLibNative.Deflate_DefaultWindowBits);
-            return factory.MakeReadableChannel(channel, deflater.Execute);
+            return factory.CreateReader(channel, deflater.Execute);
         }
 
-        public static IReadableChannel CreateGZipDecompressChannel(this ChannelFactory factory, IReadableChannel channel)
+        public static IPipelineReader CreateGZipDecompressChannel(this PipelineFactory factory, IPipelineReader channel)
         {
             var inflater = new ReadableDeflateChannel(ZLibNative.GZip_DefaultWindowBits);
-            return factory.MakeReadableChannel(channel, inflater.Execute);
+            return factory.CreateReader(channel, inflater.Execute);
         }
 
-        public static IWritableChannel CreateGZipCompressChannel(this ChannelFactory factory, IWritableChannel channel, CompressionLevel compressionLevel)
+        public static IPipelineWriter CreateGZipCompressChannel(this PipelineFactory factory, IPipelineWriter channel, CompressionLevel compressionLevel)
         {
             var deflater = new WritableDeflateChannel(compressionLevel, ZLibNative.GZip_DefaultWindowBits);
-            return factory.MakeWriteableChannel(channel, deflater.Execute);
+            return factory.CreateWriter(channel, deflater.Execute);
         }
 
-        public static IReadableChannel CreateGZipCompressChannel(this ChannelFactory factory, IReadableChannel channel, CompressionLevel compressionLevel)
+        public static IPipelineReader CreateGZipCompressChannel(this PipelineFactory factory, IPipelineReader channel, CompressionLevel compressionLevel)
         {
             var deflater = new WritableDeflateChannel(compressionLevel, ZLibNative.GZip_DefaultWindowBits);
-            return factory.MakeReadableChannel(channel, deflater.Execute);
+            return factory.CreateReader(channel, deflater.Execute);
         }
 
         private class WritableDeflateChannel
@@ -75,7 +75,7 @@ namespace Channels.Compression
                 _deflater = new Deflater(compressionLevel, bits);
             }
 
-            public async Task Execute(IReadableChannel input, IWritableChannel output)
+            public async Task Execute(IPipelineReader input, IPipelineWriter output)
             {
                 while (true)
                 {
@@ -204,7 +204,7 @@ namespace Channels.Compression
                 _inflater = new Inflater(bits);
             }
 
-            public async Task Execute(IReadableChannel input, IWritableChannel output)
+            public async Task Execute(IPipelineReader input, IPipelineWriter output)
             {
                 while (true)
                 {

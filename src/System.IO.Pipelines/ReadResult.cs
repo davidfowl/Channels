@@ -1,8 +1,8 @@
 ﻿namespace Channels
 {
-    public struct ChannelReadResult
+    public struct ReadResult
     {
-        public ChannelReadResult(ReadableBuffer buffer, bool isCompleted)
+        public ReadResult(ReadableBuffer buffer, bool isCompleted)
         {
             Buffer = buffer;
             IsCompleted = isCompleted;

@@ -37,9 +37,9 @@ namespace Channels.Tests
         [Fact]
         public async Task TakeTraversesSegments()
         {
-            using (var channelFactory = new ChannelFactory())
+            using (var channelFactory = new PipelineFactory())
             {
-                var channel = channelFactory.CreateChannel();
+                var channel = channelFactory.Create();
                 var w = channel.Alloc();
                 w.Append(ReadableBuffer.Create(new byte[] { 1 }, 0, 1));
                 w.Append(ReadableBuffer.Create(new byte[] { 2 }, 0, 1));
@@ -60,9 +60,9 @@ namespace Channels.Tests
         [Fact]
         public async Task PeekTraversesSegments()
         {
-            using (var channelFactory = new ChannelFactory())
+            using (var channelFactory = new PipelineFactory())
             {
-                var channel = channelFactory.CreateChannel();
+                var channel = channelFactory.Create();
                 var w = channel.Alloc();
                 w.Append(ReadableBuffer.Create(new byte[] { 1 }, 0, 1));
                 w.Append(ReadableBuffer.Create(new byte[] { 2 }, 0, 1));
@@ -83,9 +83,9 @@ namespace Channels.Tests
         [Fact]
         public async Task PeekWorkesWithEmptySegments()
         {
-            using (var channelFactory = new ChannelFactory())
+            using (var channelFactory = new PipelineFactory())
             {
-                var channel = channelFactory.CreateChannel();
+                var channel = channelFactory.Create();
                 var w = channel.Alloc();
                 w.Append(ReadableBuffer.Create(new byte[] { 0 }, 0, 0));
                 w.Append(ReadableBuffer.Create(new byte[] { 1 }, 0, 1));

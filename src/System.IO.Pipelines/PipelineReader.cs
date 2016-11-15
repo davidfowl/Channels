@@ -6,29 +6,29 @@ namespace Channels
     /// <summary>
     /// Represents a channel from which data can be read.
     /// </summary>
-    public abstract class ReadableChannel : IReadableChannel
+    public abstract class PipelineReader : IPipelineReader
     {
         /// <summary>
-        /// The underlying <see cref="Channel"/> the ReadableChannel communicates over.
+        /// The underlying <see cref="PipelineReaderWriter"/> the <see cref="PipelineReader"/> communicates over.
         /// </summary>
-        protected readonly Channel _channel;
+        protected readonly PipelineReaderWriter _input;
 
         /// <summary>
-        /// Creates a base <see cref="ReadableChannel"/>.
+        /// Creates a base <see cref="PipelineReader"/>.
         /// </summary>
         /// <param name="pool">The <see cref="IBufferPool"/> that buffers will be allocated from.</param>
-        protected ReadableChannel(IBufferPool pool)
+        protected PipelineReader(IBufferPool pool)
         {
-            _channel = new Channel(pool);
+            _input = new PipelineReaderWriter(pool);
         }
 
         /// <summary>
-        /// Creates a base <see cref="ReadableChannel"/>.
+        /// Creates a base <see cref="PipelineReader"/>.
         /// </summary>
-        /// <param name="channel">The <see cref="Channel"/> the ReadableChannel communicates over.</param>
-        protected ReadableChannel(Channel channel)
+        /// <param name="input">The <see cref="PipelineReaderWriter"/> the ReadableChannel communicates over.</param>
+        protected PipelineReader(PipelineReaderWriter input)
         {
-            _channel = channel;
+            _input = input;
         }
 
         /// <summary>
@@ -40,18 +40,18 @@ namespace Channels
         /// The memory for the consumed data will be released and no longer available.
         /// The examined data communicates to the channel when it should signal more data is available.
         /// </remarks>
-        public void Advance(ReadCursor consumed, ReadCursor examined) => _channel.AdvanceReader(consumed, examined);
+        public void Advance(ReadCursor consumed, ReadCursor examined) => _input.AdvanceReader(consumed, examined);
 
         /// <summary>
         /// Signal to the producer that the consumer is done reading.
         /// </summary>
         /// <param name="exception">Optional Exception indicating a failure that's causing the channel to complete.</param>
-        public void Complete(Exception exception = null) => _channel.CompleteReader(exception);
+        public void Complete(Exception exception = null) => _input.CompleteReader(exception);
 
         /// <summary>
-        /// Asynchronously reads a sequence of bytes from the current <see cref="ReadableChannel"/>.
+        /// Asynchronously reads a sequence of bytes from the current <see cref="PipelineReader"/>.
         /// </summary>
-        /// <returns>A <see cref="ReadableChannelAwaitable"/> representing the asynchronous read operation.</returns>
-        public ReadableChannelAwaitable ReadAsync() => _channel.ReadAsync();
+        /// <returns>A <see cref="ReadableBufferAwaitable"/> representing the asynchronous read operation.</returns>
+        public ReadableBufferAwaitable ReadAsync() => _input.ReadAsync();
     }
 }

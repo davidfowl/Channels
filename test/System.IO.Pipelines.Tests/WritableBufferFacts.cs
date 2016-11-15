@@ -15,7 +15,7 @@ namespace Channels.Tests
         {
             using (var memoryPool = new MemoryPool())
             {
-                var channel = new Channel(memoryPool);
+                var channel = new PipelineReaderWriter(memoryPool);
                 var buffer = channel.Alloc();
                 buffer.Advance(0); // doing nothing, the hard way
                 await buffer.FlushAsync();
@@ -33,7 +33,7 @@ namespace Channels.Tests
         {
             using (var memoryPool = new MemoryPool())
             {
-                var channel = new Channel(memoryPool);
+                var channel = new PipelineReaderWriter(memoryPool);
                 var buffer = channel.Alloc();
                 buffer.WriteUInt64(value);
                 await buffer.FlushAsync();
@@ -57,7 +57,7 @@ namespace Channels.Tests
             new Random(length).NextBytes(data);
             using (var memoryPool = new MemoryPool())
             {
-                var channel = new Channel(memoryPool);
+                var channel = new PipelineReaderWriter(memoryPool);
 
                 var output = channel.Alloc();
                 output.Write(data);
@@ -92,7 +92,7 @@ namespace Channels.Tests
             FillRandomStringData(data, length);
             using (var memoryPool = new MemoryPool())
             {
-                var channel = new Channel(memoryPool);
+                var channel = new PipelineReaderWriter(memoryPool);
 
                 var output = channel.Alloc();
                 output.WriteUtf8String(data);
@@ -127,7 +127,7 @@ namespace Channels.Tests
             FillRandomStringData(data, length);
             using (var memoryPool = new MemoryPool())
             {
-                var channel = new Channel(memoryPool);
+                var channel = new PipelineReaderWriter(memoryPool);
 
                 var output = channel.Alloc();
                 output.WriteAsciiString(data);
@@ -169,7 +169,7 @@ namespace Channels.Tests
         {
             using (var memoryPool = new MemoryPool())
             {
-                var channel = new Channel(memoryPool);
+                var channel = new PipelineReaderWriter(memoryPool);
                 var output = channel.Alloc();
 
                 Assert.True(output.AsReadableBuffer().IsEmpty);
@@ -207,7 +207,7 @@ namespace Channels.Tests
         {
             using (var memoryPool = new MemoryPool())
             {
-                var channel = new Channel(memoryPool);
+                var channel = new PipelineReaderWriter(memoryPool);
 
                 var output = channel.Alloc();
 
@@ -248,7 +248,7 @@ namespace Channels.Tests
         { // not really an expectation; just an accepted caveat
             using (var memoryPool = new MemoryPool())
             {
-                var channel = new Channel(memoryPool);
+                var channel = new PipelineReaderWriter(memoryPool);
 
                 var output = channel.Alloc();
                 var readable = output.AsReadableBuffer();
@@ -266,7 +266,7 @@ namespace Channels.Tests
             new Random().NextBytes(chunk);
             using (var memoryPool = new MemoryPool())
             {
-                var channel = new Channel(memoryPool);
+                var channel = new PipelineReaderWriter(memoryPool);
 
                 var output = channel.Alloc();
 
@@ -290,9 +290,9 @@ namespace Channels.Tests
         [Fact]
         public void EnsureMoreThanPoolBlockSizeThrows()
         {
-            using (var cf = new ChannelFactory())
+            using (var cf = new PipelineFactory())
             {
-                var channel = cf.CreateChannel();
+                var channel = cf.Create();
                 var buffer = channel.Alloc();
                 Assert.Throws<ArgumentOutOfRangeException>(() => buffer.Ensure(8192));
             }
@@ -314,9 +314,9 @@ namespace Channels.Tests
         [MemberData(nameof(HexNumbers))]
         public void WriteHex(int value, string hex)
         {
-            using (var cf = new ChannelFactory())
+            using (var cf = new PipelineFactory())
             {
-                var channel = cf.CreateChannel();
+                var channel = cf.Create();
                 var buffer = channel.Alloc();
                 buffer.WriteHex(value);
 

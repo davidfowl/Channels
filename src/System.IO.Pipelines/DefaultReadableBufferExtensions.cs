@@ -35,7 +35,7 @@ namespace Channels
             }
         }
 
-        public static async Task<ReadableBuffer> ReadToEndAsync(this IReadableChannel input)
+        public static async Task<ReadableBuffer> ReadToEndAsync(this IPipelineReader input)
         {
             while (true)
             {

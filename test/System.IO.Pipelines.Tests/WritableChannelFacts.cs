@@ -14,7 +14,7 @@ namespace Channels.Tests
         {
             var stream = new MemoryStream();
 
-            var channel = stream.AsWritableChannel();
+            var channel = stream.AsPipelineWriter();
 
             var buffer = channel.Alloc();
             buffer.WriteUtf8String("Hello World");
@@ -28,7 +28,7 @@ namespace Channels.Tests
         {
             var stream = new MemoryStream();
 
-            var channel = stream.AsWritableChannel();
+            var channel = stream.AsPipelineWriter();
 
             var buffer = channel.Alloc();
             buffer.WriteUtf8String("Hello World");
@@ -38,7 +38,7 @@ namespace Channels.Tests
 
             channel.Complete();
 
-            channel = stream.AsWritableChannel();
+            channel = stream.AsPipelineWriter();
 
             buffer = channel.Alloc();
             buffer.WriteUtf8String("Hello World");
@@ -54,7 +54,7 @@ namespace Channels.Tests
         {
             var stream = new MemoryStream();
 
-            var channel = stream.AsWritableChannel();
+            var channel = stream.AsPipelineWriter();
 
             var buffer = channel.Alloc();
             buffer.WriteUtf8String("Hello World");
@@ -76,7 +76,7 @@ namespace Channels.Tests
         {
             var stream = new MemoryStream();
 
-            var channel = stream.AsWritableChannel();
+            var channel = stream.AsPipelineWriter();
 
             var buffer = channel.Alloc();
             buffer.WriteUtf8String("Hello World");
@@ -91,7 +91,7 @@ namespace Channels.Tests
         {
             using (var stream = new MyCustomStream())
             {
-                var outputChannel = stream.AsWritableChannel();
+                var outputChannel = stream.AsPipelineWriter();
 
                 var output = outputChannel.Alloc();
                 output.WriteUtf8String("Hello World");
@@ -104,9 +104,9 @@ namespace Channels.Tests
             }
         }
 
-        private class MyCustomStream : Stream, IWritableChannel
+        private class MyCustomStream : Stream, IPipelineWriter
         {
-            private readonly Channel _channel = new Channel(ArrayBufferPool.Instance);
+            private readonly PipelineReaderWriter _channel = new PipelineReaderWriter(ArrayBufferPool.Instance);
 
             public override bool CanRead => true;
 

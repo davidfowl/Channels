@@ -10,7 +10,7 @@ namespace Channels.Samples
     {
         public static void Run()
         {
-            using (var cf = new ChannelFactory())
+            using (var cf = new PipelineFactory())
             {
                 var filePath = Path.GetFullPath("Program.cs");
 
@@ -28,7 +28,7 @@ namespace Channels.Samples
                               .DeflateDecompress(cf);
 
                 // Wrap the console in a writable channel
-                var output = cf.MakeWriteableChannel(Console.OpenStandardOutput());
+                var output = cf.CreateWriter(Console.OpenStandardOutput());
 
                 // Copy from the file channel to the console channel
                 input.CopyToAsync(output).GetAwaiter().GetResult();

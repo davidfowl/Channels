@@ -17,9 +17,9 @@ namespace Channels.Tests
         [Fact]
         public async Task TestIndexOfWorksForAllLocations()
         {
-            using (var cf = new ChannelFactory())
+            using (var cf = new PipelineFactory())
             {
-                var channel = cf.CreateChannel();
+                var channel = cf.Create();
                 const int Size = 5 * 4032; // multiple blocks
 
                 // populate with a pile of dummy data
@@ -46,9 +46,9 @@ namespace Channels.Tests
         [Fact]
         public async Task EqualsDetectsDeltaForAllLocations()
         {
-            using (var cf = new ChannelFactory())
+            using (var cf = new PipelineFactory())
             {
-                var channel = cf.CreateChannel();
+                var channel = cf.Create();
 
                 // populate with dummy data
                 const int DataSize = 10000;
@@ -101,9 +101,9 @@ namespace Channels.Tests
         [Fact]
         public async Task GetUInt64GivesExpectedValues()
         {
-            using (var cf = new ChannelFactory())
+            using (var cf = new PipelineFactory())
             {
-                var channel = cf.CreateChannel();
+                var channel = cf.Create();
 
                 var writeBuffer = channel.Alloc();
                 writeBuffer.Ensure(50);
@@ -126,9 +126,9 @@ namespace Channels.Tests
         [InlineData("\thell o ", "hell o ")]
         public async Task TrimStartTrimsWhitespaceAtStart(string input, string expected)
         {
-            using (var cf = new ChannelFactory())
+            using (var cf = new PipelineFactory())
             {
-                var channel = cf.CreateChannel();
+                var channel = cf.Create();
 
                 var writeBuffer = channel.Alloc();
                 var bytes = Encoding.ASCII.GetBytes(input);
@@ -152,9 +152,9 @@ namespace Channels.Tests
         [InlineData(" hell o\t", " hell o")]
         public async Task TrimEndTrimsWhitespaceAtEnd(string input, string expected)
         {
-            using (var cf = new ChannelFactory())
+            using (var cf = new PipelineFactory())
             {
-                var channel = cf.CreateChannel();
+                var channel = cf.Create();
 
                 var writeBuffer = channel.Alloc();
                 var bytes = Encoding.ASCII.GetBytes(input);
@@ -179,9 +179,9 @@ namespace Channels.Tests
         {
             var sliceToBytes = Encoding.UTF8.GetBytes(sliceTo);
 
-            using (var cf = new ChannelFactory())
+            using (var cf = new PipelineFactory())
             {
-                var channel = cf.CreateChannel();
+                var channel = cf.Create();
 
                 var writeBuffer = channel.Alloc();
                 var bytes = Encoding.UTF8.GetBytes(input);
@@ -295,9 +295,9 @@ namespace Channels.Tests
             // note: different expectation to string.Split; empty has 0 outputs
             var expected = input == "" ? new string[0] : input.Split(delimiter);
 
-            using (var channelFactory = new ChannelFactory())
+            using (var channelFactory = new PipelineFactory())
             {
-                var channel = channelFactory.CreateChannel();
+                var channel = channelFactory.Create();
                 var output = channel.Alloc();
                 output.WriteUtf8String(input);
 
@@ -333,9 +333,9 @@ namespace Channels.Tests
             byte[] chunk = { 0, 1, 2, 3, 4, 5, 6, 7 };
             var span = new Span<byte>(chunk);
 
-            using (var cf = new ChannelFactory())
+            using (var cf = new PipelineFactory())
             {
-                var channel = cf.CreateChannel();
+                var channel = cf.Create();
                 var output = channel.Alloc();
                 output.Write(span);
                 var readable = output.AsReadableBuffer();
@@ -357,9 +357,9 @@ namespace Channels.Tests
         [Fact]
         public async Task ReadTWorksAgainstMultipleBuffers()
         {
-            using (var cf = new ChannelFactory())
+            using (var cf = new PipelineFactory())
             {
-                var channel = cf.CreateChannel();
+                var channel = cf.Create();
                 var output = channel.Alloc();
 
                 // we're going to try to force 3 buffers for 8 bytes
@@ -400,9 +400,9 @@ namespace Channels.Tests
         [Fact]
         public async Task CopyToAsync()
         {
-            using (var cf = new ChannelFactory())
+            using (var cf = new PipelineFactory())
             {
-                var channel = cf.CreateChannel();
+                var channel = cf.Create();
                 var output = channel.Alloc();
                 output.WriteAsciiString("Hello World");
                 await output.FlushAsync();
@@ -422,9 +422,9 @@ namespace Channels.Tests
         public async Task CopyToAsyncNativeMemory()
         {
             using (var pool = new NativePool())
-            using (var cf = new ChannelFactory(pool))
+            using (var cf = new PipelineFactory(pool))
             {
-                var channel = cf.CreateChannel();
+                var channel = cf.Create();
                 var output = channel.Alloc();
                 output.WriteAsciiString("Hello World");
                 await output.FlushAsync();
@@ -482,9 +482,9 @@ namespace Channels.Tests
         [Fact]
         public void ReadableBufferSequenceWorks()
         {
-            using (var cf = new ChannelFactory())
+            using (var cf = new PipelineFactory())
             {
-                var channel = cf.CreateChannel();
+                var channel = cf.Create();
                 var output = channel.Alloc();
 
                 {
