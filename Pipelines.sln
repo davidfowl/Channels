@@ -1,0 +1,95 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 14
+VisualStudioVersion = 14.0.25420.1
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{7FA56B23-A28C-49A2-AB04-23BD0F485DA6}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{51164FA9-5214-4542-9C74-02D57E956F97}"
+	ProjectSection(SolutionItems) = preProject
+		.travis.yml = .travis.yml
+		appveyor.yml = appveyor.yml
+		global.json = global.json
+		NuGet.config = NuGet.config
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "samples", "samples", "{5C457C3C-ED7C-4B4E-9E02-0655F8CE6EFE}"
+EndProject
+Project("{8BB2217D-0F2D-49D1-97BC-3654ED321F3B}") = "Channels.Samples", "samples\Channels.Samples\Channels.Samples.xproj", "{3DCB0F92-51AE-493E-A1B6-5B42449EA2BD}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "test", "test", "{B0C65C7D-4E97-4AD9-9613-17F3987DE626}"
+EndProject
+Project("{8BB2217D-0F2D-49D1-97BC-3654ED321F3B}") = "System.IO.Pipelines", "src\System.IO.Pipelines\System.IO.Pipelines.xproj", "{A712AE2E-C98E-4E83-9B33-789141763541}"
+EndProject
+Project("{8BB2217D-0F2D-49D1-97BC-3654ED321F3B}") = "System.IO.Pipelines.Compression", "src\System.IO.Pipelines.Compression\System.IO.Pipelines.Compression.xproj", "{2F02C533-538E-4F0D-A5DE-D029D99A49BD}"
+EndProject
+Project("{8BB2217D-0F2D-49D1-97BC-3654ED321F3B}") = "System.IO.Pipelines.File", "src\System.IO.Pipelines.File\System.IO.Pipelines.File.xproj", "{7E8AC800-7D57-4645-83F5-FA101090D648}"
+EndProject
+Project("{8BB2217D-0F2D-49D1-97BC-3654ED321F3B}") = "System.IO.Pipelines.Networking.Libuv", "src\System.IO.Pipelines.Networking.Libuv\System.IO.Pipelines.Networking.Libuv.xproj", "{5A7899EB-9366-477C-A0BC-A813D4211E78}"
+EndProject
+Project("{8BB2217D-0F2D-49D1-97BC-3654ED321F3B}") = "System.IO.Pipelines.Networking.Windows.RIO", "src\System.IO.Pipelines.Networking.Windows.RIO\System.IO.Pipelines.Networking.Windows.RIO.xproj", "{2D38272E-5E48-4ADE-9321-C73952613E70}"
+EndProject
+Project("{8BB2217D-0F2D-49D1-97BC-3654ED321F3B}") = "System.IO.Pipelines.Text.Primitives", "src\System.IO.Pipelines.Text.Primitives\System.IO.Pipelines.Text.Primitives.xproj", "{B9FA069D-D447-4303-9426-8BD4158E537C}"
+EndProject
+Project("{8BB2217D-0F2D-49D1-97BC-3654ED321F3B}") = "System.IO.Pipelines.Tests", "test\System.IO.Pipelines.Tests\System.IO.Pipelines.Tests.xproj", "{3A0C9831-F43A-420D-83B7-9ECC4EAEA39D}"
+EndProject
+Project("{8BB2217D-0F2D-49D1-97BC-3654ED321F3B}") = "System.IO.Pipelines.Networking.Sockets", "src\System.IO.Pipelines.Networking.Sockets\System.IO.Pipelines.Networking.Sockets.xproj", "{A5BDAB00-68C2-4661-AD49-735D94ECED06}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{3DCB0F92-51AE-493E-A1B6-5B42449EA2BD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3DCB0F92-51AE-493E-A1B6-5B42449EA2BD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3DCB0F92-51AE-493E-A1B6-5B42449EA2BD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3DCB0F92-51AE-493E-A1B6-5B42449EA2BD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A712AE2E-C98E-4E83-9B33-789141763541}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A712AE2E-C98E-4E83-9B33-789141763541}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A712AE2E-C98E-4E83-9B33-789141763541}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A712AE2E-C98E-4E83-9B33-789141763541}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2F02C533-538E-4F0D-A5DE-D029D99A49BD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2F02C533-538E-4F0D-A5DE-D029D99A49BD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2F02C533-538E-4F0D-A5DE-D029D99A49BD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2F02C533-538E-4F0D-A5DE-D029D99A49BD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{7E8AC800-7D57-4645-83F5-FA101090D648}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{7E8AC800-7D57-4645-83F5-FA101090D648}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{7E8AC800-7D57-4645-83F5-FA101090D648}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{7E8AC800-7D57-4645-83F5-FA101090D648}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5A7899EB-9366-477C-A0BC-A813D4211E78}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5A7899EB-9366-477C-A0BC-A813D4211E78}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5A7899EB-9366-477C-A0BC-A813D4211E78}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5A7899EB-9366-477C-A0BC-A813D4211E78}.Release|Any CPU.Build.0 = Release|Any CPU
+		{2D38272E-5E48-4ADE-9321-C73952613E70}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2D38272E-5E48-4ADE-9321-C73952613E70}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2D38272E-5E48-4ADE-9321-C73952613E70}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2D38272E-5E48-4ADE-9321-C73952613E70}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B9FA069D-D447-4303-9426-8BD4158E537C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B9FA069D-D447-4303-9426-8BD4158E537C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B9FA069D-D447-4303-9426-8BD4158E537C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B9FA069D-D447-4303-9426-8BD4158E537C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3A0C9831-F43A-420D-83B7-9ECC4EAEA39D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3A0C9831-F43A-420D-83B7-9ECC4EAEA39D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3A0C9831-F43A-420D-83B7-9ECC4EAEA39D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3A0C9831-F43A-420D-83B7-9ECC4EAEA39D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A5BDAB00-68C2-4661-AD49-735D94ECED06}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A5BDAB00-68C2-4661-AD49-735D94ECED06}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A5BDAB00-68C2-4661-AD49-735D94ECED06}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A5BDAB00-68C2-4661-AD49-735D94ECED06}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{3DCB0F92-51AE-493E-A1B6-5B42449EA2BD} = {5C457C3C-ED7C-4B4E-9E02-0655F8CE6EFE}
+		{A712AE2E-C98E-4E83-9B33-789141763541} = {7FA56B23-A28C-49A2-AB04-23BD0F485DA6}
+		{2F02C533-538E-4F0D-A5DE-D029D99A49BD} = {7FA56B23-A28C-49A2-AB04-23BD0F485DA6}
+		{7E8AC800-7D57-4645-83F5-FA101090D648} = {7FA56B23-A28C-49A2-AB04-23BD0F485DA6}
+		{5A7899EB-9366-477C-A0BC-A813D4211E78} = {7FA56B23-A28C-49A2-AB04-23BD0F485DA6}
+		{2D38272E-5E48-4ADE-9321-C73952613E70} = {7FA56B23-A28C-49A2-AB04-23BD0F485DA6}
+		{B9FA069D-D447-4303-9426-8BD4158E537C} = {7FA56B23-A28C-49A2-AB04-23BD0F485DA6}
+		{3A0C9831-F43A-420D-83B7-9ECC4EAEA39D} = {B0C65C7D-4E97-4AD9-9613-17F3987DE626}
+		{A5BDAB00-68C2-4661-AD49-735D94ECED06} = {7FA56B23-A28C-49A2-AB04-23BD0F485DA6}
+	EndGlobalSection
+EndGlobal

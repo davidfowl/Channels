@@ -1,28 +1,26 @@
 ﻿{
   "version": "0.2.0-beta-*",
-  "description": "Networking implementation of Channels based on Libuv",
+  "description": "Primitives for dealing with reading and writing text to and from channels",
   "packOptions": {
     "projectUrl": "https://github.com/davidfowl/Channels"
   },
   "buildOptions": {
     "allowUnsafe": true,
-    "keyFile": "../../tools/Key.snk"
+    "keyFile": "../../tools/Key.snk",
+    "xmlDoc": true
   },
 
   "dependencies": {
     "NETStandard.Library": "1.6.0",
-    "Channels": {
+    "System.Text.Formatting": "0.1.0-*",
+    "System.Text.Primitives": "0.1.0-*",
+    "System.IO.Pipelines": {
       "target": "project"
-    },
-    "Libuv": "1.9.0"
+    }
   },
 
   "frameworks": {
     "net451": {},
-    "netstandard1.3": {
-      "dependencies": {
-        "System.Threading.Thread": "4.0.0"
-      }
-    }
+    "netstandard1.3": {}
   }
 }

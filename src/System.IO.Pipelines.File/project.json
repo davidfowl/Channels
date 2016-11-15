@@ -8,7 +8,7 @@
   },
 
   "dependencies": {
-    "Channels": {
+    "System.IO.Pipelines": {
       "target": "project"
     },
     "System.Threading.Overlapped": "4.0.1"

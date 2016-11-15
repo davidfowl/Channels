@@ -1,6 +1,6 @@
 ﻿{
   "version": "0.2.0-beta-*",
-  "description": "Networking implementation of Channels based on Windows RIO",
+  "description": "Networking implementation of pipelines based on Windows RIO",
   "packOptions": {
     "projectUrl": "https://github.com/davidfowl/Channels"
   },
@@ -10,7 +10,7 @@
   },
 
   "dependencies": {
-    "Channels": {
+    "System.IO.Pipelines": {
       "target": "project"
     }
   },

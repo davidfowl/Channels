@@ -8,7 +8,7 @@
   },
 
   "dependencies": {
-    "Channels": {
+    "System.IO.Pipelines": {
       "target": "project"
     },
     "System.Diagnostics.Contracts": "4.0.1"

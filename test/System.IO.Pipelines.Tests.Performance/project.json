@@ -12,25 +12,25 @@
   },
 
   "dependencies": {
-    "Channels": {
+    "System.IO.Pipelines": {
       "target": "project"
     },
-    "Channels.Text.Primitives": {
+    "System.IO.Pipelines.Text.Primitives": {
       "target": "project"
     },
-    "Channels.Networking.Sockets": {
+    "System.IO.Pipelines.Networking.Sockets": {
       "target": "project"
     },
-    "Channels.Networking.Libuv": {
+    "System.IO.Pipelines.Networking.Libuv": {
       "target": "project"
     },
-    "Channels.Networking.Windows.RIO": {
+    "System.IO.Pipelines.Networking.Windows.RIO": {
       "target": "project"
     },
-    "Channels.File": {
+    "System.IO.Pipelines.File": {
       "target": "project"
     },
-    "Channels.Compression": {
+    "System.IO.Pipelines.Compression": {
       "target": "project"
     },
     "Newtonsoft.Json": "9.0.1",

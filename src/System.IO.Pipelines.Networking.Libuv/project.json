@@ -1,6 +1,6 @@
 ﻿{
   "version": "0.2.0-beta-*",
-  "description": "Networking implementation of Channels based on System.Net.Socket using the SocketAsyncEventArgs API",
+  "description": "Networking implementation of pipelines based on Libuv",
   "packOptions": {
     "projectUrl": "https://github.com/davidfowl/Channels"
   },
@@ -11,16 +11,17 @@
 
   "dependencies": {
     "NETStandard.Library": "1.6.0",
-    "Channels": {
+    "System.IO.Pipelines": {
       "target": "project"
-    }
+    },
+    "Libuv": "1.9.0"
   },
 
   "frameworks": {
-    "net451": { },
+    "net451": {},
     "netstandard1.3": {
       "dependencies": {
-        "System.Threading.ThreadPool":  "4.0.10"
+        "System.Threading.Thread": "4.0.0"
       }
     }
   }

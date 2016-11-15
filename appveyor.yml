@@ -8,15 +8,15 @@ before_test:
 test_script:
   # Build sample
   - dotnet build samples/Channels.Samples
-  - dotnet test test/Channels.Tests
+  - dotnet test test/System.IO.Pipelines.Tests
 
 after_test:
   # Build and pack source
-  - dotnet pack -c Release src/Channels --version-suffix %APPVEYOR_BUILD_NUMBER%
-  - dotnet pack -c Release src/Channels.Networking.Libuv --version-suffix %APPVEYOR_BUILD_NUMBER%
-  - dotnet pack -c Release src/Channels.Networking.Windows.RIO --version-suffix %APPVEYOR_BUILD_NUMBER%
-  - dotnet pack -c Release src/Channels.Networking.Sockets --version-suffix %APPVEYOR_BUILD_NUMBER%
-  - dotnet pack -c Release src/Channels.Text.Primitives --version-suffix %APPVEYOR_BUILD_NUMBER%
+  - dotnet pack -c Release src/System.IO.Pipelines --version-suffix %APPVEYOR_BUILD_NUMBER%
+  - dotnet pack -c Release src/System.IO.Pipelines.Networking.Libuv --version-suffix %APPVEYOR_BUILD_NUMBER%
+  - dotnet pack -c Release src/System.IO.Pipelines.Networking.Windows.RIO --version-suffix %APPVEYOR_BUILD_NUMBER%
+  - dotnet pack -c Release src/System.IO.Pipelines.Networking.Sockets --version-suffix %APPVEYOR_BUILD_NUMBER%
+  - dotnet pack -c Release src/System.IO.Pipelines.Text.Primitives --version-suffix %APPVEYOR_BUILD_NUMBER%
 
 
 artifacts:
