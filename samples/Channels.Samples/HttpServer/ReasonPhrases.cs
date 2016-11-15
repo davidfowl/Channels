@@ -1,7 +1,7 @@
 ﻿using System.Globalization;
 using System.Text;
 
-namespace Channels.Samples.Http
+namespace System.IO.Pipelines.Samples.Http
 {
     public static class ReasonPhrases
     {

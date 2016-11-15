@@ -4,7 +4,7 @@
 using System;
 using System.Runtime.InteropServices;
 
-namespace Channels.Networking.Windows.RIO.Internal
+namespace System.IO.Pipelines.Networking.Windows.RIO.Internal
 {
     [StructLayout(LayoutKind.Sequential)]
     public struct RioBufferSegment

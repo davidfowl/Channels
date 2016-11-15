@@ -1,7 +1,7 @@
 ﻿using System;
 using System.IO;
 
-namespace Channels
+namespace System.IO.Pipelines
 {
     internal class StreamPipelineConnection : IPipelineConnection
     {

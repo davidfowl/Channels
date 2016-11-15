@@ -2,10 +2,10 @@
 using System.IO;
 using System.Net;
 using System.Threading;
-using Channels.Networking.Libuv;
-using Channels.Text.Primitives;
+using System.IO.Pipelines.Networking.Libuv;
+using System.IO.Pipelines.Text.Primitives;
 
-namespace Channels.Samples
+namespace System.IO.Pipelines.Samples
 {
     public class RawLibuvHttpServerSample
     {

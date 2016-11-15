@@ -3,7 +3,7 @@ using System.Buffers;
 using System.Runtime.CompilerServices;
 using System.Text;
 
-namespace Channels
+namespace System.IO.Pipelines
 {
     public struct ReadCursor : IEquatable<ReadCursor>
     {

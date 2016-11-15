@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace Channels.Samples.Models
+namespace System.IO.Pipelines.Samples.Models
 {
     public class Pet
     {

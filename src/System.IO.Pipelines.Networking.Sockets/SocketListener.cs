@@ -3,7 +3,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 
-namespace Channels.Networking.Sockets
+namespace System.IO.Pipelines.Networking.Sockets
 {
     /// <summary>
     /// Allows a managed socket to be used as a server, listening on a designated address and accepting connections from clients

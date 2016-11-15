@@ -4,7 +4,7 @@ using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace Channels.Samples.Http
+namespace System.IO.Pipelines.Samples.Http
 {
     public class ServerAddress
     {

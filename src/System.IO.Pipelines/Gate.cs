@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Channels
+namespace System.IO.Pipelines
 {
     /// <summary>
     /// Simple awaitable gate - intended to synchronize a single producer with a single consumer to ensure the producer doesn't

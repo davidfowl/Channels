@@ -6,7 +6,7 @@ using System.Net;
 using System.Net.Http;
 using System.Threading.Tasks;
 
-namespace Channels.Samples
+namespace System.IO.Pipelines.Samples
 {
     public class ChannelHttpContent : HttpContent
     {

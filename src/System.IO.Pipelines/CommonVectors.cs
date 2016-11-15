@@ -1,7 +1,7 @@
 ﻿using System.Numerics;
 using System.Runtime.CompilerServices;
 
-namespace Channels
+namespace System.IO.Pipelines
 {
     // Move to text library?
     internal class CommonVectors

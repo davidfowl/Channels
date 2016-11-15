@@ -2,7 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 
-namespace Channels.Text.Primitives
+namespace System.IO.Pipelines.Text.Primitives
 {
     /// <summary>
     /// Supports a simple iteration over a sequence of buffers from a Split operation.

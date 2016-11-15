@@ -3,7 +3,7 @@ using System.Buffers;
 using System.Diagnostics;
 using System.Text;
 
-namespace Channels
+namespace System.IO.Pipelines
 {
     /// <summary>
     /// Block tracking object used by the byte buffer memory pool. A slab is a large allocation which is divided into smaller blocks. The

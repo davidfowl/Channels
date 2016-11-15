@@ -1,6 +1,6 @@
-﻿using Channels.Networking.Libuv;
-using Channels.Networking.Sockets;
-using Channels.Text.Primitives;
+﻿using System.IO.Pipelines.Networking.Libuv;
+using System.IO.Pipelines.Networking.Sockets;
+using System.IO.Pipelines.Text.Primitives;
 using System;
 using System.Diagnostics;
 using System.Net;
@@ -9,7 +9,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Xunit;
 
-namespace Channels.Tests
+namespace System.IO.Pipelines.Tests
 {
     public class SocketsFacts : IDisposable
     {

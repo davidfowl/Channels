@@ -5,13 +5,13 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Channels.Networking.Libuv;
-using Channels.Networking.Windows.RIO;
+using System.IO.Pipelines.Networking.Libuv;
+using System.IO.Pipelines.Networking.Windows.RIO;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Microsoft.AspNetCore.Http.Features;
 
-namespace Channels.Samples.Http
+namespace System.IO.Pipelines.Samples.Http
 {
     public class HttpServer : IServer
     {

@@ -1,4 +1,4 @@
-﻿using Channels.Networking.Sockets.Internal;
+﻿using System.IO.Pipelines.Networking.Sockets.Internal;
 using System;
 using System.Buffers;
 using System.Collections.Generic;
@@ -7,7 +7,7 @@ using System.Net.Sockets;
 using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 
-namespace Channels.Networking.Sockets
+namespace System.IO.Pipelines.Networking.Sockets
 {
     /// <summary>
     /// Represents a channel implementation using the async Socket API

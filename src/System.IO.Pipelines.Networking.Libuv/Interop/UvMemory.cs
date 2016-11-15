@@ -5,7 +5,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Threading;
 
-namespace Channels.Networking.Libuv.Interop
+namespace System.IO.Pipelines.Networking.Libuv.Interop
 {
     /// <summary>
     /// Summary description for UvMemory

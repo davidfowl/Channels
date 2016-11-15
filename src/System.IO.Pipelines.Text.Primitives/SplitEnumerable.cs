@@ -1,7 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 
-namespace Channels.Text.Primitives
+namespace System.IO.Pipelines.Text.Primitives
 {
     /// <summary>
     /// Exposes the enumerator, which supports a simple iteration over a collection of a specified type.

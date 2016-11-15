@@ -1,8 +1,8 @@
-﻿using Channels.Networking.Sockets.Internal;
+﻿using System.IO.Pipelines.Networking.Sockets.Internal;
 using System;
 using Xunit;
 
-namespace Channels.Tests
+namespace System.IO.Pipelines.Tests
 {
     public class BufferPoolFacts
     {

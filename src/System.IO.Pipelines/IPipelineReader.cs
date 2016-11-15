@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Channels
+namespace System.IO.Pipelines
 {
     /// <summary>
     /// Defines a class that provides a channel from which data can be read.

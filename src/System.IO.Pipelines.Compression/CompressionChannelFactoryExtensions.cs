@@ -2,7 +2,7 @@
 using System.IO.Compression;
 using System.Threading.Tasks;
 
-namespace Channels.Compression
+namespace System.IO.Pipelines.Compression
 {
     public static class CompressionChannelFactoryExtensions
     {

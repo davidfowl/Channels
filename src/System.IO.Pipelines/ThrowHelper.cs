@@ -2,7 +2,7 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
-namespace Channels
+namespace System.IO.Pipelines
 {
     internal class ThrowHelper
     {

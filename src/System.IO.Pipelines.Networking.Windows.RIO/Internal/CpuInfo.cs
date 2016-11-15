@@ -5,7 +5,7 @@ using System;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
-namespace Channels.Networking.Windows.RIO.Internal
+namespace System.IO.Pipelines.Networking.Windows.RIO.Internal
 {
     public static class CpuInfo
     {

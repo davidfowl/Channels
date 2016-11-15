@@ -5,7 +5,7 @@
 using System;
 using System.Runtime.InteropServices;
 
-namespace Channels.Compression
+namespace System.IO.Pipelines.Compression
 {
     internal static partial class ZLibNative
     {

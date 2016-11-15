@@ -1,10 +1,10 @@
 ﻿using System;
 using System.IO;
 using System.IO.Compression;
-using Channels.Compression;
-using Channels.File;
+using System.IO.Pipelines.Compression;
+using System.IO.Pipelines.File;
 
-namespace Channels.Samples
+namespace System.IO.Pipelines.Samples
 {
     public class CompressionSample
     {

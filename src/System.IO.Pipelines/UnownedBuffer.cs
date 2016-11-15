@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Buffers;
 
-namespace Channels
+namespace System.IO.Pipelines
 {
     /// <summary>
     /// Represents a buffer that is owned by an external component.

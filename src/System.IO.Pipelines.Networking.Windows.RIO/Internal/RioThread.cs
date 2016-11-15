@@ -6,9 +6,9 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Threading;
-using Channels.Networking.Windows.RIO.Internal.Winsock;
+using System.IO.Pipelines.Networking.Windows.RIO.Internal.Winsock;
 
-namespace Channels.Networking.Windows.RIO.Internal
+namespace System.IO.Pipelines.Networking.Windows.RIO.Internal
 {
     internal unsafe class RioThread
     {

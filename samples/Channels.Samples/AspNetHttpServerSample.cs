@@ -1,9 +1,9 @@
 ﻿using System.Text;
-using Channels.Samples.Http;
+using System.IO.Pipelines.Samples.Http;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 
-namespace Channels.Samples
+namespace System.IO.Pipelines.Samples
 {
     public class AspNetHttpServerSample
     {

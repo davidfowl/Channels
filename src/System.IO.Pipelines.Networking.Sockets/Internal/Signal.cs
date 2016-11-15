@@ -2,7 +2,7 @@
 using System.Runtime.CompilerServices;
 using System.Threading;
 
-namespace Channels.Networking.Sockets.Internal
+namespace System.IO.Pipelines.Networking.Sockets.Internal
 {
     /// <summary>
     /// Very lightweight awaitable gate - intended for use in high-volume single-producer/single-consumer

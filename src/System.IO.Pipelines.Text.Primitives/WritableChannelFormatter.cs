@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 using System.Text.Formatting;
 using System.Text;
 
-namespace Channels.Text.Primitives
+namespace System.IO.Pipelines.Text.Primitives
 {
     public class WritableChannelFormatter : ITextOutput
     {

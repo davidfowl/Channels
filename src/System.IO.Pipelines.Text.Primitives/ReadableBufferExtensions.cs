@@ -6,7 +6,7 @@ using System.Text;
 using System.Text.Parsing;
 using System.Text.Utf8;
 
-namespace Channels.Text.Primitives
+namespace System.IO.Pipelines.Text.Primitives
 {
     /// <summary>
     /// Extension methods 

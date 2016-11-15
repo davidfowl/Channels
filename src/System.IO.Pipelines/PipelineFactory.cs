@@ -5,7 +5,7 @@ using System.Linq;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 
-namespace Channels
+namespace System.IO.Pipelines
 {
     /// <summary>
     /// Factory used to creaet instances of various channels.

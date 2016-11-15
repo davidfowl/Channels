@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace Channels.Text.Primitives
+namespace System.IO.Pipelines.Text.Primitives
 {
     internal class AsciiUtilities
     {

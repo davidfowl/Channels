@@ -5,7 +5,7 @@ using System;
 using System.Buffers;
 using System.Runtime.CompilerServices;
 
-namespace Channels
+namespace System.IO.Pipelines
 {
     public struct ReadableBufferReader
     {

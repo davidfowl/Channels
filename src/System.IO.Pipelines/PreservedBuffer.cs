@@ -3,7 +3,7 @@
 
 using System;
 
-namespace Channels
+namespace System.IO.Pipelines
 {
     /// <summary>
     /// Represents a buffer that can read a sequential series of bytes.

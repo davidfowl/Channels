@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Channels
+namespace System.IO.Pipelines
 {
     /// <summary>
     /// Defines a class that provides a duplex channel from which data can be read from and written to.

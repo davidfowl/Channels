@@ -4,11 +4,11 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
-using Channels.Text.Primitives;
+using System.IO.Pipelines.Text.Primitives;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Primitives;
 
-namespace Channels.Samples.Http
+namespace System.IO.Pipelines.Samples.Http
 {
     public class RequestHeaderDictionary : IHeaderDictionary
     {

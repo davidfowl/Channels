@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using Microsoft.Win32.SafeHandles;
 
-namespace Channels.File
+namespace System.IO.Pipelines.File
 {
     public class ReadableFileChannel : PipelineReader
     {

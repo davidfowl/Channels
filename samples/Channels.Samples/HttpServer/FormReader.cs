@@ -1,9 +1,9 @@
 ﻿using System.Collections.Generic;
 using System.Numerics;
-using Channels.Text.Primitives;
+using System.IO.Pipelines.Text.Primitives;
 using Microsoft.Extensions.Primitives;
 
-namespace Channels.Samples.Http
+namespace System.IO.Pipelines.Samples.Http
 {
     public class FormReader
     {

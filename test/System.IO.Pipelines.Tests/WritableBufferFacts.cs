@@ -3,10 +3,10 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
-using Channels.Text.Primitives;
+using System.IO.Pipelines.Text.Primitives;
 using Xunit;
 
-namespace Channels.Tests
+namespace System.IO.Pipelines.Tests
 {
     public class WritableBufferFacts
     {

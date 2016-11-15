@@ -7,7 +7,7 @@ using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Channels
+namespace System.IO.Pipelines
 {
     /// <summary>
     /// Default <see cref="IPipelineWriter"/> and <see cref="IPipelineReader"/> implementation.

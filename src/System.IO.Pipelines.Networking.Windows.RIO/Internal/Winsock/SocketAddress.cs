@@ -3,7 +3,7 @@
 
 using System.Runtime.InteropServices;
 
-namespace Channels.Networking.Windows.RIO.Internal.Winsock
+namespace System.IO.Pipelines.Networking.Windows.RIO.Internal.Winsock
 {
     [StructLayout(LayoutKind.Sequential)]
     public unsafe struct SocketAddress

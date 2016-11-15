@@ -7,10 +7,10 @@ using System.Diagnostics;
 using System.Diagnostics.Contracts;
 using System.IO.Compression;
 using System.Security;
-using ZErrorCode = Channels.Compression.ZLibNative.ErrorCode;
-using ZFlushCode = Channels.Compression.ZLibNative.FlushCode;
+using ZErrorCode = System.IO.Pipelines.Compression.ZLibNative.ErrorCode;
+using ZFlushCode = System.IO.Pipelines.Compression.ZLibNative.FlushCode;
 
-namespace Channels.Compression
+namespace System.IO.Pipelines.Compression
 {
     /// <summary>
     /// Provides a wrapper around the ZLib compression API

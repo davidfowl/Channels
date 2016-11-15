@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
 
-namespace Channels
+namespace System.IO.Pipelines
 {
     /// <summary>
     /// Represents a channel from which data can be read.

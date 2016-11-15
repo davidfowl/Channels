@@ -4,7 +4,7 @@ using System.IO;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 
-namespace Channels
+namespace System.IO.Pipelines
 {
     /// <summary>
     /// Common extension methods against readable buffers

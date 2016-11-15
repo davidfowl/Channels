@@ -3,11 +3,11 @@ using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
-using Channels.Text.Primitives;
+using System.IO.Pipelines.Text.Primitives;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
 
-namespace Channels.Samples.Http
+namespace System.IO.Pipelines.Samples.Http
 {
     public partial class HttpConnection<TContext> : IHttpRequestFeature, IHttpResponseFeature, IFeatureCollection
     {

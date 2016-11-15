@@ -1,6 +1,6 @@
 ﻿using System.Net.Sockets;
 
-namespace Channels.Networking.Sockets.Internal
+namespace System.IO.Pipelines.Networking.Sockets.Internal
 {
     internal static class SocketExtensions
     {

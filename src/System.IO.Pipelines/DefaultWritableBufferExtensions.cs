@@ -2,7 +2,7 @@
 using System.Binary;
 using System.Runtime.CompilerServices;
 
-namespace Channels
+namespace System.IO.Pipelines
 {
     /// <summary>
     /// Common extension methods against writable buffers

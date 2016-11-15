@@ -6,7 +6,7 @@ using System.Buffers;
 using System.Diagnostics;
 using System.Text;
 
-namespace Channels
+namespace System.IO.Pipelines
 {
     // TODO: Pool segments
     internal class BufferSegment : IDisposable

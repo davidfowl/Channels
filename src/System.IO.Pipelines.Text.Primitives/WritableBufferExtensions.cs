@@ -2,7 +2,7 @@
 using System.Runtime;
 using System.Text;
 
-namespace Channels.Text.Primitives
+namespace System.IO.Pipelines.Text.Primitives
 {
     // These APIs suck since you can't pass structs by ref to extension methods and they are mutable structs...
     public static class WritableBufferExtensions

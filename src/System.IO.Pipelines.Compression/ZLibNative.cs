@@ -6,7 +6,7 @@ using System;
 using System.Runtime.InteropServices;
 using System.Security;
 
-namespace Channels.Compression
+namespace System.IO.Pipelines.Compression
 {
     /// <summary>
     /// This class provides declaration for constants and PInvokes as well as some basic tools for exposing the

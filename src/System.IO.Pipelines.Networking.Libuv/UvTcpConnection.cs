@@ -2,9 +2,9 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
-using Channels.Networking.Libuv.Interop;
+using System.IO.Pipelines.Networking.Libuv.Interop;
 
-namespace Channels.Networking.Libuv
+namespace System.IO.Pipelines.Networking.Libuv
 {
     public class UvTcpConnection : IPipelineConnection
     {

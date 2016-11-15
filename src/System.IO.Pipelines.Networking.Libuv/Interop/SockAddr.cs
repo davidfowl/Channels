@@ -4,7 +4,7 @@
 using System;
 using System.Net;
 
-namespace Channels.Networking.Libuv.Interop
+namespace System.IO.Pipelines.Networking.Libuv.Interop
 {
     public struct SockAddr
     {

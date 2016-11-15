@@ -3,10 +3,10 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Channels.Samples.Framing;
-using Channels.Text.Primitives;
+using System.IO.Pipelines.Samples.Framing;
+using System.IO.Pipelines.Text.Primitives;
 
-namespace Channels.Samples
+namespace System.IO.Pipelines.Samples
 {
     public class Program
     {

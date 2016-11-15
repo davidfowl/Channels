@@ -7,7 +7,7 @@ using System.Collections.Sequences;
 using System.Numerics;
 using System.Text;
 
-namespace Channels
+namespace System.IO.Pipelines
 {
     /// <summary>
     /// Represents a buffer that can read a sequential series of bytes.

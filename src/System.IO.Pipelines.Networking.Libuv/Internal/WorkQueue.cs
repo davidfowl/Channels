@@ -3,7 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Threading;
 
-namespace Channels.Networking.Libuv.Internal
+namespace System.IO.Pipelines.Networking.Libuv.Internal
 {
     // Lock free linked list that for multi producers and a single consumer
     internal class WorkQueue<T>

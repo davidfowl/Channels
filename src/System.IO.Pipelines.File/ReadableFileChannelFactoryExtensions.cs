@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace Channels.File
+namespace System.IO.Pipelines.File
 {
     public static class ReadableFileChannelFactoryExtensions
     {

@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Buffers;
 
-namespace Channels
+namespace System.IO.Pipelines
 {
     /// <summary>
     /// An interface that represents a <see cref="IBufferPool"/> that channels will use to allocate memory.

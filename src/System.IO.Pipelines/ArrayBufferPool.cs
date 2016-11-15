@@ -1,6 +1,6 @@
 ﻿using System.Buffers;
 
-namespace Channels
+namespace System.IO.Pipelines
 {
     public class ArrayBufferPool : IBufferPool
     {

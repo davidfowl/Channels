@@ -1,4 +1,4 @@
-﻿namespace Channels.Networking.Sockets.Internal
+﻿namespace System.IO.Pipelines.Networking.Sockets.Internal
 {
     /// <summary>
     /// Used by Signal to control how callbacks are invoked

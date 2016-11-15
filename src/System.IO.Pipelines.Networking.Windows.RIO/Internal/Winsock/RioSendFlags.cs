@@ -3,7 +3,7 @@
 
 using System;
 
-namespace Channels.Networking.Windows.RIO.Internal.Winsock
+namespace System.IO.Pipelines.Networking.Windows.RIO.Internal.Winsock
 {
     [Flags]
     public enum RioSendFlags : uint

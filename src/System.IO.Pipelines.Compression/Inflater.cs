@@ -8,7 +8,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Security;
 
-namespace Channels.Compression
+namespace System.IO.Pipelines.Compression
 {
     /// <summary>
     /// Provides a wrapper around the ZLib decompression API

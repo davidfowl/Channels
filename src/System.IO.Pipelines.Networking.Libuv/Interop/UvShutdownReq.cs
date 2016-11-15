@@ -3,7 +3,7 @@
 
 using System;
 
-namespace Channels.Networking.Libuv.Interop
+namespace System.IO.Pipelines.Networking.Libuv.Interop
 {
     /// <summary>
     /// Summary description for UvShutdownRequest

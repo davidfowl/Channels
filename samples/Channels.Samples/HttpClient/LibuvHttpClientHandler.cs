@@ -8,10 +8,10 @@ using System.Net.Sockets;
 using System.Numerics;
 using System.Threading;
 using System.Threading.Tasks;
-using Channels.Networking.Libuv;
-using Channels.Text.Primitives;
+using System.IO.Pipelines.Networking.Libuv;
+using System.IO.Pipelines.Text.Primitives;
 
-namespace Channels.Samples
+namespace System.IO.Pipelines.Samples
 {
     public class LibuvHttpClientHandler : HttpClientHandler
     {

@@ -2,10 +2,10 @@
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
-using Channels.Networking.Libuv.Interop;
-using Channels.Networking.Libuv.Internal;
+using System.IO.Pipelines.Networking.Libuv.Interop;
+using System.IO.Pipelines.Networking.Libuv.Internal;
 
-namespace Channels.Networking.Libuv
+namespace System.IO.Pipelines.Networking.Libuv
 {
     // This class needs a bunch of work to make sure it's thread safe
     public class UvThread : ICriticalNotifyCompletion, IDisposable

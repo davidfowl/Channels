@@ -1,7 +1,7 @@
-﻿using Channels.Samples.Http;
-using Channels.Text.Primitives;
+﻿using System.IO.Pipelines.Samples.Http;
+using System.IO.Pipelines.Text.Primitives;
 
-namespace Channels.Samples
+namespace System.IO.Pipelines.Samples
 {
     public class HttpRequestParser
     {

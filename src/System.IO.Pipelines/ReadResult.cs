@@ -1,4 +1,4 @@
-﻿namespace Channels
+﻿namespace System.IO.Pipelines
 {
     public struct ReadResult
     {

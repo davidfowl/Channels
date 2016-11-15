@@ -3,10 +3,10 @@
 
 using System;
 using System.Threading;
-using Channels.Networking.Windows.RIO.Internal;
-using Channels.Networking.Windows.RIO.Internal.Winsock;
+using System.IO.Pipelines.Networking.Windows.RIO.Internal;
+using System.IO.Pipelines.Networking.Windows.RIO.Internal.Winsock;
 
-namespace Channels.Networking.Windows.RIO
+namespace System.IO.Pipelines.Networking.Windows.RIO
 {
     public sealed class RioTcpServer
     {

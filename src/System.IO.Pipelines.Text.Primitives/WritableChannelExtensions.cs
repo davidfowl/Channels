@@ -3,7 +3,7 @@ using System.Text;
 using System.Text.Formatting;
 using System.Threading.Tasks;
 
-namespace Channels.Text.Primitives
+namespace System.IO.Pipelines.Text.Primitives
 {
     public static class WritableChannelExtensions
     {

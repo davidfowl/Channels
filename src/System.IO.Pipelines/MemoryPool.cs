@@ -4,7 +4,7 @@ using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
-namespace Channels
+namespace System.IO.Pipelines
 {
     /// <summary>
     /// Used to allocate and distribute re-usable blocks of memory.

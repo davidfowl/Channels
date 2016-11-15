@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Channels
+namespace System.IO.Pipelines
 {
     public interface IReadableBufferAwaiter
     {

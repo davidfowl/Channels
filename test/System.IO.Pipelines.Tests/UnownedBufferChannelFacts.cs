@@ -5,7 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 
-namespace Channels.Tests
+namespace System.IO.Pipelines.Tests
 {
     public class UnownedBufferChannelFacts
     {

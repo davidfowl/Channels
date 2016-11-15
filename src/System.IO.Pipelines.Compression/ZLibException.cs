@@ -5,9 +5,9 @@
 using System;
 using System.IO;
 using System.Security;
-using ZErrorCode = Channels.Compression.ZLibNative.ErrorCode;
+using ZErrorCode = System.IO.Pipelines.Compression.ZLibNative.ErrorCode;
 
-namespace Channels.Compression
+namespace System.IO.Pipelines.Compression
 {
     /// <summary>
     /// This is the exception that is thrown when a ZLib returns an error code indicating an unrecoverable error.

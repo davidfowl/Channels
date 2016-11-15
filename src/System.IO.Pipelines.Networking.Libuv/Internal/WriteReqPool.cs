@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Collections.Generic;
-using Channels.Networking.Libuv.Interop;
+using System.IO.Pipelines.Networking.Libuv.Interop;
 
-namespace Channels.Networking.Libuv.Internal
+namespace System.IO.Pipelines.Networking.Libuv.Internal
 {
     public class WriteReqPool
     {

@@ -5,7 +5,7 @@ using System;
 using System.Buffers;
 using System.Threading.Tasks;
 
-namespace Channels
+namespace System.IO.Pipelines
 {
     /// <summary>
     /// Represents a buffer that can write a sequential series of bytes.

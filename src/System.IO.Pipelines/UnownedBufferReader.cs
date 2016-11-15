@@ -5,7 +5,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Channels
+namespace System.IO.Pipelines
 {
     /// <summary>
     /// Channel which works in buffers which it does not own, as opposed to using a <see cref="IBufferPool"/>. Designed

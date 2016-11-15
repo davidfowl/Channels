@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace Channels
+namespace System.IO.Pipelines
 {
     /// <summary>
     /// An enumerator over the <see cref="ReadableBuffer"/>

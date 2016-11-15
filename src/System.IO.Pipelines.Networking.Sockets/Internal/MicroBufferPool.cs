@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace Channels.Networking.Sockets.Internal
+namespace System.IO.Pipelines.Networking.Sockets.Internal
 {
     /// <summary>
     /// Simple pool over a byte[] that returns segments, using a queue to

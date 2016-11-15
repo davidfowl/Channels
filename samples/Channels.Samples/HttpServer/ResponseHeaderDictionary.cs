@@ -3,13 +3,13 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Text;
 using System.Text.Formatting;
-using Channels;
-using Channels.Text.Primitives;
+using System.IO.Pipelines;
+using System.IO.Pipelines.Text.Primitives;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Internal.Http;
 using Microsoft.Extensions.Primitives;
 
-namespace Channels.Samples.Http
+namespace System.IO.Pipelines.Samples.Http
 {
     public class ResponseHeaderDictionary : IHeaderDictionary
     {
