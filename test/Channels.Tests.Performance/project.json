@@ -1,10 +1,10 @@
-﻿{
+{
   "buildOptions": {
     "warningsAsErrors": true,
     "keyFile": "../../tools/Key.snk",
     "allowUnsafe": true,
     "emitEntryPoint": true,
-    "copyToOutput": "random.json.gz"
+    "copyToOutput": [ "random.json.gz", "../../data/TestCert.pfx" ]
   },
 
   "publishOptions": {
@@ -33,8 +33,12 @@
     "Channels.Compression": {
       "target": "project"
     },
+    "Channels.Networking.TLS": {
+      "target": "project" 
+    },
     "Newtonsoft.Json": "9.0.1",
-    "System.Text.Json": "0.1.0-*"
+    "System.Text.Json": "0.1.0-*",
+    "Microsoft.Extensions.PlatformAbstractions": "1.0.0"
   },
   "frameworks": {
     "net46": {

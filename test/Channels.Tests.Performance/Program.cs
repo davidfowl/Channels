@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics;
 using BenchmarkDotNet.Configs;
 using BenchmarkDotNet.Diagnostics.Windows;
 using BenchmarkDotNet.Jobs;
@@ -17,7 +18,7 @@ namespace Channels.Tests.Performance
                 Console.WriteLine($"Please add benchmark to run as parameter:");
                 for (var i = 0; i < options.Length; i++)
                 {
-                    Console.WriteLine($"  {((BenchmarkType)options[i]).ToString()}" );
+                    Console.WriteLine($"  {((BenchmarkType)options[i]).ToString()}");
                 }
 
                 return;
@@ -32,6 +33,10 @@ namespace Channels.Tests.Performance
             {
                 BenchmarkRunner.Run<ChannelsStreamsBenchmark>();
             }
+            if(type.HasFlag(BenchmarkType.OpenSsl))
+            {
+                BenchmarkRunner.Run<TlsDataEncryptBenchmark>();
+            }
         }
     }
 
@@ -40,7 +45,7 @@ namespace Channels.Tests.Performance
     {
         Streams = 1,
         // add new ones in powers of two - e.g. 2,4,8,16...
-
+        OpenSsl = 2,
         All = uint.MaxValue
     }
 
@@ -55,6 +60,22 @@ namespace Channels.Tests.Performance
                 WithLaunchCount(3).
                 WithIterationTime(200). // 200ms per iteration
                 WithWarmupCount(5).
+                WithTargetCount(10));
+
+            Add(new MemoryDiagnoser());
+        }
+    }
+
+    public class LargerTestConfig : ManualConfig
+    {
+        public LargerTestConfig()
+        {
+            Add(Job.Default.
+                With(Platform.X64).
+                With(Jit.RyuJit).
+                With(Runtime.Clr).
+                WithLaunchCount(3).
+                WithWarmupCount(2).
                 WithTargetCount(10));
 
             Add(new MemoryDiagnoser());
