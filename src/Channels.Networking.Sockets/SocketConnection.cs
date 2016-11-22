@@ -29,7 +29,10 @@ namespace Channels.Networking.Sockets
         private static BufferStyle _bufferStyle;
         private static bool _seenReceiveZeroWithAvailable, _seenReceiveZeroWithEOF;
 
-        private static readonly byte[] _zeroLengthBuffer = new byte[0];
+        private static readonly bool _sioLoopbackEnabled;
+
+        private static readonly byte[] _zeroLengthBuffer = new byte[0],
+            _sioLoopbackValue = BitConverter.GetBytes(1);
 
 
         private readonly bool _ownsChannelFactory;
@@ -45,6 +48,9 @@ namespace Channels.Networking.Sockets
             {
                 // zero-length receive works fine
                 _bufferStyle = BufferStyle.UseZeroLengthBuffer;
+
+                // SIO loopback is windows only
+                _sioLoopbackEnabled = true;
             }
             else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX)
                 || RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
@@ -105,6 +111,17 @@ namespace Channels.Networking.Sockets
         /// <param name="channelFactory">Optionally allows the underlying channel factory (and hence memory pool) to be specified; if one is not provided, a channel factory will be instantiated and owned by the connection</param>
         public static Task<SocketConnection> ConnectAsync(IPEndPoint endPoint, ChannelFactory channelFactory = null)
         {
+            if (_sioLoopbackEnabled)
+            {
+                return Task.Run(() =>
+                {
+                    var socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+                    EnableSioLoopbach(socket);
+                    socket.Connect(endPoint);
+                    return new SocketConnection(socket, channelFactory);
+                });
+            }
+
             var args = new SocketAsyncEventArgs();
             args.RemoteEndPoint = endPoint;
             args.Completed += _asyncCompleted;
@@ -199,6 +216,20 @@ namespace Channels.Networking.Sockets
                 }
             }
             catch { }
+        }
+
+        private static void EnableSioLoopbach(Socket socket)
+        {
+            // SIO_LOOPBACK_FAST_PATH (http://msdn.microsoft.com/en-us/library/windows/desktop/jj841212%28v=vs.85%29.aspx)
+            // Speeds up localhost operations significantly. OK to apply to a socket that will not be hooked up to localhost,
+            // or will be subject to WFP filtering.
+            const int SIO_LOOPBACK_FAST_PATH = -1744830448;
+
+            try
+            {
+                socket.IOControl(SIO_LOOPBACK_FAST_PATH, _sioLoopbackValue, null);
+            }
+            catch { } // speculative only; not all OS versions
         }
 
         private static void OnConnect(SocketAsyncEventArgs e)
