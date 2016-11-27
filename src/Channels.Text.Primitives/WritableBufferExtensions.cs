@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Runtime;
 using System.Text;
+using Channels;
 
 namespace Channels.Text.Primitives
 {
@@ -19,8 +20,49 @@ namespace Channels.Text.Primitives
         public static void WriteAsciiString(this WritableBuffer buffer, string value)
             => WriteString(buffer, value, ASCIIEncoding);
 
+        /// <summary>
+        /// Allows terminating the string with a single byte eg a null terminated string
+        /// </summary>
+        public static void WriteAsciiTerminatedString(this WritableBuffer buffer, string value, byte terminator)
+            => WriteTerminatedString(buffer, value, terminator, ASCIIEncoding);
+
+        /// <summary>
+        /// Allows terminating the string with two bytes eg crlf
+        /// </summary>
+        public static void WriteAsciiTerminatedString(this WritableBuffer buffer, string value, byte terminator1, byte terminator2)
+            => WriteTerminatedString(buffer, value, terminator1, terminator2, ASCIIEncoding);
+
         public static void WriteUtf8String(this WritableBuffer buffer, string value)
             => WriteString(buffer, value, Utf8Encoding);
+
+        /// <summary>
+        /// Allows terminating the string with a single byte eg a null terminated string
+        /// </summary>
+        public static void WriteUtf8TerminatedString(this WritableBuffer buffer, string value, byte terminator)
+            => WriteTerminatedString(buffer, value, terminator, Utf8Encoding);
+
+        /// <summary>
+        /// Allows terminating the string with two bytes eg crlf
+        /// </summary>
+        public static void WriteUtf8TerminatedString(this WritableBuffer buffer, string value, byte terminator1, byte terminator2)
+            => WriteTerminatedString(buffer, value, terminator1, terminator2, Utf8Encoding);
+
+        private static void WriteTerminatedString(this WritableBuffer buffer,string value, byte terminator, Encoding encoding)
+        {
+            buffer.WriteString(value, encoding);
+            buffer.Ensure(2);
+            buffer.Memory.Write(terminator);
+            buffer.CommitBytes(1);
+        }
+
+        private static void WriteTerminatedString(this WritableBuffer buffer,string value, byte terminator1, byte terminator2, Encoding encoding)
+        {
+            buffer.WriteString(value, encoding);
+            buffer.Ensure(2);
+            buffer.Memory.Write(terminator1);
+            buffer.Memory.Slice(1).Write(terminator2);
+            buffer.CommitBytes(2);
+        }
 
         // review: make public?
         private static unsafe void WriteString(this WritableBuffer buffer, string value, Encoding encoding)
